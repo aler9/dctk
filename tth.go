@@ -95,15 +95,15 @@ func tthLeavesFromReader(in io.Reader) ([]byte,error) {
 }
 
 // ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
-func TTHFromLeaves(leafs []byte) string {
+func TTHFromLeaves(leaves []byte) string {
     hasher := tiger.New()
     var levels []*tthLevel
     levels = append(levels, &tthLevel{}) // add level zero
 
     for {
         var n int
-        if len(leafs) < 24 {
-            n = len(leafs)
+        if len(leaves) < 24 {
+            n = len(leaves)
         } else {
             n = 24
         }
@@ -112,8 +112,8 @@ func TTHFromLeaves(leafs []byte) string {
         }
 
         var sumToAdd [24]byte
-        copy(sumToAdd[:], leafs[:n])
-        leafs = leafs[n:]
+        copy(sumToAdd[:], leaves[:n])
+        leaves = leaves[n:]
 
         // upper level level hashes
         for curLevel := 0; curLevel < len(levels); curLevel++ {
