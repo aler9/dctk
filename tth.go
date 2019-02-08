@@ -1,4 +1,4 @@
-package dctk
+package dctoolkit
 
 import (
     "os"
