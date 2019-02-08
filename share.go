@@ -151,7 +151,7 @@ func (sm *shareIndexer) index() {
     }()
 
     // generate new list
-    fileList,err := filelistGenerate(sm.client.clientId, sm.client.conf.ListGenerator, shareTree)
+    fileList,err := fileListGenerate(sm.client.clientId, sm.client.conf.ListGenerator, shareTree)
     if err != nil {
         panic(err)
     }
