@@ -17,7 +17,8 @@ type flDirectory struct {
     Dirs    []*flDirectory   `xml:"Directory"`
 }
 
-type FileListing struct {
+type FileList struct {
+    XMLName     xml.Name
     Version     string          `xml:"Version,attr"`
     CID         string          `xml:"CID,attr"`
     Base        string          `xml:"Base,attr"`
@@ -25,8 +26,9 @@ type FileListing struct {
     Dirs        []*flDirectory  `xml:"Directory"`
 }
 
-func filelistGenerate(clientId string, generator string, tree map[string]*shareRootDirectory) ([]byte,error) {
-    fl := &FileListing{
+func fileListGenerate(clientId string, generator string, tree map[string]*shareRootDirectory) ([]byte,error) {
+    fl := &FileList{
+        XMLName: xml.Name{ Local: "FileListing" },
         Version: "1",
         CID: clientId,
         Base: "/",
