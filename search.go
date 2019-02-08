@@ -14,16 +14,16 @@ var reCmdSearchRes = regexp.MustCompile("^("+reStrNick+") (.+?) ([0-9]+)/([0-9]+
 
 type SearchType int
 const (
-    TypeInvalid SearchType  = 0
-    TypeAny                 = 1
-    TypeAudio               = 2
-    TypeCompressed          = 3
-    TypeDocument            = 4
-    TypeExe                 = 5
-    TypePicture             = 6
-    TypeVideo               = 7
-    TypeFolder              = 8
-    TypeTTH                 = 9
+    TypeInvalid     SearchType = 0
+    TypeAny         SearchType = 1
+    TypeAudio       SearchType = 2
+    TypeCompressed  SearchType = 3
+    TypeDocument    SearchType = 4
+    TypeExe         SearchType = 5
+    TypePicture     SearchType = 6
+    TypeVideo       SearchType = 7
+    TypeFolder      SearchType = 8
+    TypeTTH         SearchType = 9
 )
 
 type SearchConf struct {
