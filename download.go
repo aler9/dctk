@@ -9,10 +9,15 @@ import (
 )
 
 type DownloadConf struct {
+    // the nickname of the peer you want to download from
     Nick            string
+    // the TTH of the file you want to download
     TTH             string
+    // the starting point of the file part you want to download, in bytes
     Start           uint64
+    // the length of the file part. Leave zero if you want to download the entire file
     Length          int64
+    // after download, do not attempt to validate the file through its TTH
     SkipValidation  bool
     filelist        bool
 }
@@ -41,6 +46,7 @@ func (c *Client) DownloadFileList(nick string) (*Download,error) {
     })
 }
 
+// Download starts downloading a file asynchronously. See DownloadConf for the options
 func (c *Client) Download(conf DownloadConf) (*Download,error) {
     if conf.Length <= 0 {
         conf.Length = -1
@@ -74,10 +80,12 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     return d, nil
 }
 
+// Conf returns the configuration passed at download initialization
 func (d *Download) Conf() DownloadConf {
     return d.conf
 }
 
+// Content returns the downloaded file content
 func (d *Download) Content() []byte {
     return d.content
 }

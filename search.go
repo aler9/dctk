@@ -27,12 +27,17 @@ const (
 )
 
 type SearchConf struct {
+    // the search type, defaults to TypeAny. See SearchType for all the available options
     Type        SearchType
+    // the minimum size of the file you want to search
     MinSize     uint
+    // the maximum size of the file you want to search
     MaxSize     uint
+    // part of a file name, a directory name (if type is TypeFolder) or a TTH (if type is TypeTTH)
     Query       string
 }
 
+// Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
     if conf.Type == TypeInvalid {
         conf.Type = TypeAny

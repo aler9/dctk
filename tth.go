@@ -14,6 +14,8 @@ import (
 
 var reTTH = regexp.MustCompile("^"+reStrTTH+"$")
 
+// MagnetLink generates a link to a shared file. The link can be shared anywhere
+// and can be opened by most of the available DC clients, starting the download.
 func MagnetLink(name string, size uint64, tth string) string {
     return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%v&dn=%s",
         tth,
@@ -21,15 +23,19 @@ func MagnetLink(name string, size uint64, tth string) string {
         url.QueryEscape(name))
 }
 
+// TTHIsValid check the validity of a Tiger Tree Hash (TTH), the 39-digits string
+// associated to a specific shared file.
 func TTHIsValid(in string) bool {
     return reTTH.MatchString(in)
 }
 
+// TTHFromBytes computes the Tiger Tree Hash (TTH) of a given byte sequence.
 func TTHFromBytes(in []byte) string {
     ret,_ := tthFromReader(bytes.NewReader(in))
     return ret
 }
 
+// TTHFromFile computes the Tiger Tree Hash (TTH) of a given file.
 func TTHFromFile(fpath string) (string,error) {
     f,err := os.Open(fpath)
     if err != nil {
@@ -43,11 +49,17 @@ func TTHFromFile(fpath string) (string,error) {
     return tthFromReader(buf)
 }
 
+// TTHLeavesFromBytes computes the TTH leaves of a given byte sequence. The
+// leaves are a sequence of concatenated hashes that can be used to validate
+// the single parts of a certain file.
 func TTHLeavesFromBytes(in []byte) []byte {
     ret,_ := tthLeavesFromReader(bytes.NewReader(in))
     return ret
 }
 
+// TTHLeavesFromFile computes the TTH leaves of a given file. The
+// leaves are a sequence of concatenated hashes that can be used to validate
+// the single parts of a certain file.
 func TTHLeavesFromFile(fpath string) ([]byte,error) {
     f,err := os.Open(fpath)
     if err != nil {
@@ -94,7 +106,7 @@ func tthLeavesFromReader(in io.Reader) ([]byte,error) {
     return out, nil
 }
 
-// ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
+// TTHFromLeaves computes the Tiger Tree Hash (TTH) given a leaves sequence.
 func TTHFromLeaves(leaves []byte) string {
     hasher := tiger.New()
     var levels []*tthLevel

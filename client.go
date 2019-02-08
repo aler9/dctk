@@ -1,6 +1,7 @@
 // dctoolkit is a library that implements the client part of the Direct Connect
 // protocol (NeoModus DC) in the Go programming language. It allows the creation
-// of clients that can interact with hubs and other clients, and can be used as backend to user interfaces or automatic bots.
+// of clients that can interact with hubs and other clients, and can be used as
+// backend to user interfaces or automatic bots.
 package dctoolkit
 
 import (
@@ -24,35 +25,65 @@ type transfer interface {
 
 type EncryptionMode int
 const (
-    PreferEncryption EncryptionMode = iota // default value
+    // use encryption when the two peers both support it
+    PreferEncryption EncryptionMode = iota
+    // disable competely encryption
     DisableEncryption
+    // do not interact with peers that do not support encrypton
     ForceEncryption
 )
 
 type ClientConf struct {
+    // turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
+    // and TcpTlsPort on your router but functionalities are limited
     ModePassive                 bool
+    // whether to use the local IP instead of the IP of your internet provider
     PrivateIp                   bool
+    // one of the 3 ports needed for active mode. It must be accessible from the
+    // internet, so your router must be configured
     TcpPort                     uint
+    // one of the 3 ports needed for active mode. It must be accessible from the
+    // internet, so your router must be configured
     UdpPort                     uint
+    // one of the 3 ports needed for active mode. It must be accessible from the
+    // internet, so your router must be configured
     TcpTlsPort                  uint
+    // the maximum number of file to download in parallel. When this number is
+    // exceeded, the other downloads are queued and started when a slot is available
     DownloadMaxParallel         uint
+    // the maximum number of file to upload in parallel
     UploadMaxParallel           uint
+    // disables compression. Can be useful for debug purposes
     PeerDisableCompression      bool
+    // set the policy regarding encryption with other peers. See EncryptionMode for options
     PeerEncryptionMode          EncryptionMode
+    // The hub domain / IP address
     HubAddress                  string
+    // the hub port
     HubPort                     uint
+    // how many times attempting connection with hub before giving up
     HubConnTries                uint
+    // disables compression. Can be useful for debug purposes
     HubDisableCompression       bool
+    // if turned on, connection to hub is not automatic and HubConnect() must be
+    // called manually
     HubManualConnect            bool
+    // the nickname to use in the hub and with other peers
     Nick                        string
+    // the password associated with the nick, if requested by the hub
     Password                    string
+    // an email, optionall
     Email                       string
+    // a description, optional
     Description                 string
+    // the connection string, it influences the icon other peers see
     Connection                  string
+    // these are used to identify your client
     ClientString                string
     ClientVersion               string
     PkValue                     string
     ListGenerator               string
+    // these are variables sent to the hub, in this library they are static
     HubUnregisteredCount        uint
     HubRegisteredCount          uint
     HubOperatorCount            uint
@@ -84,21 +115,33 @@ type Client struct {
     transfers               map[transfer]struct{}
     activeDownloadsByPeer   map[string]*Download
 
-    // hooks
+    // called just after client initialization, before connecting to the hub
     OnInitialized           func()
+    // called every time the share indexer has finished indexing the client share
     OnShareIndexed          func()
+    // called when the connection between client and hub has been established
     OnHubConnected          func()
+    // called when a critical error happens
     OnHubError              func(err error)
+    // called when a peer connects to the hub
     OnPeerConnected         func(p *Peer)
+    // called when a peer has just updated its informations
     OnPeerUpdated           func(p *Peer)
+    // called when a peer disconnects from the hub
     OnPeerDisconnected      func(p *Peer)
+    // called when someone has written in the hub public chat
     OnPublicMessage         func(p *Peer, content string)
+    // called when a private message has been received
     OnPrivateMessage        func(p *Peer, content string)
+    // called when a seearch result has been received
     OnSearchResult          func(r *SearchResult)
+    // called when a given download has finished
     OnDownloadSuccessful    func(d *Download)
+    // called when a given download has failed
     OnDownloadError         func(d *Download)
 }
 
+// NewClient is used to initialize a client. See ClientConf for the available options.
 func NewClient(conf ClientConf) (*Client,error) {
     if conf.ModePassive == false && (conf.TcpPort == 0 || conf.UdpPort == 0) {
         return nil, fmt.Errorf("tcp and udp ports must be both set when in active mode")
@@ -196,6 +239,7 @@ func NewClient(conf ClientConf) (*Client,error) {
     return c, nil
 }
 
+// Terminate close every open connection and stop the client.
 func (c *Client) Terminate() {
     switch c.state {
     case "terminated":
@@ -206,6 +250,7 @@ func (c *Client) Terminate() {
     c.wakeUp <- struct{}{}
 }
 
+// Run starts the client and waits until the client has been terminated.
 func (c *Client) Run() {
     // get an ip
     if c.conf.ModePassive == false {
@@ -361,16 +406,21 @@ func (c *Client) revConnectToMe(target string) {
     }
 }
 
+// Safe is used to safely execute code outside the client context. It must be
+// used when interacting with the client outside the callbacks (i.e. inside a
+// parallel goroutine).
 func (c *Client) Safe(cb func()) {
     c.mutex.Lock()
     defer c.mutex.Unlock()
     cb()
 }
 
+// Conf returns the configuration passed during client initialization.
 func (c *Client) Conf() ClientConf {
     return c.conf
 }
 
+// DownloadCount returns the number of remaining queued downloads.
 func (c *Client) DownloadCount() int {
     count := 0
     for t,_ := range c.transfers {
@@ -381,14 +431,17 @@ func (c *Client) DownloadCount() int {
     return count
 }
 
+// Peers returns a map containing all the peers connected to current hub.
 func (c *Client) Peers() map[string]*Peer {
     return c.hubConn.peers
 }
 
+// PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
     c.hubConn.conn.Send <- msgPublicChat{ c.conf.Nick, content }
 }
 
+// PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
     c.hubConn.conn.Send <- msgPrivateChat{ c.conf.Nick, dest.Nick, content }
 }
