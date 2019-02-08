@@ -17,7 +17,7 @@ type flDirectory struct {
     Dirs    []*flDirectory   `xml:"Directory"`
 }
 
-type FileList struct {
+type fileList struct {
     XMLName     xml.Name
     Version     string          `xml:"Version,attr"`
     CID         string          `xml:"CID,attr"`
@@ -27,7 +27,7 @@ type FileList struct {
 }
 
 func fileListGenerate(clientId string, generator string, tree map[string]*shareRootDirectory) ([]byte,error) {
-    fl := &FileList{
+    fl := &fileList{
         XMLName: xml.Name{ Local: "FileListing" },
         Version: "1",
         CID: clientId,
