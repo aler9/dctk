@@ -34,14 +34,14 @@ type Download struct {
 
 func (*Download) isTransfer() {}
 
-func (client *Client) DownloadFileList(nick string) (*Download,error) {
-    return client.Download(DownloadConf{
+func (c *Client) DownloadFileList(nick string) (*Download,error) {
+    return c.Download(DownloadConf{
         Nick: nick,
         filelist: true,
     })
 }
 
-func (client *Client) Download(conf DownloadConf) (*Download,error) {
+func (c *Client) Download(conf DownloadConf) (*Download,error) {
     if conf.Length <= 0 {
         conf.Length = -1
     }
@@ -51,7 +51,7 @@ func (client *Client) Download(conf DownloadConf) (*Download,error) {
 
     d := &Download{
         conf: conf,
-        client: client,
+        client: c,
         wakeUp: make(chan struct{}, 1),
         state: "uninitialized",
         delegatedError: make(chan error),
