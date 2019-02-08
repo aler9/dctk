@@ -65,7 +65,7 @@ func (nr protocolNetConn) ReadByte() (byte, error) {
     return dest[0], err
 }
 
-type Protocol struct {
+type protocol struct {
     nconn               protocolNetConn
     remoteLabel         string
     Send                chan msgBase
@@ -83,8 +83,8 @@ type Protocol struct {
     binaryMode          bool
 }
 
-func newProtocol(nconn net.Conn, remoteLabel string, readTimeout time.Duration, writeTimeout time.Duration) *Protocol {
-    c := &Protocol{
+func newprotocol(nconn net.Conn, remoteLabel string, readTimeout time.Duration, writeTimeout time.Duration) *protocol {
+    c := &protocol{
         nconn: protocolNetConn{nconn},
         remoteLabel: remoteLabel,
         writeTimeout: writeTimeout,
@@ -97,7 +97,7 @@ func newProtocol(nconn net.Conn, remoteLabel string, readTimeout time.Duration, 
     return c
 }
 
-func (c *Protocol) terminate() {
+func (c *protocol) terminate() {
     if c.terminated == true {
         return
     }
@@ -110,7 +110,7 @@ func (c *Protocol) terminate() {
     }
 }
 
-func (c *Protocol) SetBinaryMode(val bool) {
+func (c *protocol) SetBinaryMode(val bool) {
     if val == c.binaryMode {
         return
     }
@@ -128,7 +128,7 @@ func (c *Protocol) SetBinaryMode(val bool) {
     }
 }
 
-func (c *Protocol) SetReadCompressionOn() error {
+func (c *protocol) SetReadCompressionOn() error {
     if c.activeReader == c.zlibReader {
         return fmt.Errorf("zlib already activated")
     }
@@ -144,7 +144,7 @@ func (c *Protocol) SetReadCompressionOn() error {
     return nil
 }
 
-func (c *Protocol) SetWriteCompression(val bool) {
+func (c *protocol) SetWriteCompression(val bool) {
     if (val && c.activeWriter == c.zlibWriter) ||
         (!val && c.activeWriter != c.zlibWriter) {
         return
@@ -161,7 +161,7 @@ func (c *Protocol) SetWriteCompression(val bool) {
     }
 }
 
-func (c *Protocol) writer() {
+func (c *protocol) writer() {
     for {
         command,ok := <- c.Send
         if ok == false {
@@ -179,7 +179,7 @@ func (c *Protocol) writer() {
     c.writerJoined <- struct{}{}
 }
 
-func (c *Protocol) WriteBinary(in []byte) error {
+func (c *protocol) WriteBinary(in []byte) error {
     if c.writeTimeout > 0 {
         if err := c.nconn.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
             return err
@@ -192,7 +192,7 @@ func (c *Protocol) WriteBinary(in []byte) error {
     return nil
 }
 
-func (c *Protocol) Receive() (msgBase,error) {
+func (c *protocol) Receive() (msgBase,error) {
     // Terminate() was called in a previous run
     if c.terminated == true {
         return nil, errorTerminated
@@ -200,7 +200,7 @@ func (c *Protocol) Receive() (msgBase,error) {
     return c.activeReceiver()
 }
 
-func (c *Protocol) receiveMessage() (msgBase,error) {
+func (c *protocol) receiveMessage() (msgBase,error) {
     for {
         if c.msgOffset >= len(c.msgBuffer) {
             return nil, fmt.Errorf("message buffer exhausted")
@@ -252,7 +252,7 @@ func (c *Protocol) receiveMessage() (msgBase,error) {
     }
 }
 
-func (c *Protocol) receiveBinary() (msgBase,error) {
+func (c *protocol) receiveBinary() (msgBase,error) {
     var buf [2048]byte
     for {
         read,err := c.activeReader.Read(buf[:])
