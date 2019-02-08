@@ -1,3 +1,6 @@
+// dctoolkit is a library that implements the client part of the Direct Connect
+// protocol (NeoModus DC) in the Go programming language. It allows the creation
+// of clients that can interact with hubs and other clients, and can be used as backend to user interfaces or automatic bots.
 package dctoolkit
 
 import (
