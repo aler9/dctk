@@ -3,8 +3,6 @@
 run_test() {
     echo "[$1]"
 
-    docker container kill dctk-verlihub dctk-test >/dev/null 2>&1
-
     docker run --rm -d --network=dctk-test --name=dctk-verlihub \
         dctk-verlihub ${1} >/dev/null \
         || exit 1
@@ -31,7 +29,8 @@ usage() {
 
 main() {
     # setup
-    docker network rm dctk-test >/dev/null 2>&1; \
+    docker container kill dctk-verlihub dctk-test >/dev/null 2>&1; \
+        docker network rm dctk-test >/dev/null 2>&1; \
         docker build test/verlihub -t dctk-verlihub \
         && docker build . -f test/Dockerfile -t dctk-test \
         && docker network create dctk-test >/dev/null \
