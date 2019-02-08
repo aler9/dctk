@@ -50,6 +50,8 @@ func newHub(client *Client) error {
     return nil
 }
 
+// HubConnect must be called only when HubManualConnect is turned on. It starts
+// the connection to the hub.
 func (c *Client) HubConnect() {
     if c.hubConn.state != "uninitialized" {
         return

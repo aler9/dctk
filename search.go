@@ -179,16 +179,26 @@ func (req *searchRequest) export() msgBase {
 }
 
 type SearchResult struct {
+    // whether the search result was received in passive or active mode
     IsActive    bool
+    // the nickname of the peer sending the result
     Nick        string
+    // the path to a file matching a search request
     Path        string
+    // the currently available upload slots of the peer
     SlotAvail   uint
+    // the total number of the upload slots of the peer
     SlotCount   uint
+    // the file TTH
     TTH         string
+    // whether the result is a directory
     IsDir       bool
+    // the hub ip
     HubIp       string
+    // the hub port
     HubPort     uint
-    TargetNick  string // passive only, stripped by hub
+    // field for SENDING (not receiving) search results in passive mode, stripped by the hub
+    TargetNick  string
 }
 
 func newSearchResult(isActive bool, args string) (*SearchResult,error) {

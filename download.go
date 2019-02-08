@@ -39,6 +39,7 @@ type Download struct {
 
 func (*Download) isTransfer() {}
 
+// DownloadFileList starts downloading asynchronously the file list of a given peer.
 func (c *Client) DownloadFileList(nick string) (*Download,error) {
     return c.Download(DownloadConf{
         Nick: nick,
@@ -46,7 +47,7 @@ func (c *Client) DownloadFileList(nick string) (*Download,error) {
     })
 }
 
-// Download starts downloading a file asynchronously. See DownloadConf for the options
+// Download starts downloading asynchronously a file. See DownloadConf for the options.
 func (c *Client) Download(conf DownloadConf) (*Download,error) {
     if conf.Length <= 0 {
         conf.Length = -1
