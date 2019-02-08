@@ -25,7 +25,7 @@ run_test() {
 }
 
 usage() {
-    echo "usage: $0 [-v] [all|$(echo $TESTS | tr ' ' '|')]" 1>&2
+    echo "usage: $0 [-v] [all|test_name]" 1>&2
     exit 1;
 }
 
