@@ -39,7 +39,7 @@ https://godoc.org/github.com/gswly/dctoolkit
 
 ## Installation
 
-If you are using Go >= 1.11 and modules (i.e. there's a go.mod file in your project folder), it is enough to include the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
+If you are using Go &ge; 1.11 and modules (i.e. there's a go.mod file in your project folder), it is enough to include the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
 ```go
 import (
     ...
