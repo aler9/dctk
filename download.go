@@ -152,7 +152,7 @@ func (d *Download) do() {
                 }
             }()
             if action == "exit" {
-                return &errorTerminated{}
+                return errorTerminated
             }
             if action == "break" {
                 break
@@ -278,7 +278,7 @@ func (d *Download) handleMessage(rawmsg msgBase) error {
     defer d.client.mutex.Unlock()
 
     if d.state == "terminated" {
-        return &errorTerminated{}
+        return errorTerminated
     }
 
     switch msg := rawmsg.(type) {
@@ -372,7 +372,7 @@ func (d *Download) handleMessage(rawmsg msgBase) error {
             }
 
             d.state = "success"
-            return &errorTerminated{}
+            return errorTerminated
         }
     }
     return nil

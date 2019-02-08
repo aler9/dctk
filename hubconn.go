@@ -160,7 +160,7 @@ func (h *hubConn) handleMessage(rawmsg msgBase) error {
     defer h.client.mutex.Unlock()
 
     if h.state == "terminated" {
-        return &errorTerminated{}
+        return errorTerminated
     }
 
     switch msg := rawmsg.(type) {

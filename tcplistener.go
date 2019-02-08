@@ -100,7 +100,7 @@ func (t *tcpListener) do() {
             if err != nil {
                 t.client.Safe(func() {
                     if t.state == "terminated" {
-                        err = &errorTerminated{}
+                        err = errorTerminated
                     }
                 })
                 return err

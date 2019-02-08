@@ -11,11 +11,7 @@ import (
     "path/filepath"
 )
 
-type errorNoSlots struct{}
-
-func (e *errorNoSlots) Error() string {
-    return "no slots available"
-}
+var errorNoSlots = fmt.Errorf("no slots available")
 
 type upload struct {
     client          *Client
@@ -50,7 +46,7 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
 
     // check available slots
     if u.client.uploadSlotAvail <= 0 {
-        return &errorNoSlots{}
+        return errorNoSlots
     }
 
     err := func() error {

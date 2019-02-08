@@ -50,7 +50,7 @@ func (u *udpListener) do() {
             if err != nil {
                 u.client.Safe(func() {
                     if u.state == "terminated" {
-                        err = &errorTerminated{}
+                        err = errorTerminated
                     }
                 })
                 return err

@@ -15,11 +15,7 @@ const reStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 const reStrPort = "[0-9]{1,5}"
 const reStrTTH = "[A-Z0-9]{39}"
 
-type errorTerminated struct {}
-
-func (err *errorTerminated) Error() string {
-    return "terminated"
-}
+var errorTerminated = fmt.Errorf("terminated")
 
 func dcEscape(in string) string {
     in = strings.Replace(in, "&", "&amp;", -1)
