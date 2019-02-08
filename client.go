@@ -101,7 +101,6 @@ type Client struct {
     shareIndexer            *shareIndexer
     shareRoots              map[string]string
     shareTree               map[string]*shareRootDirectory
-    tthlDB                  map[string][]byte
     shareSize               uint64
     fileList                []byte
     tcpListener             *tcpListener
@@ -200,7 +199,6 @@ func NewClient(conf ClientConf) (*Client,error) {
         wakeUp: make(chan struct{}, 1),
         shareRoots: make(map[string]string),
         shareTree: make(map[string]*shareRootDirectory),
-        tthlDB: make(map[string][]byte),
         downloadSlotAvail: conf.DownloadMaxParallel,
         uploadSlotAvail: conf.UploadMaxParallel,
         peerConns: make(map[*peerConn]struct{}),
