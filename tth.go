@@ -106,7 +106,7 @@ func tthLeavesFromReader(in io.Reader) ([]byte,error) {
     return out, nil
 }
 
-// TTHFromLeaves computes the Tiger Tree Hash (TTH) given a leaves sequence.
+// TTHFromLeaves computes the Tiger Tree Hash (TTH) of a given leaves sequence.
 func TTHFromLeaves(leaves []byte) string {
     hasher := tiger.New()
     var levels []*tthLevel
