@@ -10,7 +10,7 @@ func main() {
     dctk.SetLogLevel(dctk.LevelDebug)
 
     client,err := dctk.NewClient(dctk.ClientConf{
-        HubAddress: "gotk-verlihub",
+        HubAddress: "dctk-verlihub",
         HubPort: 4111,
         Nick: "[OP]testdctk",
         Password: "testpa$ss",
