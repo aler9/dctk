@@ -22,7 +22,7 @@ func main() {
     // who share at least one byte of files and is not ourself
     client.OnHubConnected = func() {
         for _,p := range client.Peers() {
-            if p.ShareSize > 0 {
+            if p.ShareSize > 0 && p.Nick != client.Conf().Nick {
                 client.DownloadFileList(p.Nick)
             }
         }

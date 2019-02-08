@@ -364,6 +364,10 @@ func (c *Client) Safe(cb func()) {
     cb()
 }
 
+func (c *Client) Conf() ClientConf {
+    return c.conf
+}
+
 func (c *Client) DownloadCount() int {
     count := 0
     for t,_ := range c.transfers {
