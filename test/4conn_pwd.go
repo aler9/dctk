@@ -16,8 +16,8 @@ func main() {
         Password: "testpa$ss",
         PrivateIp: true,
         TcpPort: 3006,
-        TcpTlsPort: 3007,
         UdpPort: 3006,
+        TcpTlsPort: 3007,
     })
     if err != nil {
         panic(err)

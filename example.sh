@@ -5,8 +5,7 @@ docker build . \
     -t dctk-example \
     && docker run --rm -it \
     -v $PWD:/src \
-    -e 3006 \
-    -e 3006/udp \
-    -p 3006:3006 \
-    -p 3006:3006/udp \
+    -p 3009:3009 \
+    -p 3009:3009/udp \
+    -p 3010:3010 \
     dctk-example $@

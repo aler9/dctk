@@ -10,9 +10,9 @@ func main() {
         HubAddress: "soundofconfusion.no-ip.org",
         HubPort: 411,
         Nick: "mynick",
-        TcpPort: 3005,
-        TcpTlsPort: 3006,
-        UdpPort: 3006,
+        TcpPort: 3009,
+        UdpPort: 3009,
+        TcpTlsPort: 3010,
         HubManualConnect: true,
     })
     if err != nil {

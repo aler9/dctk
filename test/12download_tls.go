@@ -16,8 +16,8 @@ func client1() {
         Nick: "client1",
         PrivateIp: true,
         TcpPort: 3006,
-        TcpTlsPort: 3007,
         UdpPort: 3006,
+        TcpTlsPort: 3007,
         PeerEncryptionMode: dctk.ForceEncryption,
         HubManualConnect: true,
     })
