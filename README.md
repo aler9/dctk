@@ -32,6 +32,8 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * [download_file](example/download_file.go)
 * [download_file_on_disk](example/download_file_on_disk.go)
 * [download_file_from_search](example/download_file_from_search.go)
+* [download_file_from_list](example/download_file_from_list.go)
+* [download_directory_from_list](example/download_directory_from_list.go)
 
 ## Documentation
 

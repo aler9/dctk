@@ -11,7 +11,6 @@ func main() {
         HubAddress: "hubip",
         HubPort: 411,
         Nick: "mynick",
-        Password: "mypassword",
         Mode: dctk.ModePassive,
     })
     if err != nil {

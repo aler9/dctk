@@ -150,8 +150,38 @@ func (sm *shareIndexer) index() {
         return
     }()
 
-    // generate new list
-    fileList,err := fileListGenerate(sm.client.clientId, sm.client.conf.ListGenerator, shareTree)
+    // generate new file list
+    fileList,err := func() ([]byte,error) {
+        fl := &FileList{
+            CID: sm.client.clientId,
+            Generator: sm.client.conf.ListGenerator,
+        }
+
+        var scanDir func(path string, dir *shareDirectory) *FileListDirectory
+        scanDir = func(path string, dir *shareDirectory) *FileListDirectory {
+            fd := &FileListDirectory{}
+            for name,sdir := range dir.dirs {
+                sfd := scanDir(filepath.Join(path, name), sdir)
+                sfd.Name = name
+                fd.Dirs = append(fd.Dirs, sfd)
+            }
+            for name,file := range dir.files {
+                fd.Files = append(fd.Files, &FileListFile{
+                    Name: name,
+                    Size: file.size,
+                    TTH: file.tth,
+                })
+            }
+            return fd
+        }
+        for alias,dir := range shareTree {
+            fld := scanDir(dir.path, dir.shareDirectory)
+            fld.Name = alias
+            fl.Dirs = append(fl.Dirs, fld)
+        }
+
+        return fl.Export()
+    }()
     if err != nil {
         panic(err)
     }
