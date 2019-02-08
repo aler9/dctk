@@ -26,7 +26,7 @@ type peerConn struct {
     isActive            bool
     wakeUp              chan struct{}
     state               string
-    conn                *Protocol
+    conn                *protocol
     passiveIp           string
     passivePort         uint
     remoteNick          string
@@ -57,7 +57,7 @@ func newPeerConn(client *Client, tls bool, isActive bool, rawconn net.Conn, ip s
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+        p.conn = newprotocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
     } else {
         dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
         p.state = "connecting"
@@ -137,7 +137,7 @@ func (p *peerConn) do() {
                 if p.tls == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+                p.conn = newprotocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
             })
             if err != nil {
                 return err

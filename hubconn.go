@@ -17,7 +17,7 @@ var reCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
 type Peer struct {
     Nick            string
     Description     string
-    Protocol        string
+    protocol        string
     Status          byte
     Email           string
     ShareSize       uint64
@@ -34,7 +34,7 @@ func (p *Peer) supportTls() bool {
 type hubConn struct {
     client          *Client
     state           string
-    conn            *Protocol
+    conn            *protocol
     uniqueCmds      map[string]struct{}
     myInfoReceived  bool
     peers           map[string]*Peer
@@ -107,7 +107,7 @@ func (h *hubConn) do() {
             h.state = "connected"
 
             // do not use read timeout since hub does not send data continuously
-            h.conn = newProtocol(rawconn, "h", 0, 10 * time.Second)
+            h.conn = newprotocol(rawconn, "h", 0, 10 * time.Second)
 
             // unfortunately chat messages can be sent immediately
             h.conn.ChatAllowed = true
@@ -273,7 +273,7 @@ func (h *hubConn) handleMessage(rawmsg msgBase) error {
                     p := &Peer{
                         Nick: info[1],
                         Description: info[2],
-                        Protocol: info[3],
+                        protocol: info[3],
                         Status: []byte(info[4])[0],
                         Email: info[5],
                         ShareSize: atoui64(info[6]),
