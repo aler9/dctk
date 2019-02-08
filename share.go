@@ -274,12 +274,12 @@ func (sm *shareIndexer) terminate() {
     sm.state = "terminated"
 }
 
-func (client *Client) ShareAdd(alias string, root string) {
-    client.shareRoots[alias] = root
+func (c *Client) ShareAdd(alias string, root string) {
+    c.shareRoots[alias] = root
 
     // always schedule indexing
-    if client.shareIndexer.indexingRequested == false {
-        client.shareIndexer.indexingRequested = true
-        client.shareIndexer.wakeUp <- struct{}{}
+    if c.shareIndexer.indexingRequested == false {
+        c.shareIndexer.indexingRequested = true
+        c.shareIndexer.wakeUp <- struct{}{}
     }
 }
