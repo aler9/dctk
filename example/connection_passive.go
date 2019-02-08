@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+    // automatically connect to hub
     client,err := dctk.NewClient(dctk.ClientConf{
         HubAddress: "hubip",
         HubPort: 411,
@@ -17,6 +18,7 @@ func main() {
         panic(err)
     }
 
+    // we are connected to the hub
     client.OnHubConnected = func() {
         fmt.Println("connected to hub")
     }

@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
+    // configure hub but do not connect automatically. local ports must be opened and accessible (configure your router)
     client,err := dctk.NewClient(dctk.ClientConf{
         HubAddress: "soundofconfusion.no-ip.org",
         HubPort: 411,
