@@ -87,5 +87,5 @@ Other libraries
 * [Python] (NMDC) http://pydc.sourceforge.net/
 * [Python] (ADC) https://pypi.org/project/pyADC/
 
-API inspired by
-https://godoc.org/github.com/anacrolix/torrent
+Inspired by
+* https://godoc.org/github.com/anacrolix/torrent
