@@ -16,25 +16,25 @@ TESTS="conn_active \
 run_test() {
     echo "[$1]"
 
-    docker container kill gotk-verlihub gotk-test >/dev/null 2>&1
+    docker container kill dctk-verlihub dctk-test >/dev/null 2>&1
 
-    docker run --rm -d --network=gotk-test --name=gotk-verlihub \
-        gotk-verlihub ${1} >/dev/null \
+    docker run --rm -d --network=dctk-test --name=dctk-verlihub \
+        dctk-verlihub ${1} >/dev/null \
         || exit 1
 
     if [ $VERBOSE -eq 1 ]; then
-        docker run --rm -it --network=gotk-test --name=gotk-test \
-            -v ${PWD}:/src gotk-test ${1}
+        docker run --rm -it --network=dctk-test --name=dctk-test \
+            -v ${PWD}:/src dctk-test ${1}
         RETCODE=$?
     else
-        docker run --rm -it --network=gotk-test --name=gotk-test \
-            -v ${PWD}:/src gotk-test ${1} >/dev/null
+        docker run --rm -it --network=dctk-test --name=dctk-test \
+            -v ${PWD}:/src dctk-test ${1} >/dev/null
         RETCODE=$?
     fi
 
     [ "$RETCODE" -eq 0 ] && echo "RESULT: SUCCESS" || echo "RESULT: FAILED"
 
-    docker container kill gotk-verlihub >/dev/null 2>&1
+    docker container kill dctk-verlihub >/dev/null 2>&1
 }
 
 usage() {
@@ -44,10 +44,10 @@ usage() {
 
 main() {
     # setup
-    docker network rm gotk-test >/dev/null 2>&1; \
-        docker build test/verlihub -t gotk-verlihub \
-        && docker build . -f test/Dockerfile -t gotk-test \
-        && docker network create gotk-test >/dev/null \
+    docker network rm dctk-test >/dev/null 2>&1; \
+        docker build test/verlihub -t dctk-verlihub \
+        && docker build . -f test/Dockerfile -t dctk-test \
+        && docker network create dctk-test >/dev/null \
         || exit 1
 
     # read arguments
@@ -76,7 +76,7 @@ main() {
     fi
 
     # cleanup
-    docker network rm gotk-test >/dev/null 2>&1
+    docker network rm dctk-test >/dev/null 2>&1
 }
 
 main $@
