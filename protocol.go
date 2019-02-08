@@ -195,7 +195,7 @@ func (c *Protocol) WriteBinary(in []byte) error {
 func (c *Protocol) Receive() (msgBase,error) {
     // Terminate() was called in a previous run
     if c.terminated == true {
-        return nil, &errorTerminated{}
+        return nil, errorTerminated
     }
     return c.activeReceiver()
 }
@@ -217,7 +217,7 @@ func (c *Protocol) receiveMessage() (msgBase,error) {
                 continue
             }
             if c.terminated == true {
-                return nil, &errorTerminated{}
+                return nil, errorTerminated
             }
             return nil, err
         }
@@ -265,7 +265,7 @@ func (c *Protocol) receiveBinary() (msgBase,error) {
                 continue
             }
             if c.terminated == true {
-                return nil, &errorTerminated{}
+                return nil, errorTerminated
             }
             return nil, err
         }

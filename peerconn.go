@@ -13,11 +13,7 @@ var reCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
 var reCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
 var reCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
 
-type errorDelegated struct {}
-
-func (err *errorDelegated) Error() string {
-    return "delegated"
-}
+var errorDelegated = fmt.Errorf("delegated")
 
 type nickDirectionPair struct {
     nick string
@@ -115,7 +111,7 @@ func (p *peerConn) do() {
 
             select {
             case <- p.wakeUp:
-                return &errorTerminated{}
+                return errorTerminated
 
             case err := <- connected:
                 if err != nil {
@@ -126,7 +122,7 @@ func (p *peerConn) do() {
             var err error
             p.client.Safe(func() {
                 if p.state == "terminated" {
-                    err = &errorTerminated{}
+                    err = errorTerminated
                     return
                 }
 
@@ -162,8 +158,9 @@ func (p *peerConn) do() {
             }
 
             err = p.handleMessage(msg)
-            if _,ok := err.(*errorDelegated); ok {
+            if err == errorDelegated {
                 <- p.wakeUp
+
             } else if err != nil {
                 p.conn.terminate()
                 return err
@@ -193,7 +190,7 @@ func (p *peerConn) handleMessage(rawmsg msgBase) error {
     defer p.client.mutex.Unlock()
 
     if p.state == "terminated" {
-        return &errorTerminated{}
+        return errorTerminated
     }
 
     switch msg := rawmsg.(type) {
@@ -344,7 +341,7 @@ func (p *peerConn) handleMessage(rawmsg msgBase) error {
                         p.state = "delegated"
                         dl.pconn = p
                         dl.wakeUp <- struct{}{}
-                        return &errorDelegated{}
+                        return errorDelegated
                     }
                 }
 
@@ -361,7 +358,7 @@ func (p *peerConn) handleMessage(rawmsg msgBase) error {
                 if err != nil {
                     dolog(LevelInfo, "cannot start upload: %s", err)
 
-                    if _,ok := err.(*errorNoSlots); ok {
+                    if err == errorNoSlots {
                         p.conn.Send <- msgCommand{ "MaxedOut", "" }
                     } else {
                         p.conn.Send <- msgCommand{ "Error", "File Not Available" }
@@ -369,7 +366,7 @@ func (p *peerConn) handleMessage(rawmsg msgBase) error {
 
                 } else {
                     p.state = "delegated"
-                    return &errorDelegated{}
+                    return errorDelegated
                 }
 
             default:
