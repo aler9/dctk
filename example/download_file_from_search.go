@@ -38,6 +38,7 @@ func main() {
         }
     }
 
+    // download has finished
     client.OnDownloadSuccessful = func(d *Download) {
         fmt.Println("file downloaded and available in d.Content()")
         client.Terminate()

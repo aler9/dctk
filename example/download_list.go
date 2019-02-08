@@ -19,11 +19,12 @@ func main() {
         panic(err)
     }
 
+    // download file list of a certain user
     client.OnHubConnected = func() {
-        // download file list of a certain user
         client.DownloadFileList("othernick")
     }
 
+    // download has finished
     client.OnDownloadSuccessful = func(d *dctk.Download) {
         fmt.Println("downloaded: %d", len(d.Content()))
     }
