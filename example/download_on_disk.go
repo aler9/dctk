@@ -27,7 +27,7 @@ func main() {
         })
     }
 
-    // download is terminated: save the file on disk
+    // download has finished: save the file on disk
     client.OnDownloadSuccessful = func(d *dctk.Download) {
         if err := ioutil.WriteFile("/path/to/outfile", d.Content(), 0655); err != nil {
             panic(err)
