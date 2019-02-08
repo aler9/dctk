@@ -11,7 +11,7 @@ import (
     "math/rand"
 )
 
-const PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
+const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
 var rePublicIp = regexp.MustCompile("("+reStrIp+")")
 
 type transfer interface {
@@ -269,7 +269,7 @@ func (c *Client) Run() {
 }
 
 func (c *Client) dlPublicIp() error {
-    res,err := http.Get(PUBLIC_IP_PROVIDER)
+    res,err := http.Get(_PUBLIC_IP_PROVIDER)
     if err != nil {
         return err
     }
