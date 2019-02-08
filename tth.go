@@ -117,14 +117,8 @@ func TTHFromLeaves(leaves []byte) string {
 
         // upper level level hashes
         for curLevel := 0; curLevel < len(levels); curLevel++ {
-            // level is free: put here current hash and exit
-            if levels[curLevel].occupied == false {
-                copy(levels[curLevel].b[:], sumToAdd[:])
-                levels[curLevel].occupied = true
-                break
-
             // level has already a hash: compute upper hash and clear level
-            } else {
+            if levels[curLevel].occupied == true {
                 // upper level hashes are prefixed with 0x01
                 hasher.Write([]byte{ 0x01 })
                 hasher.Write(levels[curLevel].b[:])
@@ -138,6 +132,12 @@ func TTHFromLeaves(leaves []byte) string {
                 if len(levels) < (curLevel+2) {
                     levels = append(levels, &tthLevel{})
                 }
+
+            // level is free: put here current hash and exit
+            } else {
+                copy(levels[curLevel].b[:], sumToAdd[:])
+                levels[curLevel].occupied = true
+                break
             }
         }
     }
@@ -195,14 +195,8 @@ func tthFromReader(in io.Reader) (string,error) {
 
         // upper level level hashes
         for curLevel := 0; curLevel < len(levels); curLevel++ {
-            // level is free: put here current hash and exit
-            if levels[curLevel].occupied == false {
-                copy(levels[curLevel].b[:], sumToAdd[:])
-                levels[curLevel].occupied = true
-                break
-
             // level has already a hash: compute upper hash and clear level
-            } else {
+            if levels[curLevel].occupied == true {
                 // upper level hashes are prefixed with 0x01
                 hasher.Write([]byte{ 0x01 })
                 hasher.Write(levels[curLevel].b[:])
@@ -216,6 +210,12 @@ func tthFromReader(in io.Reader) (string,error) {
                 if len(levels) < (curLevel+2) {
                     levels = append(levels, &tthLevel{})
                 }
+
+            // level is free: put here current hash and exit
+            } else {
+                copy(levels[curLevel].b[:], sumToAdd[:])
+                levels[curLevel].occupied = true
+                break
             }
         }
     }
