@@ -1,18 +1,5 @@
 #!/bin/sh
 
-TESTS="conn_active \
-    conn_passive \
-    conn_noip \
-    conn_pwd \
-    conn_compression \
-    chat_public \
-    chat_private \
-    share \
-    tth \
-    search \
-    download_plain \
-    download_tls"
-
 run_test() {
     echo "[$1]"
 
@@ -64,13 +51,12 @@ main() {
 
     # process
     if [ "$TEST" = "all" ]; then
-        for T in $TESTS; do
-            run_test $T
+        for T in $(ls -v test/*.go); do
+            run_test $(basename $T | sed 's/\.go$//')
         done
     else
         # ensure test exists
-        [ -n "$TEST" ] && echo $TESTS | grep -w $TEST >/dev/null \
-            || usage
+        [ -n "$TEST" ] && [ -f "test/$TEST.go" ] || usage
 
         run_test $TEST
     fi
