@@ -30,8 +30,8 @@ type ClientConf struct {
     ModePassive                 bool
     PrivateIp                   bool
     TcpPort                     uint
-    TcpTlsPort                  uint
     UdpPort                     uint
+    TcpTlsPort                  uint
     DownloadMaxParallel         uint
     UploadMaxParallel           uint
     PeerDisableCompression      bool

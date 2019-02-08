@@ -10,9 +10,9 @@ func main() {
         HubAddress: "hubip",
         HubPort: 411,
         Nick: "mynick",
-        TcpPort: 3006,
-        TcpTlsPort: 3007,
-        UdpPort: 3006,
+        TcpPort: 3009,
+        UdpPort: 3009,
+        TcpTlsPort: 3010,
     })
     if err != nil {
         panic(err)
