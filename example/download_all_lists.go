@@ -5,9 +5,11 @@ import (
 )
 
 func main() {
+    // automatically connect to hub. local ports must be opened and accessible (configure your router)
     client,err := dctk.NewClient(dctk.ClientConf{
         HubAddress: "hubip",
         HubPort: 411,
+        Nick: "mynick",
         TcpPort: 3006,
         TcpTlsPort: 3007,
         UdpPort: 3006,
@@ -16,12 +18,17 @@ func main() {
         panic(err)
     }
 
+    // when we are connected, start downloading the file list of every other peer
+    // who share at least one byte of files and is not ourself
     client.OnHubConnected = func() {
         for _,p := range client.Peers() {
-            client.DownloadFileList(p.Nick)
+            if p.ShareSize > 0 {
+                client.DownloadFileList(p.Nick)
+            }
         }
     }
 
+    // a file list has been downloaded. When there are none remaining, close connection
     client.OnDownloadSuccessful = func(d *dctk.Download) {
         if client.DownloadCount() == 0 {
             client.Terminate()

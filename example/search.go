@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+    // automatically connect to hub. local ports must be opened and accessible (configure your router)
     client,err := dctk.NewClient(dctk.ClientConf{
         HubAddress: "hubip",
         HubPort: 411,
@@ -18,6 +19,7 @@ func main() {
         panic(err)
     }
 
+    // when hub is connected, start searching
     client.OnHubConnected = func() {
         // search by name
         client.Search(dctk.SearchConf{
@@ -31,6 +33,7 @@ func main() {
         })
     }
 
+    // a search result has been received
     client.OnSearchResult = func(r *dctk.SearchResult) {
         fmt.Printf("result: %+v\n", r)
     }

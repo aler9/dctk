@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
+    // automatically connect to hub
     client,err := dctk.NewClient(dctk.ClientConf{
         HubAddress: "hubip",
         HubPort: 411,
@@ -15,6 +16,7 @@ func main() {
         panic(err)
     }
 
+    // a public message has been received: reply
     client.OnPublicMessage = func(p *dctk.Peer, content string) {
         if content == "hi bot" {
             client.PublicMessage("hello all")
