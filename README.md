@@ -1,6 +1,8 @@
 
 # dctoolkit
 
+[![GoDoc](https://godoc.org/github.com/gswly/dctoolkit?status.svg)](https://godoc.org/github.com/gswly/dctoolkit)
+
 dctoolkit is a library that implements the client part of the Direct Connect protocol (NeoModus DC) in the Go programming language. It allows the creation of clients that can interact with hubs and other clients, and can be used as backend to user interfaces or automatic bots.
 
 Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH). There exists two implementations, the NMDC (NeoModus Direct Connect) protocol and the newer ADC (Advanced Direct Connect) protocol. This library at the moment supports only the NMDC implementation.
@@ -11,7 +13,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * Hub: connection with configurable try count, password authentication, keepalive, compression
 * Chat: bidirectional public and private chat
 * File search: by name or TTH, reply to requests
-* File download: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via tth
+* File download: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
 * File upload: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support
 * Examples provided for every feature
 * Comprehensive test set
