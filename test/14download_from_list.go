@@ -18,7 +18,6 @@ func client1() {
         TcpPort: 3006,
         UdpPort: 3006,
         TcpTlsPort: 3007,
-        PeerEncryptionMode: dctk.ForceEncryption,
         HubManualConnect: true,
     })
     if err != nil {
@@ -26,7 +25,8 @@ func client1() {
     }
 
     os.Mkdir("/share", 0755)
-    ioutil.WriteFile("/share/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+    os.Mkdir("/share/folder", 0755)
+    ioutil.WriteFile("/share/folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
 
     client.OnInitialized = func() {
         client.ShareAdd("share", "/share")
@@ -46,9 +46,8 @@ func client2() {
         Nick: "client2",
         PrivateIp: true,
         TcpPort: 3005,
-        TcpTlsPort: 3004,
         UdpPort: 3005,
-        PeerEncryptionMode: dctk.ForceEncryption,
+        TcpTlsPort: 3004,
     })
     if err != nil {
         panic(err)
@@ -56,16 +55,35 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.Download(dctk.DownloadConf{
-                Nick: "client1",
-                TTH: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
-            })
+            client.DownloadFileList("client1")
         }
     }
 
+    filelistDownloaded := false
     client.OnDownloadSuccessful = func(d* dctk.Download) {
-        ok = true
-        client.Terminate()
+        if filelistDownloaded == false {
+            filelistDownloaded = true
+
+            fl,err := dctk.FileListParse(d.Content())
+            if err != nil {
+                panic(err)
+            }
+
+            file,err := fl.GetFile("/share/folder/test file.txt")
+            if err != nil {
+                panic(err)
+            }
+
+            client.Download(dctk.DownloadConf{
+                Nick: d.Conf().Nick,
+                TTH: file.TTH,
+                Length: int64(file.Size),
+            })
+
+        } else {
+            ok = true
+            client.Terminate()
+        }
     }
 
     client.Run()

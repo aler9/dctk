@@ -46,8 +46,8 @@ func client2() {
         Nick: "client2",
         PrivateIp: true,
         TcpPort: 3005,
-        TcpTlsPort: 3004,
         UdpPort: 3005,
+        TcpTlsPort: 3004,
     })
     if err != nil {
         panic(err)

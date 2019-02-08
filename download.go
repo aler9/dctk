@@ -29,6 +29,7 @@ type Download struct {
     length              uint64
     offset              uint64
     lastPrintTime       time.Time
+    delegatedError      chan error
 }
 
 func (*Download) isTransfer() {}
@@ -53,6 +54,7 @@ func (client *Client) Download(conf DownloadConf) (*Download,error) {
         client: client,
         wakeUp: make(chan struct{}, 1),
         state: "uninitialized",
+        delegatedError: make(chan error),
     }
     d.client.transfers[d] = struct{}{}
 
@@ -95,7 +97,7 @@ func (d *Download) terminate() {
     delete(d.client.transfers, d)
     if d.pconn != nil {
         d.pconn.state = "wait_download"
-        d.pconn.wakeUp <- struct{}{}
+        d.delegatedError <- errorTerminated
     }
 }
 
@@ -135,7 +137,7 @@ func (d *Download) do() {
                         d.client.activeDownloadsByPeer[d.conf.Nick] = d
                         d.client.downloadSlotAvail -= 1
 
-                        if _,ok := d.client.peerConnsByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
+                        if pconn,ok := d.client.peerConnsByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
                             // request peer connection
                             if d.client.conf.ModePassive == false {
                                 d.client.connectToMe(d.conf.Nick)
@@ -143,6 +145,10 @@ func (d *Download) do() {
                                 d.client.revConnectToMe(d.conf.Nick)
                             }
                             return "wait_timed"
+                        } else {
+                            d.pconn = pconn
+                            pconn.state = "delegated"
+                            pconn.download = d
                         }
 
                     default: // waiting_peer"
@@ -172,17 +178,7 @@ func (d *Download) do() {
 
         d.requestFile()
 
-        for {
-            msg,err := d.pconn.conn.Receive()
-            if err != nil {
-                return err
-            }
-
-            err = d.handleMessage(msg)
-            if err != nil {
-                return err
-            }
-        }
+        return <- d.delegatedError
     }()
 
     d.client.Safe(func() {
@@ -191,23 +187,19 @@ func (d *Download) do() {
 
         case "success":
             delete(d.client.transfers, d)
-            d.pconn.state = "wait_download"
-            d.pconn.wakeUp <- struct{}{}
 
         default:
             dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Nick, err)
             delete(d.client.transfers, d)
-            if d.pconn != nil {
-                d.pconn.state = "wait_download"
-                d.pconn.wakeUp <- struct{}{}
-            }
         }
 
         if d.client.activeDownloadsByPeer[d.conf.Nick] == d {
             delete(d.client.activeDownloadsByPeer, d.conf.Nick)
         }
 
-        d.client.downloadSlotAvail += 1
+        if d.state != "waiting_slot" {
+            d.client.downloadSlotAvail += 1
+        }
 
         var toWakeUp1 *Download
         var toWakeUp2 *Download
@@ -273,107 +265,105 @@ func (d *Download) requestFile() {
     }
 }
 
-func (d *Download) handleMessage(rawmsg msgBase) error {
-    d.client.mutex.Lock()
-    defer d.client.mutex.Unlock()
+func (d *Download) onDelegatedMessage(rawmsg msgBase) {
+    err := func() error {
+        switch msg := rawmsg.(type) {
+        case msgCommand:
+            switch msg.Key {
+            case "MaxedOut":
+                return fmt.Errorf("maxed out")
 
-    if d.state == "terminated" {
-        return errorTerminated
-    }
+            case "Error":
+                return fmt.Errorf("error: %s", msg.Args)
 
-    switch msg := rawmsg.(type) {
-    case msgCommand:
-        switch msg.Key {
-        case "MaxedOut":
-            return fmt.Errorf("maxed out")
-
-        case "Error":
-            return fmt.Errorf("error: %s", msg.Args)
-
-        case "ADCSND":
-            args := reCmdAdcSnd.FindStringSubmatch(msg.Args)
-            if args == nil {
-                return fmt.Errorf("Cannot parse ADCSND args: %s", msg.Args)
-            }
-
-            d.state = "transfering"
-
-            replyQuery := args[1]
-            if replyQuery != d.query {
-                return fmt.Errorf("filename returned by client is wrong: %s vs %s", replyQuery, d.query)
-            }
-            replyStart := atoui64(args[4])
-            if replyStart != d.conf.Start {
-                return fmt.Errorf("peer returned wrong start: %d instead of %d", replyStart, d.conf.Start)
-            }
-            replyLength := atoui64(args[5])
-            d.compressed = (args[6] != "")
-            if d.compressed == true && d.client.conf.PeerDisableCompression == true {
-                return fmt.Errorf("compression is active but is disabled")
-            }
-
-            if d.conf.Length == -1 {
-                d.length = replyLength
-            } else {
-                d.length = uint64(d.conf.Length)
-                if d.length != replyLength {
-                    return fmt.Errorf("peer returned wrong length: %d instead of %d", d.length, replyLength)
+            case "ADCSND":
+                args := reCmdAdcSnd.FindStringSubmatch(msg.Args)
+                if args == nil {
+                    return fmt.Errorf("Cannot parse ADCSND args: %s", msg.Args)
                 }
-            }
 
-            if d.length == 0 {
-                return fmt.Errorf("downloading null files is not supported")
-            }
+                d.state = "transfering"
 
-            d.content = make([]byte, d.length)
-            d.pconn.conn.SetBinaryMode(true)
-            if d.compressed == true {
-                d.pconn.conn.SetReadCompressionOn()
-            }
-
-        default:
-            return fmt.Errorf("unhandled: [%s] %s", msg.Key, msg.Args)
-        }
-
-    case msgBinary:
-        newLength := d.offset + uint64(len(msg.Content))
-        if newLength > d.length {
-            return fmt.Errorf("binary content too long (%d)", newLength)
-        }
-
-        copied := copy(d.content[d.offset:], msg.Content)
-        d.offset += uint64(copied)
-
-        if time.Since(d.lastPrintTime) >= (1 * time.Second) {
-            d.lastPrintTime = time.Now()
-            dolog(LevelInfo, "[recv] %d/%d", d.offset, d.length)
-        }
-
-        if d.offset == d.length {
-            d.pconn.conn.SetBinaryMode(false)
-
-            // file list: unzip
-            if d.conf.filelist {
-                cnt,err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
-                if err != nil {
-                    return err
+                replyQuery := args[1]
+                if replyQuery != d.query {
+                    return fmt.Errorf("filename returned by client is wrong: %s vs %s", replyQuery, d.query)
                 }
-                d.content = cnt
+                replyStart := atoui64(args[4])
+                if replyStart != d.conf.Start {
+                    return fmt.Errorf("peer returned wrong start: %d instead of %d", replyStart, d.conf.Start)
+                }
+                replyLength := atoui64(args[5])
+                d.compressed = (args[6] != "")
+                if d.compressed == true && d.client.conf.PeerDisableCompression == true {
+                    return fmt.Errorf("compression is active but is disabled")
+                }
 
-            // normal file
-            } else {
-                if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
-                    dolog(LevelInfo, "[download validating]")
-                    contentTTH := TTHFromBytes(d.content)
-                    if contentTTH != d.conf.TTH {
-                        return fmt.Errorf("validation failed")
+                if d.conf.Length == -1 {
+                    d.length = replyLength
+                } else {
+                    d.length = uint64(d.conf.Length)
+                    if d.length != replyLength {
+                        return fmt.Errorf("peer returned wrong length: %d instead of %d", d.length, replyLength)
                     }
                 }
+
+                if d.length == 0 {
+                    return fmt.Errorf("downloading null files is not supported")
+                }
+
+                d.content = make([]byte, d.length)
+                d.pconn.conn.SetBinaryMode(true)
+                if d.compressed == true {
+                    d.pconn.conn.SetReadCompressionOn()
+                }
             }
 
-            d.state = "success"
-            return errorTerminated
+        case msgBinary:
+            newLength := d.offset + uint64(len(msg.Content))
+            if newLength > d.length {
+                return fmt.Errorf("binary content too long (%d)", newLength)
+            }
+
+            copied := copy(d.content[d.offset:], msg.Content)
+            d.offset += uint64(copied)
+
+            if time.Since(d.lastPrintTime) >= (1 * time.Second) {
+                d.lastPrintTime = time.Now()
+                dolog(LevelInfo, "[recv] %d/%d", d.offset, d.length)
+            }
+
+            if d.offset == d.length {
+                d.pconn.conn.SetBinaryMode(false)
+
+                // file list: unzip
+                if d.conf.filelist {
+                    cnt,err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
+                    if err != nil {
+                        return err
+                    }
+                    d.content = cnt
+
+                // normal file
+                } else {
+                    if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
+                        dolog(LevelInfo, "[download validating]")
+                        contentTTH := TTHFromBytes(d.content)
+                        if contentTTH != d.conf.TTH {
+                            return fmt.Errorf("validation failed")
+                        }
+                    }
+                }
+
+                d.state = "success"
+                return errorTerminated
+            }
         }
+        return nil
+    }()
+
+    if err != nil {
+        d.pconn.state = "wait_download"
+        d.pconn.download = nil
+        d.delegatedError <- err
     }
-    return nil
 }

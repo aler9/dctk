@@ -11,7 +11,6 @@ func main() {
         HubAddress: "hubip",
         HubPort: 411,
         Nick: "mynick",
-        Password: "mypassword",
         TcpPort: 3009,
         UdpPort: 3009,
         TcpTlsPort: 3010,

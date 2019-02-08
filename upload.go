@@ -61,7 +61,7 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
             return nil
         }
 
-        // upload is any other file by tth
+        // upload is a file or its tthl
         fpath,tthl := func() (fpath string, tthl []byte) {
             var scanDir func(rpath string, dir *shareDirectory) bool
             scanDir = func(rpath string, dir *shareDirectory) bool {
@@ -90,7 +90,7 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
             return fmt.Errorf("file does not exists")
         }
 
-        // upload is tthl
+        // upload is file tthl
         if strings.HasPrefix(args[1], "tthl TTH") {
             if u.start != 0 || reqLength != -1 {
                 return fmt.Errorf("tthl seeking is not supported")
@@ -185,7 +185,9 @@ func (u *upload) do() {
 
     err := func() error {
         u.pconn.conn.SetBinaryMode(true)
-        u.pconn.conn.SetWriteCompression(true)
+        if u.compressed == true {
+            u.pconn.conn.SetWriteCompression(true)
+        }
 
         var buf [1024 * 1024]byte
         for {
@@ -210,7 +212,9 @@ func (u *upload) do() {
             }
         }
 
-        u.pconn.conn.SetWriteCompression(false)
+        if u.compressed == true {
+            u.pconn.conn.SetWriteCompression(false)
+        }
         u.pconn.conn.SetBinaryMode(false)
 
         u.client.Safe(func() {
