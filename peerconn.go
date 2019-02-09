@@ -146,7 +146,7 @@ func (p *peerConn) do() {
             p.conn.Send <- msgCommand{ "MyNick", p.client.conf.Nick }
             p.conn.Send <- msgCommand{ "Lock",
                 fmt.Sprintf("EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
-                p.client.conf.PkValue, p.client.hubSolvedIp, p.client.conf.HubPort) }
+                p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort) }
         }
 
         for {

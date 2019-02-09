@@ -88,14 +88,14 @@ func (h *hubConn) do() {
             }
 
             var ips []net.IP
-            ips,err = net.LookupIP(h.client.conf.HubAddress)
+            ips,err = net.LookupIP(h.client.hubHostname)
             if err != nil {
                 break
             }
 
             h.client.hubSolvedIp = ips[0].String()
             rawconn,err = net.DialTimeout("tcp",
-                fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.conf.HubPort), 10 * time.Second)
+                fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort), 10 * time.Second)
             if err == nil {
                 break
             }
@@ -105,7 +105,7 @@ func (h *hubConn) do() {
         }
 
         h.client.Safe(func() {
-            dolog(LevelInfo, "[hub connected] %s:%d", h.client.hubSolvedIp, h.client.conf.HubPort)
+            dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
             h.state = "connected"
 
             // do not use read timeout since hub does not send data continuously

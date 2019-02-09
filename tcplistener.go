@@ -3,7 +3,6 @@ package dctoolkit
 import (
     "fmt"
     "net"
-    //"time"
     "crypto/tls"
     crand "crypto/rand"
     "crypto/rsa"

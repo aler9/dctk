@@ -1,6 +1,7 @@
 package main
 
 import (
+    "os"
     "time"
     dctk "github.com/gswly/dctoolkit"
 )
@@ -10,8 +11,7 @@ func main() {
     dctk.SetLogLevel(dctk.LevelDebug)
 
     client,err := dctk.NewClient(dctk.ClientConf{
-        HubAddress: "dctk-verlihub",
-        HubPort: 4111,
+        HubUrl: os.Getenv("HUBURL"),
         Nick: "testdctk",
         PrivateIp: true,
         TcpPort: 3006,

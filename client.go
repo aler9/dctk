@@ -13,6 +13,7 @@ import (
     "io/ioutil"
     "net/http"
     "math/rand"
+    "net/url"
 )
 
 const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
@@ -57,10 +58,8 @@ type ClientConf struct {
     PeerDisableCompression      bool
     // set the policy regarding encryption with other peers. See EncryptionMode for options
     PeerEncryptionMode          EncryptionMode
-    // The hub domain / IP address
-    HubAddress                  string
-    // the hub port
-    HubPort                     uint
+    // The hub url in the form nmdc://address:port or adc://address:port
+    HubUrl                      string
     // how many times attempting connection with hub before giving up
     HubConnTries                uint
     // disables compression. Can be useful for debug purposes
@@ -96,6 +95,8 @@ type Client struct {
     wg                      sync.WaitGroup
     wakeUp                  chan struct{}
     clientId                string
+    hubHostname             string
+    hubPort                 uint
     hubSolvedIp             string
     ip                      string
     shareIndexer            *shareIndexer
@@ -142,6 +143,8 @@ type Client struct {
 
 // NewClient is used to initialize a client. See ClientConf for the available options.
 func NewClient(conf ClientConf) (*Client,error) {
+    rand.Seed(time.Now().UnixNano())
+
     if conf.ModePassive == false && (conf.TcpPort == 0 || conf.UdpPort == 0) {
         return nil, fmt.Errorf("tcp and udp ports must be both set when in active mode")
     }
@@ -159,12 +162,6 @@ func NewClient(conf ClientConf) (*Client,error) {
     }
     if conf.UploadMaxParallel == 0 {
         conf.UploadMaxParallel = 10
-    }
-    if conf.HubAddress == "" {
-        return nil, fmt.Errorf("hub ip is mandatory")
-    }
-    if conf.HubPort == 0 {
-        conf.HubPort = 411
     }
     if conf.HubConnTries == 0 {
         conf.HubConnTries = 3
@@ -191,12 +188,24 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf.HubRegisteredCount = 1
     }
 
-    rand.Seed(time.Now().UnixNano())
+    u,err := url.Parse(conf.HubUrl)
+    if err != nil {
+        return nil, fmt.Errorf("unable to parse hub url")
+    }
+    if u.Scheme != "nmdc" && u.Scheme != "adc" {
+        return nil, fmt.Errorf("unsupported scheme: %s", u.Scheme)
+    }
+    if u.Port() == "" {
+        u.Host = u.Hostname() + ":411"
+    }
+    conf.HubUrl = u.String()
 
     c := &Client{
         conf: conf,
         state: "running",
         wakeUp: make(chan struct{}, 1),
+        hubHostname: u.Hostname(),
+        hubPort: atoui(u.Port()),
         shareRoots: make(map[string]string),
         shareTree: make(map[string]*shareRootDirectory),
         downloadSlotAvail: conf.DownloadMaxParallel,

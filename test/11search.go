@@ -12,8 +12,7 @@ var ok = false
 
 func client1() {
     client,err := dctk.NewClient(dctk.ClientConf{
-        HubAddress: "dctk-verlihub",
-        HubPort: 4111,
+        HubUrl: os.Getenv("HUBURL"),
         Nick: "client1",
         PrivateIp: true,
         HubManualConnect: true,
@@ -41,8 +40,7 @@ func client1() {
 
 func client2() {
     client,err := dctk.NewClient(dctk.ClientConf{
-        HubAddress: "dctk-verlihub",
-        HubPort: 4111,
+        HubUrl: os.Getenv("HUBURL"),
         Nick: "client2",
         PrivateIp: true,
         TcpPort: 3005,

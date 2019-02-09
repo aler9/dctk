@@ -25,6 +25,4 @@ echo "SELECT * from SetupList;" | mysql -D verlihub
 verlihub &
 VPID=$!
 
-#trap 'echo TRAPPP; kill -9 $VPID' QUIT
-
 wait
