@@ -15,7 +15,6 @@ func main() {
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: "nmdc://hubip:411",
         Nick: "mynick",
-        PrivateIp: true,
         TcpPort: 3005,
         UdpPort: 3005,
         TcpTlsPort: 3004,
