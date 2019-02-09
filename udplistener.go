@@ -57,27 +57,40 @@ func (u *udpListener) do() {
             }
             msgStr := string(buf[:n])
 
-            msg := reCommand.FindStringSubmatch(msgStr)
-            if msg == nil {
+            matches := reNmdcCommand.FindStringSubmatch(msgStr)
+            if matches == nil {
                 dolog(LevelDebug, "unable to parse incoming UDP (1): %s", msgStr)
                 continue
             }
 
             // udp is used only for search results
-            if msg[1] != "SR" {
+            if matches[1] != "SR" {
                 dolog(LevelDebug, "unable to parse incoming UDP (2): %s", msgStr)
                 continue
             }
 
-            res,err := newSearchResult(true, msg[3])
+            msg := &msgNmdcSearchResult{}
+            err = msg.DecodeArgs(matches[3])
             if err != nil {
                 dolog(LevelInfo, "unable to parse incoming search result: %s", msgStr)
             }
-            dolog(LevelInfo, "[search res] %+v", res)
+
+            sr := &SearchResult{
+                IsActive: true,
+                Nick: msg.Nick,
+                Path: msg.Path,
+                SlotAvail: msg.SlotAvail,
+                SlotCount: msg.SlotCount,
+                TTH: msg.TTH,
+                IsDir: msg.IsDir,
+                HubIp: msg.HubIp,
+                HubPort: msg.HubPort,
+            }
+            dolog(LevelInfo, "[search res] %+v", sr)
 
             u.client.Safe(func() {
                 if u.client.OnSearchResult != nil {
-                    u.client.OnSearchResult(res)
+                    u.client.OnSearchResult(sr)
                 }
             })
         }

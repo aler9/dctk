@@ -19,6 +19,32 @@ import (
 const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
 var rePublicIp = regexp.MustCompile("("+reStrIp+")")
 
+type Peer struct {
+    // peer nickname
+    Nick            string
+    // peer description, if provided
+    Description     string
+    // peer connection string
+    Connection      string
+    // peer status byte
+    Status          byte
+    // peer email, if provided
+    Email           string
+    // total size of files shared by peer
+    ShareSize       uint64
+    // peer ip, if sent by hub
+    Ip              string
+    // whether peer is a hub operator
+    IsOperator      bool
+    // whether peer is a hub bot
+    IsBot           bool
+}
+
+func (p *Peer) supportTls() bool {
+    // we check only for bit 4
+    return (p.Status & (0x01 << 4)) == (0x01 << 4)
+}
+
 type transfer interface {
     isTransfer()
     terminate()
@@ -40,14 +66,10 @@ type ClientConf struct {
     ModePassive                 bool
     // whether to use the local IP instead of the IP of your internet provider
     PrivateIp                   bool
-    // one of the 3 ports needed for active mode. It must be accessible from the
+    // these are the 3 ports needed for active mode. They must be accessible from the
     // internet, so your router must be configured
     TcpPort                     uint
-    // one of the 3 ports needed for active mode. It must be accessible from the
-    // internet, so your router must be configured
     UdpPort                     uint
-    // one of the 3 ports needed for active mode. It must be accessible from the
-    // internet, so your router must be configured
     TcpTlsPort                  uint
     // the maximum number of file to download in parallel. When this number is
     // exceeded, the other downloads are queued and started when a slot is available
@@ -58,7 +80,7 @@ type ClientConf struct {
     PeerDisableCompression      bool
     // set the policy regarding encryption with other peers. See EncryptionMode for options
     PeerEncryptionMode          EncryptionMode
-    // The hub url in the form nmdc://address:port or adc://address:port
+    // The hub url in the format nmdc://address:port or adc://address:port
     HubUrl                      string
     // how many times attempting connection with hub before giving up
     HubConnTries                uint
@@ -77,7 +99,7 @@ type ClientConf struct {
     Description                 string
     // the connection string, it influences the icon other peers see
     Connection                  string
-    // these are used to identify your client
+    // these are used to identify your client. By default they mimic the DC++ ones
     ClientString                string
     ClientVersion               string
     PkValue                     string
@@ -95,6 +117,7 @@ type Client struct {
     wg                      sync.WaitGroup
     wakeUp                  chan struct{}
     clientId                string
+    hubProto                string
     hubHostname             string
     hubPort                 uint
     hubSolvedIp             string
@@ -108,6 +131,7 @@ type Client struct {
     tcpTlsListener          *tcpListener
     udpListener             *udpListener
     hubConn                 *hubConn
+    peers                   map[string]*Peer
     downloadSlotAvail       uint
     uploadSlotAvail         uint
     peerConns               map[*peerConn]struct{}
@@ -193,7 +217,7 @@ func NewClient(conf ClientConf) (*Client,error) {
         return nil, fmt.Errorf("unable to parse hub url")
     }
     if u.Scheme != "nmdc" && u.Scheme != "adc" {
-        return nil, fmt.Errorf("unsupported scheme: %s", u.Scheme)
+        return nil, fmt.Errorf("unsupported protocol: %s", u.Scheme)
     }
     if u.Port() == "" {
         u.Host = u.Hostname() + ":411"
@@ -204,10 +228,12 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf: conf,
         state: "running",
         wakeUp: make(chan struct{}, 1),
+        hubProto: u.Scheme,
         hubHostname: u.Hostname(),
         hubPort: atoui(u.Port()),
         shareRoots: make(map[string]string),
         shareTree: make(map[string]*shareRootDirectory),
+        peers: make(map[string]*Peer),
         downloadSlotAvail: conf.DownloadMaxParallel,
         uploadSlotAvail: conf.UploadMaxParallel,
         peerConns: make(map[*peerConn]struct{}),
@@ -372,45 +398,54 @@ func (c *Client) myInfo() {
 
     // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_myinfo
     // https://web.archive.org/web/20150323115608/http://wiki.gusari.org/index.php?title=$MyINFO
-    var status byte = 0x01
+    var statusByte byte = 0x01
 
     // add upload and download TLS support
     if c.conf.PeerEncryptionMode != DisableEncryption {
-        status |= (0x01 << 4) | (0x01 << 5)
+        statusByte |= (0x01 << 4) | (0x01 << 5)
     }
 
-    c.hubConn.conn.Send <- msgCommand{ "MyINFO",
-        fmt.Sprintf("$ALL %s %s <%s V:%s,M:%s,H:%d/%d/%d,S:%d>$ $%s%s$%s$%d$",
-        c.conf.Nick, c.conf.Description, c.conf.ClientString, c.conf.ClientVersion, modestr,
-        c.conf.HubUnregisteredCount, c.conf.HubRegisteredCount, c.conf.HubOperatorCount,
-        c.conf.UploadMaxParallel, c.conf.Connection,
-        string([]byte{status}), c.conf.Email, c.shareSize),
-    }
+    c.hubConn.conn.SendQueued(&msgNmdcMyInfo{
+        Nick: c.conf.Nick,
+        Description: c.conf.Description,
+        Client: c.conf.ClientString,
+        Version: c.conf.ClientVersion,
+        Mode: modestr,
+        HubUnregisteredCount: c.conf.HubUnregisteredCount,
+        HubRegisteredCount: c.conf.HubRegisteredCount,
+        HubOperatorCount: c.conf.HubOperatorCount,
+        UploadSlots: c.conf.UploadMaxParallel,
+        Connection: c.conf.Connection,
+        StatusByte: statusByte,
+        Email: c.conf.Email,
+        ShareSize: c.shareSize,
+    })
 }
 
 func (c *Client) connectToMe(target string) {
-    p,ok := c.hubConn.peers[target]
+    p,ok := c.peers[target]
     if !ok {
         return
     }
 
-    c.hubConn.conn.Send <- msgCommand{ "ConnectToMe",
-        fmt.Sprintf("%s %s:%s",
-            target,
-            c.ip,
-            func() string {
-                if c.conf.PeerEncryptionMode != DisableEncryption && p.supportTls() {
-                    return fmt.Sprintf("%dS", c.conf.TcpTlsPort)
-                }
-                return fmt.Sprintf("%d", c.conf.TcpPort)
-            }()),
-        }
+    c.hubConn.conn.SendQueued(&msgNmdcConnectToMe{
+        Target: target,
+        Ip: c.ip,
+        Port: func() uint {
+            if c.conf.PeerEncryptionMode != DisableEncryption && p.supportTls() {
+                return c.conf.TcpTlsPort
+            }
+            return c.conf.TcpPort
+        }(),
+        Encrypted: (c.conf.PeerEncryptionMode != DisableEncryption && p.supportTls()),
+    })
 }
 
 func (c *Client) revConnectToMe(target string) {
-    c.hubConn.conn.Send <- msgCommand{ "RevConnectToMe",
-        fmt.Sprintf("%s %s", c.conf.Nick, target),
-    }
+    c.hubConn.conn.SendQueued(&msgNmdcRevConnectToMe{
+        Author: c.conf.Nick,
+        Target: target,
+    })
 }
 
 // Safe is used to safely execute code outside the client context. It must be
@@ -440,15 +475,15 @@ func (c *Client) DownloadCount() int {
 
 // Peers returns a map containing all the peers connected to current hub.
 func (c *Client) Peers() map[string]*Peer {
-    return c.hubConn.peers
+    return c.peers
 }
 
 // PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
-    c.hubConn.conn.Send <- msgPublicChat{ c.conf.Nick, content }
+    c.hubConn.conn.SendQueued(&msgNmdcPublicChat{ c.conf.Nick, content })
 }
 
 // PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
-    c.hubConn.conn.Send <- msgPrivateChat{ c.conf.Nick, dest.Nick, content }
+    c.hubConn.conn.SendQueued(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
 }

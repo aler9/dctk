@@ -19,7 +19,7 @@ type upload struct {
     pconn           *peerConn
     reader          io.ReadCloser
     compressed      bool
-    request         string
+    query         string
     start           uint64
     length          uint64
     offset          uint64
@@ -28,21 +28,20 @@ type upload struct {
 
 func (*upload) isTransfer() {}
 
-func newUpload(client *Client, pconn *peerConn, args []string) error {
+func newUpload(client *Client, pconn *peerConn, msg *msgNmdcAdcGet) error {
     u := &upload{
         client: client,
         state: "transfering",
         pconn: pconn,
     }
 
-    u.request = args[1]
-    u.start = atoui64(args[4])
-    reqLength := atoi64(args[5])
-    reqTTH := args[3]
-    u.compressed = (client.conf.PeerDisableCompression == false && args[6] != "")
+    u.query = msg.Query
+    u.start = msg.Start
+    u.compressed = (client.conf.PeerDisableCompression == false &&
+        msg.Compress == true)
 
     dolog(LevelInfo, "[upload request] %s/%s (s=%d l=%d)",
-        pconn.remoteNick, dcReadableRequest(u.request), u.start, reqLength)
+        pconn.remoteNick, dcReadableQuery(u.query), u.start, msg.Length)
 
     // check available slots
     if u.client.uploadSlotAvail <= 0 {
@@ -51,8 +50,8 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
 
     err := func() error {
         // upload is file list
-        if u.request == "file files.xml.bz2" {
-            if u.start != 0 || reqLength != -1 {
+        if u.query == "file files.xml.bz2" {
+            if u.start != 0 || msg.Length != -1 {
                 return fmt.Errorf("filelist seeking is not supported")
             }
 
@@ -61,12 +60,14 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
             return nil
         }
 
-        // upload is a file or its tthl
+        // upload is a file by TTH or its tthl
         fpath,tthl := func() (fpath string, tthl []byte) {
+            msgTTH := u.query[9:] // skip "file TTH/" or "tthl TTH/"
+
             var scanDir func(rpath string, dir *shareDirectory) bool
             scanDir = func(rpath string, dir *shareDirectory) bool {
                 for fname,file := range dir.files {
-                    if file.tth == reqTTH {
+                    if file.tth == msgTTH {
                         fpath = filepath.Join(rpath, fname)
                         tthl = file.tthl
                         return true
@@ -91,8 +92,8 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
         }
 
         // upload is file tthl
-        if strings.HasPrefix(args[1], "tthl TTH") {
-            if u.start != 0 || reqLength != -1 {
+        if strings.HasPrefix(u.query, "tthl TTH") {
+            if u.start != 0 || msg.Length != -1 {
                 return fmt.Errorf("tthl seeking is not supported")
             }
             u.reader = ioutil.NopCloser(bytes.NewReader(tthl))
@@ -130,12 +131,12 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
 
         // set real length
         maxLength := uint64(finfo.Size()) - u.start
-        if reqLength != -1 {
-            if uint64(reqLength) > maxLength {
+        if msg.Length != -1 {
+            if uint64(msg.Length) > maxLength {
                 f.Close()
                 return fmt.Errorf("length too big")
             }
-            u.length = uint64(reqLength)
+            u.length = uint64(msg.Length)
         } else {
             u.length = maxLength
         }
@@ -147,13 +148,12 @@ func newUpload(client *Client, pconn *peerConn, args []string) error {
         return err
     }
 
-    u.pconn.conn.Send <- msgCommand{ "ADCSND",
-        fmt.Sprintf("%s %d %d%s", u.request, u.start, u.length, func() string {
-            if u.compressed {
-                return " ZL1"
-            }
-            return ""
-        }()) }
+    u.pconn.conn.SendQueued(&msgNmdcAdcSnd{
+        Query: u.query,
+        Start: u.start,
+        Length: u.length,
+        Compressed: u.compressed,
+    })
 
     client.transfers[u] = struct{}{}
     u.client.uploadSlotAvail -= 1
@@ -167,9 +167,6 @@ func (u *upload) terminate() {
     switch u.state {
     case "terminated":
         return
-
-    // TODO
-    //case "transfering":
 
     default:
         panic(fmt.Errorf("terminate() unsupported in state '%s'", u.state))
@@ -247,10 +244,10 @@ func (u *upload) do() {
 
         if u.state == "success" {
             dolog(LevelInfo, "[upload finished] %s/%s (s=%d l=%d)",
-                u.pconn.remoteNick, dcReadableRequest(u.request), u.start, u.length)
+                u.pconn.remoteNick, dcReadableQuery(u.query), u.start, u.length)
         } else {
             dolog(LevelInfo, "[upload failed] %s/%s",
-                u.pconn.remoteNick, dcReadableRequest(u.request))
+                u.pconn.remoteNick, dcReadableQuery(u.query))
         }
     })
 }

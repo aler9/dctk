@@ -4,95 +4,70 @@ import (
     "net"
     "fmt"
     "time"
-    "regexp"
     "io"
     "compress/zlib"
 )
 
-var reCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?\\|$")
-var rePublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)\\|$")
-var rePrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)|$")
+type protocolNetReader struct { net.Conn }
 
-type msgBase interface {
-    Bytes()     []byte
-}
-
-type msgCommand struct {
-    Key         string
-    Args        string
-}
-
-func (c msgCommand) Bytes() []byte {
-    return []byte(fmt.Sprintf("$%s %s|", c.Key, c.Args))
-}
-
-type msgPublicChat struct {
-    Author      string
-    Content     string
-}
-
-func (c msgPublicChat) Bytes() []byte {
-    return []byte(fmt.Sprintf("<%s> %s|", c.Author, c.Content))
-}
-
-type msgPrivateChat struct {
-    Author      string
-    Dest        string
-    Content     string
-}
-
-func (c msgPrivateChat) Bytes() []byte {
-    return []byte(fmt.Sprintf("$To: %s From: %s $<%s> %s|", c.Dest, c.Author, c.Author, c.Content))
-}
-
-type msgBinary struct {
-    Content     []byte
-}
-
-func (c msgBinary) Bytes() []byte {
-    return c.Content
-}
-
-type protocolNetConn struct { net.Conn }
-
-// we also provide a io.ByteReader interface to zlib.NewReader()
+// we provide a io.ByteReader interface for zlib.NewReader()
 // otherwise a bufio layer is added, resulting in a constant 4096-bytes request
 // to Read(), that messes up the zlib on/off phase
 // https://golang.org/src/compress/flate/inflate.go -> makeReader()
-func (nr protocolNetConn) ReadByte() (byte, error) {
+func (nr protocolNetReader) ReadByte() (byte, error) {
     var dest [1]byte
     _,err := nr.Read(dest[:])
     return dest[0], err
 }
 
-type protocol struct {
-    nconn               protocolNetConn
-    remoteLabel         string
-    Send                chan msgBase
-    terminated          bool
-    ChatAllowed         bool
-    writeTimeout        time.Duration
-    zlibReader          io.ReadCloser
-    msgBuffer           [1024 * 10]byte // max message size
-    msgOffset           int
-    writerJoined        chan struct{}
-    zlibWriter          *zlib.Writer
-    activeReceiver      func() (msgBase,error)
-    activeReader        io.Reader
-    activeWriter        io.Writer
-    binaryMode          bool
+// this is exactly like bufio and its ReadSlice(), except it does not buffer
+// anything, to allow the zlib on/off phase
+func readUntilDelim(in io.Reader, delim byte) ([]byte,error) {
+    var buffer [1024 * 10]byte // max message size
+    offset := 0
+    for {
+        // read one character at a time
+        read,err := in.Read(buffer[offset:offset+1])
+        if read == 0 {
+            return nil,err
+        }
+        offset++
+
+        if buffer[offset-1] == delim {
+            return buffer[:offset], nil
+        }
+
+        if offset >= len(buffer) {
+            return nil, fmt.Errorf("message buffer exhausted")
+        }
+    }
 }
 
-func newprotocol(nconn net.Conn, remoteLabel string, readTimeout time.Duration, writeTimeout time.Duration) *protocol {
+type protocol struct {
+    remoteLabel         string
+    send                chan msgEncodable
+    terminated          bool
+    writeTimeout        time.Duration
+    binaryMode          bool
+    netReadWriter       protocolNetReader
+    zlibReader          io.ReadCloser
+    activeReader        io.Reader
+    zlibWriter          *zlib.Writer
+    activeWriter        io.Writer
+    writerJoined        chan struct{}
+}
+
+func newProtocol(nconn net.Conn, remoteLabel string,
+    readTimeout time.Duration, writeTimeout time.Duration) *protocol {
     c := &protocol{
-        nconn: protocolNetConn{nconn},
         remoteLabel: remoteLabel,
         writeTimeout: writeTimeout,
         writerJoined: make(chan struct{}),
         binaryMode: true,
+        netReadWriter: protocolNetReader{nconn},
     }
-    c.activeReader = nconn
-    c.activeWriter = nconn
+    c.activeReader = c.netReadWriter
+    c.activeWriter = c.netReadWriter
     c.SetBinaryMode(false)
     return c
 }
@@ -102,12 +77,16 @@ func (c *protocol) terminate() {
         return
     }
     c.terminated = true
-    c.nconn.Close()
+    c.netReadWriter.Close()
 
     if c.binaryMode == false {
-        close(c.Send)
+        close(c.send)
         <- c.writerJoined
     }
+}
+
+func (c *protocol) SendQueued(msg msgEncodable) {
+    c.send <- msg
 }
 
 func (c *protocol) SetBinaryMode(val bool) {
@@ -117,13 +96,11 @@ func (c *protocol) SetBinaryMode(val bool) {
     c.binaryMode = val
 
     if val == true {
-        c.activeReceiver = c.receiveBinary
-        close(c.Send) // join writer
+        close(c.send) // join writer
         <- c.writerJoined
 
     } else {
-        c.activeReceiver = c.receiveMessage
-        c.Send = make(chan msgBase)
+        c.send = make(chan msgEncodable)
         go c.writer()
     }
 }
@@ -133,10 +110,14 @@ func (c *protocol) SetReadCompressionOn() error {
         return fmt.Errorf("zlib already activated")
     }
 
-    var err error
-    c.zlibReader,err = zlib.NewReader(c.nconn)
-    if err != nil {
-        panic(err)
+    if c.zlibReader == nil {
+        var err error
+        c.zlibReader,err = zlib.NewReader(c.netReadWriter)
+        if err != nil {
+            panic(err)
+        }
+    } else {
+        c.zlibReader.(zlib.Resetter).Reset(c.netReadWriter, nil)
     }
     c.activeReader = c.zlibReader
 
@@ -151,27 +132,25 @@ func (c *protocol) SetWriteCompression(val bool) {
     }
 
     if val == true {
-        c.zlibWriter = zlib.NewWriter(c.nconn)
+        c.zlibWriter = zlib.NewWriter(c.netReadWriter)
         c.activeWriter = c.zlibWriter
         dolog(LevelDebug, "[write zlib on]")
     } else {
         c.zlibWriter.Close()
-        c.activeWriter = c.nconn
+        c.activeWriter = c.netReadWriter
         dolog(LevelDebug, "[write zlib off]")
     }
 }
 
 func (c *protocol) writer() {
     for {
-        command,ok := <- c.Send
+        command,ok := <- c.send
         if ok == false {
-            break // Send has been closed
+            break // send has been closed
         }
 
-        if m,ok := command.(msgCommand); ok {
-            dolog(LevelDebug, "[c->%s] %s %s", c.remoteLabel, m.Key, m.Args)
-        }
-        msg := command.Bytes()
+        msg := command.Encode()
+        dolog(LevelDebug, "[c->%s] %s", c.remoteLabel, msg[1:len(msg)-1])
 
         // do not handle errors here
         c.WriteBinary(msg)
@@ -181,7 +160,7 @@ func (c *protocol) writer() {
 
 func (c *protocol) WriteBinary(in []byte) error {
     if c.writeTimeout > 0 {
-        if err := c.nconn.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
+        if err := c.netReadWriter.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
             return err
         }
     }
@@ -192,83 +171,113 @@ func (c *protocol) WriteBinary(in []byte) error {
     return nil
 }
 
-func (c *protocol) Receive() (msgBase,error) {
+func (c *protocol) Receive() (msgDecodable,error) {
     // Terminate() was called in a previous run
     if c.terminated == true {
         return nil, errorTerminated
     }
-    return c.activeReceiver()
-}
 
-func (c *protocol) receiveMessage() (msgBase,error) {
-    for {
-        if c.msgOffset >= len(c.msgBuffer) {
-            return nil, fmt.Errorf("message buffer exhausted")
-        }
-
-        // read one character at a time
-        read,err := c.activeReader.Read(c.msgBuffer[c.msgOffset:c.msgOffset+1])
-        if read == 0 {
-            // zlib EOF: disable and read again
-            if c.activeReader == c.zlibReader && err == io.EOF {
-                dolog(LevelDebug, "[read zlib off]")
-                c.zlibReader.Close()
-                c.activeReader = c.nconn
-                continue
+    // message mode
+    if c.binaryMode == false {
+        for {
+            msg,err := readUntilDelim(c.activeReader, '|')
+            if err != nil {
+                // zlib EOF: disable and read again
+                if c.activeReader == c.zlibReader && err == io.EOF {
+                    dolog(LevelDebug, "[read zlib off]")
+                    c.zlibReader.Close()
+                    c.activeReader = c.netReadWriter
+                    continue
+                }
+                if c.terminated == true {
+                    return nil, errorTerminated
+                }
+                return nil, err
             }
-            if c.terminated == true {
-                return nil, errorTerminated
-            }
-            return nil, err
-        }
-        c.msgOffset++
-
-        if c.msgBuffer[c.msgOffset-1] == '|' {
-            msgStr := string(c.msgBuffer[:c.msgOffset])
-            c.msgOffset = 0
+            msgStr := string(msg)
 
             if len(msgStr) == 1 { // empty message: skip
                 continue
 
-            } else if matches := reCommand.FindStringSubmatch(msgStr); matches != nil {
-                msg := msgCommand{ Key: matches[1], Args: matches[3] }
-                dolog(LevelDebug, "[%s->c] %s %s", c.remoteLabel, msg.Key, msg.Args)
+            } else if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
+                key := matches[1]
+                args := matches[3]
+
+                cmd := func() msgDecodableNmdcCommand {
+                    switch key {
+                    case "ADCGET": return &msgNmdcAdcGet{}
+                    case "ADCSND": return &msgNmdcAdcSnd{}
+                    case "BotList": return &msgNmdcBotList{}
+                    case "ConnectToMe": return &msgNmdcConnectToMe{}
+                    case "Direction": return &msgNmdcDirection{}
+                    case "Error": return &msgNmdcError{}
+                    case "ForceMove": return &msgNmdcForceMove{}
+                    case "GetPass": return &msgNmdcGetPass{}
+                    case "Hello": return &msgNmdcHello{}
+                    case "HubName": return &msgNmdcHubName{}
+                    case "HubTopic": return &msgNmdcHubTopic{}
+                    case "Key": return &msgNmdcKey{}
+                    case "Lock": return &msgNmdcLock{}
+                    case "LogedIn": return &msgNmdcLoggedIn{}
+                    case "MaxedOut": return &msgNmdcMaxedOut{}
+                    case "MyINFO": return &msgNmdcMyInfo{}
+                    case "MyNick": return &msgNmdcMyNick{}
+                    case "OpList": return &msgNmdcOpList{}
+                    case "Quit": return &msgNmdcQuit{}
+                    case "RevConnectToMe": return &msgNmdcRevConnectToMe{}
+                    case "Search": return &msgNmdcSearchRequest{}
+                    case "SR": return &msgNmdcSearchResult{}
+                    case "Supports": return &msgNmdcSupports{}
+                    case "UserCommand": return &msgNmdcUserCommand{}
+                    case "UserIP": return &msgNmdcUserIp{}
+                    case "ZOn": return &msgNmdcZon{}
+                    }
+                    return nil
+                }()
+                if cmd == nil {
+                    return nil, fmt.Errorf("unrecognized command: %s", key)
+                }
+
+                err := cmd.DecodeArgs(args)
+                if err != nil {
+                    return nil, fmt.Errorf("unable to decode arguments for %s: %s", key, err)
+                }
+
+                dolog(LevelDebug, "[%s->c] %s %s", c.remoteLabel, key, args)
+                return cmd, nil
+
+            } else if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
+                msg := &msgNmdcPublicChat{ Author: matches[1], Content: matches[2] }
+                dolog(LevelInfo, "[%s->c] [PUB] <%s> %s", c.remoteLabel, msg.Author, msg.Content)
                 return msg, nil
 
-            } else if c.ChatAllowed == true {
-                if matches := rePublicChat.FindStringSubmatch(msgStr); matches != nil {
-                    msg := msgPublicChat{ Author: matches[1], Content: matches[2] }
-                    dolog(LevelInfo, "[PUB] <%s> %s", msg.Author, msg.Content)
-                    return msg, nil
-
-                } else if matches := rePrivateChat.FindStringSubmatch(msgStr); matches != nil {
-                    msg := msgPrivateChat{ Author: matches[3], Content: matches[4] }
-                    dolog(LevelInfo, "[PRIV] <%s> %s", msg.Author, msg.Content)
-                    return msg, nil
-                }
+            } else if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
+                msg := &msgNmdcPrivateChat{ Author: matches[3], Content: matches[4] }
+                dolog(LevelInfo, "[%s->c] [PRIV] <%s> %s", c.remoteLabel, msg.Author, msg.Content)
+                return msg, nil
             }
             return nil, fmt.Errorf("Unable to parse: %s", msgStr)
         }
-    }
-}
 
-func (c *protocol) receiveBinary() (msgBase,error) {
-    var buf [2048]byte
-    for {
-        read,err := c.activeReader.Read(buf[:])
-        if read == 0 {
-            // zlib EOF: disable and read again
-            if c.activeReader == c.zlibReader && err == io.EOF {
-                dolog(LevelDebug, "[read zlib off]")
-                c.zlibReader.Close()
-                c.activeReader = c.nconn
-                continue
+    // binary mode
+    } else {
+        var buf [2048]byte
+        for {
+            read,err := c.activeReader.Read(buf[:])
+            if read == 0 {
+                // zlib EOF: disable and read again
+                if c.activeReader == c.zlibReader && err == io.EOF {
+                    dolog(LevelDebug, "[read zlib off]")
+                    c.zlibReader.Close()
+                    c.activeReader = c.netReadWriter
+                    continue
+                }
+                if c.terminated == true {
+                    return nil, errorTerminated
+                }
+                return nil, err
             }
-            if c.terminated == true {
-                return nil, errorTerminated
-            }
-            return nil, err
+            return &msgNmdcBinary{ Content: buf[:read] }, nil
         }
-        return msgBinary{ Content: buf[:read] }, nil
     }
 }

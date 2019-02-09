@@ -12,7 +12,7 @@ run_test() {
     fi
 
     docker run --rm -d --network=dctk-test --name=dctk-hub \
-        $HUBIMAGE $2 >/dev/null \
+        $HUBIMAGE $1 >/dev/null \
         || exit 1
 
     CMD="docker run --rm -it --network=dctk-test --name=dctk-test \
@@ -56,16 +56,18 @@ main() {
         [ -n "$TEST" ] && [ -f "test/$TEST.go" ] || usage
     fi
 
-    # cleanup residual of previous tests
+    # cleanup residuals of previous tests
     docker container kill dctk-hub dctk-test >/dev/null 2>&1; \
         docker network rm dctk-test >/dev/null 2>&1
 
     # create images and network
-    docker build test/verlihub -t dctk-verlihub \
-        && docker build test/luadch -t dctk-luadch \
-        && docker build . -f test/Dockerfile -t dctk-test \
+    printf "building images..."
+    docker build test/verlihub -t dctk-verlihub >/dev/null \
+        && docker build test/luadch -t dctk-luadch >/dev/null \
+        && docker build . -f test/Dockerfile -t dctk-test >/dev/null \
         && docker network create dctk-test >/dev/null \
         || exit 1
+    echo "ok\n"
 
     # process
     if [ $ALL -eq 1 ]; then
