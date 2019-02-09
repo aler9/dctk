@@ -3,9 +3,11 @@
 
 [![GoDoc](https://godoc.org/github.com/gswly/dctoolkit?status.svg)](https://godoc.org/github.com/gswly/dctoolkit)
 
-dctoolkit is a library that implements the client part of the Direct Connect infrastructure (NeoModus DC) in the Go programming language. It allows the creation of clients that can interact with hubs and other clients, and can be used as backend to user interfaces or automatic bots.
+dctoolkit is a library that implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It allows the creation of clients that can interact with hubs and other clients, and can be used as backend to user interfaces or automatic bots.
 
-Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH), listed in a file list generated for each user and searchable. There exists two implementations, the NMDC (NeoModus Direct Connect) protocol and the newer ADC (Advanced Direct Connect) protocol. This library at the moment supports only the NMDC implementation.
+Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH), listed in a file list generated for each user and searchable on a hub-basis. There exist two implementations, the traditional NMDC protocol (NeoModus Direct Connect) and the newer ADC protocol (Advanced Direct Connect).
+
+**At the moment this library supports only the NMDC protocol**
 
 ## Features
 
@@ -59,8 +61,8 @@ go get github.com/gswly/dctoolkit
 Protocol references
 * (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
 * (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
-* (ADC) https://adc.sourceforge.io/ADC.html
-* (ADC) https://adc.sourceforge.io/ADC-EXT.html
+* (ADC) https://adc.dcbase.org/Protocol
+* (ADC) https://adc.dcbase.org/Extensions
 
 Hubs
 * (NMDC) http://www.ptokax.org
@@ -69,6 +71,7 @@ Hubs
 * (NMDC) https://sourceforge.net/projects/flexhubdc/
 * (ADC) https://luadch.github.io/
 * (NMDC & ADC) http://rushub.org/
+* (ADC) https://www.uhub.org/
 * (NMDC & ADC) https://github.com/direct-connect/go-dcpp
 
 Clients

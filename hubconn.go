@@ -2,34 +2,9 @@ package dctoolkit
 
 import (
     "fmt"
-    "strings"
     "net"
     "time"
-    "regexp"
 )
-
-var reCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?) ?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
-var reCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
-var reCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+")$")
-var reCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
-var reCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
-
-type Peer struct {
-    Nick            string
-    Description     string
-    protocol        string
-    Status          byte
-    Email           string
-    ShareSize       uint64
-    Ip              string
-    IsOperator      bool
-    IsBot           bool
-}
-
-func (p *Peer) supportTls() bool {
-    // we check only for bit 4
-    return (p.Status & (0x01 << 4)) == (0x01 << 4)
-}
 
 type hubConn struct {
     client          *Client
@@ -37,7 +12,6 @@ type hubConn struct {
     conn            *protocol
     uniqueCmds      map[string]struct{}
     myInfoReceived  bool
-    peers           map[string]*Peer
 }
 
 func newHub(client *Client) error {
@@ -45,7 +19,6 @@ func newHub(client *Client) error {
         client: client,
         state: "uninitialized",
         uniqueCmds: make(map[string]struct{}),
-        peers: make(map[string]*Peer),
     }
     return nil
 }
@@ -109,10 +82,7 @@ func (h *hubConn) do() {
             h.state = "connected"
 
             // do not use read timeout since hub does not send data continuously
-            h.conn = newprotocol(rawconn, "h", 0, 10 * time.Second)
-
-            // unfortunately chat messages can be sent immediately
-            h.conn.ChatAllowed = true
+            h.conn = newProtocol(rawconn, "h", 0, 10 * time.Second)
         })
 
         // activate TCP keepalive
@@ -157,7 +127,7 @@ func (h *hubConn) do() {
     })
 }
 
-func (h *hubConn) handleMessage(rawmsg msgBase) error {
+func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
     h.client.mutex.Lock()
     defer h.client.mutex.Unlock()
 
@@ -166,327 +136,298 @@ func (h *hubConn) handleMessage(rawmsg msgBase) error {
     }
 
     switch msg := rawmsg.(type) {
-    case msgCommand:
-        switch(msg.Key) {
-            case "Lock":
-                if h.state != "connected" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                h.state = "lock"
+    case *msgNmdcLock:
+        if h.state != "connected" {
+            return fmt.Errorf("[Lock] invalid state: %s", h.state)
+        }
+        h.state = "lock"
 
-                // https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
-                // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
-                hubSupports := []string{ "UserCommand", "NoGetINFO", "NoHello", "UserIP2", "TTHSearch" }
-                if h.client.conf.HubDisableCompression == false {
-                    hubSupports = append(hubSupports, "ZPipe0")
-                }
-                // this must be provided, otherwise the final S is stripped from connectToMe
-                if h.client.conf.PeerEncryptionMode != DisableEncryption {
-                    hubSupports = append(hubSupports, "TLS")
-                }
-
-                lock := []byte(strings.Split(msg.Args, " ")[0])
-                h.conn.Send <- msgCommand{ "Supports", strings.Join(hubSupports, " ") }
-                h.conn.Send <- msgCommand{ "Key", dcComputeKey(lock) }
-                h.conn.Send <- msgCommand{ "ValidateNick", h.client.conf.Nick }
-
-            case "Supports":
-                if h.state != "lock" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                h.state = "preinitialized"
-
-            // flexhub send HubName just after lock
-            // HubName can also be sent twice
-            case "HubName":
-                if h.state != "preinitialized" && h.state != "lock" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-
-            case "ZOn":
-                if h.state != "initialized" && h.state != "preinitialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                if h.client.conf.HubDisableCompression == true {
-                    return fmt.Errorf("zlib requested but zlib is disabled")
-                }
-                if err := h.conn.SetReadCompressionOn(); err != nil {
-                    return err
-                }
-
-            case "HubTopic":
-                if h.state != "preinitialized" && h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                if _,ok := h.uniqueCmds[msg.Key]; ok {
-                    return fmt.Errorf("%s sent twice", msg.Key)
-                }
-                h.uniqueCmds[msg.Key] = struct{}{}
-
-            case "GetPass":
-                if h.state != "preinitialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                h.conn.Send <- msgCommand{ "MyPass", h.client.conf.Password }
-                if _,ok := h.uniqueCmds[msg.Key]; ok {
-                    return fmt.Errorf("%s sent twice", msg.Key)
-                }
-                h.uniqueCmds[msg.Key] = struct{}{}
-
-            case "LogedIn":
-                if h.state != "preinitialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                if _,ok := h.uniqueCmds[msg.Key]; ok {
-                    return fmt.Errorf("%s sent twice", msg.Key)
-                }
-                h.uniqueCmds[msg.Key] = struct{}{}
-
-            case "Hello":
-                if h.state != "preinitialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                if _,ok := h.uniqueCmds[msg.Key]; ok {
-                    return fmt.Errorf("%s sent twice", msg.Key)
-                }
-                h.uniqueCmds[msg.Key] = struct{}{}
-
-                // The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
-                // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
-                h.conn.Send <- msgCommand{ "Version", "1,0091" }
-                h.client.myInfo()
-                h.conn.Send <- msgCommand{ "GetNickList", "" }
-
-            case "MyINFO":
-                if h.state != "preinitialized" && h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-
-                // skip first MyINFO since own infos are sent twice
-                if h.myInfoReceived == false {
-                    h.myInfoReceived = true
-
-                } else {
-                    info := reCmdInfo.FindStringSubmatch(msg.Args)
-                    if info == nil {
-                        return fmt.Errorf("unable to parse info line: %s", msg.Args)
-                    }
-
-                    p := &Peer{
-                        Nick: info[1],
-                        Description: info[2],
-                        protocol: info[3],
-                        Status: []byte(info[4])[0],
-                        Email: info[5],
-                        ShareSize: atoui64(info[6]),
-                    }
-
-                    if _,exist := h.peers[p.Nick]; !exist {
-                        dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
-                        if h.client.OnPeerConnected != nil {
-                            h.client.OnPeerConnected(p)
-                        }
-
-                    } else {
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-
-                    h.peers[p.Nick] = p
-                }
-
-            case "UserIP":
-                if h.state != "preinitialized" && h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-
-                // we do not use UserIp to get our own ip, but only to get other
-                // ips of other peers
-                ips := strings.Split(strings.TrimSuffix(msg.Args, "$$"), "$$")
-                for _,ipstr := range ips {
-                    args := reCmdUserIP.FindStringSubmatch(ipstr)
-                    if args == nil {
-                        return fmt.Errorf("unable to parse UserIP args: %s", msg.Args)
-                    }
-                    // update peer
-                    if p,ok := h.peers[args[1]]; ok {
-                        p.Ip = args[2]
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-                }
-
-            case "OpList":
-                if h.state != "preinitialized" && h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-
-                // reset operators
-                for _,p := range h.peers {
-                    if p.IsOperator == true {
-                        p.IsOperator = false
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-                }
-
-                // import new operators
-                for _,op := range strings.Split(strings.TrimSuffix(msg.Args, "$$"), "$$") {
-                    if p,ok := h.peers[op]; ok {
-                        p.IsOperator = true
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-                }
-
-                // switch to initialized
-                if h.state != "initialized" {
-                    h.state = "initialized"
-                    dolog(LevelInfo, "[initialized] %d peers", len(h.peers))
-                    if h.client.OnHubConnected != nil {
-                        h.client.OnHubConnected()
-                    }
-                }
-
-            case "UserCommand":
-                if h.state != "preinitialized" && h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                args := reCmdUserCommand.FindStringSubmatch(msg.Args)
-                if args == nil {
-                    return fmt.Errorf("unable to parse UserCommand args: %s", msg.Args)
-                }
-
-            case "BotList":
-                if h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-
-                // reset bots
-                for _,p := range h.peers {
-                    if p.IsBot == true {
-                        p.IsBot = false
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-                }
-
-                // import new bots
-                bots := strings.Split(strings.TrimSuffix(msg.Args, "$$"), "$$")
-                for _,bot := range bots {
-                    if p,ok := h.peers[bot]; ok {
-                        p.IsBot = true
-                        if h.client.OnPeerUpdated != nil {
-                            h.client.OnPeerUpdated(p)
-                        }
-                    }
-                }
-
-            case "Quit":
-                if h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                nick := msg.Args
-                if _,ok := h.peers[nick]; ok {
-                    p := h.peers[nick]
-                    delete(h.peers, nick)
-                    dolog(LevelInfo, "[peer off] %s", p.Nick)
-                    if h.client.OnPeerDisconnected != nil {
-                        h.client.OnPeerDisconnected(p)
-                    }
-
-                } else {
-                    return fmt.Errorf("received quit() on unconnected peer: %s", nick)
-                }
-
-            case "ForceMove":
-                // means disconnect and reconnect to provided address
-                // we just disconnect
-                return fmt.Errorf("received force move")
-
-            case "Search":
-                // searches can be received even before initialization; ignore them
-                if h.state == "initialized" {
-                    req,err := newSearchRequest(msg.Args)
-                    if err != nil {
-                        dolog(LevelDebug, "invalid search request (%s): %s", msg.Args, err)
-                    } else {
-                        h.client.onSearchRequest(req)
-                    }
-                }
-
-            case "SR":
-                if h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                res,err := newSearchResult(false, msg.Args)
-                if err != nil {
-                    return fmt.Errorf("unable to parse search result")
-                }
-                dolog(LevelInfo, "[search res] %+v", res)
-
-                if h.client.OnSearchResult != nil {
-                    h.client.OnSearchResult(res)
-                }
-
-            case "ConnectToMe":
-                if h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                args := reCmdConnectToMe.FindStringSubmatch(msg.Args)
-                if args == nil {
-                    return fmt.Errorf("unable to parse ConnectToMe args: %s", msg.Args)
-                }
-                ip := args[2]
-                port := atoui(args[3])
-                tls := (args[4] != "")
-                if tls == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
-                    dolog(LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
-                } else if tls == false && h.client.conf.PeerEncryptionMode == ForceEncryption {
-                    dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
-                } else {
-                    newPeerConn(h.client, tls, false, nil, ip, port)
-                }
-
-            case "RevConnectToMe":
-                if h.state != "initialized" {
-                    return fmt.Errorf("[%s] invalid state: %s", msg.Key, h.state)
-                }
-                args := reCmdRevConnectToMe.FindStringSubmatch(msg.Args)
-                if args == nil {
-                    return fmt.Errorf("unable to parse RevConnectToMe args: %s", msg.Args)
-                }
-                // we can process RevConnectToMe only in active mode
-                if h.client.conf.ModePassive == false {
-                    h.client.connectToMe(args[1])
-                }
-
-            default:
-                return fmt.Errorf("unhandled: [%s] %s", msg.Key, msg.Args)
+        // https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
+        // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
+        hubSupports := []string{ "UserCommand", "NoGetINFO", "NoHello", "UserIP2", "TTHSearch" }
+        if h.client.conf.HubDisableCompression == false {
+            hubSupports = append(hubSupports, "ZPipe0")
+        }
+        // this must be provided, otherwise the final S is stripped from connectToMe
+        if h.client.conf.PeerEncryptionMode != DisableEncryption {
+            hubSupports = append(hubSupports, "TLS")
         }
 
-    case msgPublicChat:
+        h.conn.SendQueued(&msgNmdcSupports{ Features: hubSupports })
+        h.conn.SendQueued(&msgNmdcKey{ Key: dcComputeKey([]byte(msg.Values[0])) })
+        h.conn.SendQueued(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
+
+    case *msgNmdcSupports:
+        if h.state != "lock" {
+            return fmt.Errorf("[Supports] invalid state: %s", h.state)
+        }
+        h.state = "preinitialized"
+
+    // flexhub send HubName just after lock
+    // HubName can also be sent twice
+    case *msgNmdcHubName:
+        if h.state != "preinitialized" && h.state != "lock" {
+            return fmt.Errorf("[HubName] invalid state: %s", h.state)
+        }
+
+    case *msgNmdcZon:
+        if h.state != "initialized" && h.state != "preinitialized" {
+            return fmt.Errorf("[ZOn] invalid state: %s", h.state)
+        }
+        if h.client.conf.HubDisableCompression == true {
+            return fmt.Errorf("zlib requested but zlib is disabled")
+        }
+        if err := h.conn.SetReadCompressionOn(); err != nil {
+            return err
+        }
+
+    case *msgNmdcHubTopic:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
+        }
+        if _,ok := h.uniqueCmds["HubTopic"]; ok {
+            return fmt.Errorf("HubTopic sent twice")
+        }
+        h.uniqueCmds["HubTopic"] = struct{}{}
+
+    case *msgNmdcGetPass:
+        if h.state != "preinitialized" {
+            return fmt.Errorf("[GetPass] invalid state: %s", h.state)
+        }
+        h.conn.SendQueued(&msgNmdcMyPass{ Pass: h.client.conf.Password })
+        if _,ok := h.uniqueCmds["GetPass"]; ok {
+            return fmt.Errorf("GetPass sent twice")
+        }
+        h.uniqueCmds["GetPass"] = struct{}{}
+
+    case *msgNmdcLoggedIn:
+        if h.state != "preinitialized" {
+            return fmt.Errorf("[LoggedIn] invalid state: %s", h.state)
+        }
+        if _,ok := h.uniqueCmds["LoggedIn"]; ok {
+            return fmt.Errorf("LoggedIn sent twice")
+        }
+        h.uniqueCmds["LoggedIn"] = struct{}{}
+
+    case *msgNmdcHello:
+        if h.state != "preinitialized" {
+            return fmt.Errorf("[Hello] invalid state: %s", h.state)
+        }
+        if _,ok := h.uniqueCmds["Hello"]; ok {
+            return fmt.Errorf("Hello sent twice")
+        }
+        h.uniqueCmds["Hello"] = struct{}{}
+
+        // The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
+        // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
+        h.conn.SendQueued(&msgNmdcVersion{})
+        h.client.myInfo()
+        h.conn.SendQueued(&msgNmdcGetNickList{})
+
+    case *msgNmdcMyInfo:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
+        }
+
+        // skip first MyINFO since own infos are sent twice
+        if h.myInfoReceived == false {
+            h.myInfoReceived = true
+
+        } else {
+            p := &Peer{
+                Nick: msg.Nick,
+                Description: msg.Description,
+                Connection: msg.Connection,
+                Status: msg.StatusByte,
+                Email: msg.Email,
+                ShareSize: msg.ShareSize,
+            }
+
+            if _,exist := h.client.peers[p.Nick]; !exist {
+                dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
+                if h.client.OnPeerConnected != nil {
+                    h.client.OnPeerConnected(p)
+                }
+
+            } else {
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+
+            h.client.peers[p.Nick] = p
+        }
+
+    case *msgNmdcUserIp:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[UserIp] invalid state: %s", h.state)
+        }
+
+        // we do not use UserIp to get our own ip, but only to get other
+        // ips of other peers
+        for peer,ip := range msg.Ips {
+            // update peer
+            if p,ok := h.client.peers[peer]; ok {
+                p.Ip = ip
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+        }
+
+    case *msgNmdcOpList:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[OpList] invalid state: %s", h.state)
+        }
+
+        // reset operators
+        for _,p := range h.client.peers {
+            if p.IsOperator == true {
+                p.IsOperator = false
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+        }
+
+        // import new operators
+        for _,op := range msg.Ops {
+            if p,ok := h.client.peers[op]; ok {
+                p.IsOperator = true
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+        }
+
+        // switch to initialized
+        if h.state != "initialized" {
+            h.state = "initialized"
+            dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
+            if h.client.OnHubConnected != nil {
+                h.client.OnHubConnected()
+            }
+        }
+
+    case *msgNmdcUserCommand:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
+        }
+
+    case *msgNmdcBotList:
+        if h.state != "initialized" {
+            return fmt.Errorf("[BotList] invalid state: %s", h.state)
+        }
+
+        // reset bots
+        for _,p := range h.client.peers {
+            if p.IsBot == true {
+                p.IsBot = false
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+        }
+
+        // import new bots
+        for _,bot := range msg.Bots {
+            if p,ok := h.client.peers[bot]; ok {
+                p.IsBot = true
+                if h.client.OnPeerUpdated != nil {
+                    h.client.OnPeerUpdated(p)
+                }
+            }
+        }
+
+    case *msgNmdcQuit:
+        if h.state != "initialized" {
+            return fmt.Errorf("[Quit] invalid state: %s", h.state)
+        }
+        if _,ok := h.client.peers[msg.Nick]; ok {
+            p := h.client.peers[msg.Nick]
+            delete(h.client.peers, p.Nick)
+            dolog(LevelInfo, "[peer off] %s", p.Nick)
+            if h.client.OnPeerDisconnected != nil {
+                h.client.OnPeerDisconnected(p)
+            }
+
+        } else {
+            return fmt.Errorf("received quit() on unconnected peer: %s", msg.Nick)
+        }
+
+    case *msgNmdcForceMove:
+        // means disconnect and reconnect to provided address
+        // we just disconnect
+        return fmt.Errorf("received force move")
+
+    case *msgNmdcSearchRequest:
+        // searches can be received even before initialization; ignore them
+        if h.state == "initialized" {
+            h.client.onSearchRequest(msg)
+        }
+
+    case *msgNmdcSearchResult:
+        if h.state != "initialized" {
+            return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
+        }
+        sr := &SearchResult{
+            IsActive: false,
+            Nick: msg.Nick,
+            Path: msg.Path,
+            SlotAvail: msg.SlotAvail,
+            SlotCount: msg.SlotCount,
+            TTH: msg.TTH,
+            IsDir: msg.IsDir,
+            HubIp: msg.HubIp,
+            HubPort: msg.HubPort,
+        }
+        dolog(LevelInfo, "[search res] %+v", sr)
+
+        if h.client.OnSearchResult != nil {
+            h.client.OnSearchResult(sr)
+        }
+
+    case *msgNmdcConnectToMe:
+        if h.state != "initialized" {
+            return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
+        }
+        if msg.Encrypted == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
+            dolog(LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
+        } else if msg.Encrypted == false && h.client.conf.PeerEncryptionMode == ForceEncryption {
+            dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
+        } else {
+            newPeerConn(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port)
+        }
+
+    case *msgNmdcRevConnectToMe:
+        if h.state != "initialized" {
+            return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
+        }
+        // we can process RevConnectToMe only in active mode
+        if h.client.conf.ModePassive == false {
+            h.client.connectToMe(msg.Author)
+        }
+
+    case *msgNmdcPublicChat:
         if h.client.OnPublicMessage != nil {
-            p := h.peers[msg.Author]
+            p := h.client.peers[msg.Author]
             if p == nil { // create a dummy peer if not found
                 p = &Peer{ Nick: msg.Author }
             }
             h.client.OnPublicMessage(p, msg.Content)
         }
 
-    case msgPrivateChat:
+    case *msgNmdcPrivateChat:
         if h.client.OnPrivateMessage != nil {
-            p := h.peers[msg.Author]
+            p := h.client.peers[msg.Author]
             if p == nil { // create a dummy peer if not found
                 p = &Peer{ Nick: msg.Author }
             }
             h.client.OnPrivateMessage(p, msg.Content)
         }
+
+    default:
+        return fmt.Errorf("unhandled: %+v", rawmsg)
     }
     return nil
 }

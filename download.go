@@ -28,7 +28,6 @@ type Download struct {
     state               string
     wakeUp              chan struct{}
     pconn               *peerConn
-    compressed          bool
     query               string
     content             []byte
     length              uint64
@@ -74,7 +73,7 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     }()
 
     dolog(LevelInfo, "[download request] %s/%s (s=%d l=%d)",
-        d.conf.Nick, dcReadableRequest(d.query), d.conf.Start, d.conf.Length)
+        d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
     go d.do()
@@ -242,12 +241,12 @@ func (d *Download) do() {
         // call callbacks once the procedure has terminated
         if d.state == "success" {
             dolog(LevelInfo, "[download finished] %s/%s (s=%d l=%d)",
-                d.conf.Nick, dcReadableRequest(d.query), d.conf.Start, len(d.content))
+                d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
             if d.client.OnDownloadSuccessful != nil {
                 d.client.OnDownloadSuccessful(d)
             }
         } else {
-            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, dcReadableRequest(d.query))
+            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, dcReadableQuery(d.query))
             if d.client.OnDownloadError != nil {
                 d.client.OnDownloadError(d)
             }
@@ -261,73 +260,56 @@ func (d *Download) requestFile() {
         (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10)))
     d.state = "request_file"
 
-    d.pconn.conn.Send <- msgCommand{ "ADCGET", fmt.Sprintf("%s %d %d%s",
-        d.query,
-        d.conf.Start,
-        d.conf.Length,
-        func() string {
-            if requestCompressed == true {
-                return " ZL1"
-            }
-            return ""
-        }()),
-    }
+    d.pconn.conn.SendQueued(&msgNmdcAdcGet{
+        Query: d.query,
+        Start: d.conf.Start,
+        Length: d.conf.Length,
+        Compress: requestCompressed,
+    })
 }
 
-func (d *Download) onDelegatedMessage(rawmsg msgBase) {
+func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
     err := func() error {
         switch msg := rawmsg.(type) {
-        case msgCommand:
-            switch msg.Key {
-            case "MaxedOut":
-                return fmt.Errorf("maxed out")
+        case *msgNmdcMaxedOut:
+            return fmt.Errorf("maxed out")
 
-            case "Error":
-                return fmt.Errorf("error: %s", msg.Args)
+        case *msgNmdcError:
+            return fmt.Errorf("error: %s", msg.Error)
 
-            case "ADCSND":
-                args := reCmdAdcSnd.FindStringSubmatch(msg.Args)
-                if args == nil {
-                    return fmt.Errorf("Cannot parse ADCSND args: %s", msg.Args)
-                }
+        case *msgNmdcAdcSnd:
+            d.state = "transfering"
 
-                d.state = "transfering"
+            if msg.Query != d.query {
+                return fmt.Errorf("filename returned by client is wrong: %s vs %s", msg.Query, d.query)
+            }
+            if msg.Start != d.conf.Start {
+                return fmt.Errorf("peer returned wrong start: %d instead of %d", msg.Start, d.conf.Start)
+            }
+            if msg.Compressed == true && d.client.conf.PeerDisableCompression == true {
+                return fmt.Errorf("compression is active but is disabled")
+            }
 
-                replyQuery := args[1]
-                if replyQuery != d.query {
-                    return fmt.Errorf("filename returned by client is wrong: %s vs %s", replyQuery, d.query)
-                }
-                replyStart := atoui64(args[4])
-                if replyStart != d.conf.Start {
-                    return fmt.Errorf("peer returned wrong start: %d instead of %d", replyStart, d.conf.Start)
-                }
-                replyLength := atoui64(args[5])
-                d.compressed = (args[6] != "")
-                if d.compressed == true && d.client.conf.PeerDisableCompression == true {
-                    return fmt.Errorf("compression is active but is disabled")
-                }
-
-                if d.conf.Length == -1 {
-                    d.length = replyLength
-                } else {
-                    d.length = uint64(d.conf.Length)
-                    if d.length != replyLength {
-                        return fmt.Errorf("peer returned wrong length: %d instead of %d", d.length, replyLength)
-                    }
-                }
-
-                if d.length == 0 {
-                    return fmt.Errorf("downloading null files is not supported")
-                }
-
-                d.content = make([]byte, d.length)
-                d.pconn.conn.SetBinaryMode(true)
-                if d.compressed == true {
-                    d.pconn.conn.SetReadCompressionOn()
+            if d.conf.Length == -1 {
+                d.length = msg.Length
+            } else {
+                d.length = uint64(d.conf.Length)
+                if d.length != msg.Length {
+                    return fmt.Errorf("peer returned wrong length: %d instead of %d", d.length, msg.Length)
                 }
             }
 
-        case msgBinary:
+            if d.length == 0 {
+                return fmt.Errorf("downloading null files is not supported")
+            }
+
+            d.content = make([]byte, d.length)
+            d.pconn.conn.SetBinaryMode(true)
+            if msg.Compressed == true {
+                d.pconn.conn.SetReadCompressionOn()
+            }
+
+        case *msgNmdcBinary:
             newLength := d.offset + uint64(len(msg.Content))
             if newLength > d.length {
                 return fmt.Errorf("binary content too long (%d)", newLength)
@@ -366,6 +348,9 @@ func (d *Download) onDelegatedMessage(rawmsg msgBase) {
                 d.state = "success"
                 return errorTerminated
             }
+
+        default:
+            return fmt.Errorf("unhandled: %+v", rawmsg)
         }
         return nil
     }()

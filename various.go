@@ -64,7 +64,7 @@ func dcRandomClientId() string {
     return base32.StdEncoding.EncodeToString(randomBytes[:])[:39]
 }
 
-func dcReadableRequest(request string) string {
+func dcReadableQuery(request string) string {
     if strings.HasPrefix(request, "tthl TTH/") {
         return "tthl/" + strings.TrimPrefix(request, "tthl TTH/")
     }

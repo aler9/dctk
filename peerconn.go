@@ -4,14 +4,9 @@ import (
     "fmt"
     "time"
     "net"
-    "regexp"
     "strings"
     "crypto/tls"
 )
-
-var reCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
-var reCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
-var reCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
 
 type nickDirectionPair struct {
     nick string
@@ -56,7 +51,7 @@ func newPeerConn(client *Client, tls bool, isActive bool, rawconn net.Conn, ip s
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        p.conn = newprotocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+        p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
     } else {
         dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
         p.state = "connecting"
@@ -136,17 +131,17 @@ func (p *peerConn) do() {
                 if p.tls == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                p.conn = newprotocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+                p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
             })
             if err != nil {
                 return err
             }
 
             // if transfer is passive, we are the first to send MyNick and Lock
-            p.conn.Send <- msgCommand{ "MyNick", p.client.conf.Nick }
-            p.conn.Send <- msgCommand{ "Lock",
-                fmt.Sprintf("EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
-                p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort) }
+            p.conn.SendQueued(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.SendQueued(&msgNmdcLock{ Values: []string{fmt.Sprintf(
+                "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
+                p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
         }
 
         for {
@@ -184,7 +179,7 @@ func (p *peerConn) do() {
     })
 }
 
-func (p *peerConn) handleMessage(rawmsg msgBase) error {
+func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
     p.client.mutex.Lock()
     defer p.client.mutex.Unlock()
 
@@ -198,183 +193,177 @@ func (p *peerConn) handleMessage(rawmsg msgBase) error {
     }
 
     switch msg := rawmsg.(type) {
-    case msgCommand:
-        switch msg.Key {
-        case "MyNick":
-            if p.state != "connected" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
+    case *msgNmdcMyNick:
+        if p.state != "connected" {
+            return fmt.Errorf("[MyNick] invalid state: %s", p.state)
+        }
+        p.state = "mynick"
+        p.remoteNick = msg.Nick
+
+    case *msgNmdcLock:
+        if p.state != "mynick" {
+            return fmt.Errorf("[Lock] invalid state: %s", p.state)
+        }
+        p.state = "lock"
+        p.remoteLock = []byte(msg.Values[0])
+
+        // if transfer is active, wait remote before sending MyNick and Lock
+        if p.isActive {
+            p.conn.SendQueued(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.SendQueued(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
+                "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue) } })
+        }
+
+        clientSupports := []string{ "MiniSlots", "XmlBZList", "ADCGet", "TTHL", "TTHF" }
+        if p.client.conf.PeerDisableCompression == false {
+            clientSupports = append(clientSupports, "ZLIG")
+        }
+        p.conn.SendQueued(&msgNmdcSupports{ Features: clientSupports })
+
+        // check if there's a pending download
+        isPendingDownload := func() bool {
+            dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
+            if ok && dl.state == "waiting_peer" {
+                return true
             }
-            p.state = "mynick"
-            p.remoteNick = msg.Args
+            return false
+        }()
 
-        case "Lock":
-            if p.state != "mynick" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
-            }
-            p.state = "lock"
-            p.remoteLock = []byte(strings.Split(msg.Args, " ")[0])
+        p.localBet = uint(randomInt(1, 0x7FFF))
 
-            // if transfer is active, wait remote before sending MyNick and Lock
-            if p.isActive {
-                p.conn.Send <- msgCommand{ "MyNick", p.client.conf.Nick }
-                p.conn.Send <- msgCommand{ "Lock",
-                    fmt.Sprintf("EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue),
-                }
-            }
+        // try download
+        if isPendingDownload {
+            p.localDirection = "download"
+            p.conn.SendQueued(&msgNmdcDirection{
+                Direction: "Download",
+                Bet: p.localBet,
+            })
+        // upload
+        } else {
+            p.localDirection = "upload"
+            p.conn.SendQueued(&msgNmdcDirection{
+                Direction: "Upload",
+                Bet: p.localBet,
+            })
+        }
 
-            clientSupports := []string{ "MiniSlots", "XmlBZList", "ADCGet", "TTHL", "TTHF" }
-            if p.client.conf.PeerDisableCompression == false {
-                clientSupports = append(clientSupports, "ZLIG")
-            }
-            p.conn.Send <- msgCommand{ "Supports", strings.Join(clientSupports, " ") }
+        p.conn.SendQueued(&msgNmdcKey{ Key: dcComputeKey(p.remoteLock) })
 
-            // check if there's a pending download
-            isPendingDownload := func() bool {
-                dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
-                if ok && dl.state == "waiting_peer" {
-                    return true
-                }
-                return false
-            }()
+    case *msgNmdcSupports:
+        if p.state != "lock" {
+            return fmt.Errorf("[Supports] invalid state: %s", p.state)
+        }
+        p.state = "supports"
 
-            p.localBet = uint(randomInt(1, 0x7FFF))
+    case *msgNmdcDirection:
+        if p.state != "supports" {
+            return fmt.Errorf("[Direction] invalid state: %s", p.state)
+        }
+        p.state = "direction"
+        p.remoteDirection = strings.ToLower(msg.Direction)
+        p.remoteBet = msg.Bet
 
-            // try download
-            if isPendingDownload {
-                p.localDirection = "download"
-                p.conn.Send <- msgCommand{ "Direction", fmt.Sprintf("Download %d", p.localBet) }
-            // upload
-            } else {
-                p.localDirection = "upload"
-                p.conn.Send <- msgCommand{ "Direction", fmt.Sprintf("Upload %d", p.localBet) }
-            }
+    case *msgNmdcKey:
+        if p.state != "direction" {
+            return fmt.Errorf("[Key] invalid state: %s", p.state)
+        }
+        p.state = "key"
 
-            p.conn.Send <- msgCommand{ "Key", dcComputeKey(p.remoteLock) }
+        var direction string
+        if p.localDirection == "upload" && p.remoteDirection == "download" {
+            direction = "upload"
 
-        case "Supports":
-            if p.state != "lock" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
-            }
-            p.state = "supports"
+        } else if p.localDirection == "download" && p.remoteDirection == "upload" {
+            direction = "download"
 
-        case "Direction":
-            if p.state != "supports" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
-            }
-            p.state = "direction"
-            args := reCmdDirection.FindStringSubmatch(msg.Args)
-            if args == nil {
-                return fmt.Errorf("Cannot parse Direction arguments: %s", msg.Args)
-            }
-            p.remoteDirection = strings.ToLower(args[1])
-            p.remoteBet = atoui(args[2])
-
-        case "Key":
-            if p.state != "direction" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
-            }
-            p.state = "key"
-
-            var direction string
-            if p.localDirection == "upload" && p.remoteDirection == "download" {
-                direction = "upload"
-
-            } else if p.localDirection == "download" && p.remoteDirection == "upload" {
+        } else if p.localDirection == "download" && p.remoteDirection == "download" {
+            // bet win
+            if p.localBet > p.remoteBet {
                 direction = "download"
 
-            } else if p.localDirection == "download" && p.remoteDirection == "download" {
-                // bet win
-                if p.localBet > p.remoteBet {
-                    direction = "download"
+            // bet lost
+            } else if p.localBet < p.remoteBet {
+                direction = "upload"
 
-                // bet lost
-                } else if p.localBet < p.remoteBet {
-                    direction = "upload"
-
-                    // check if there's a pending download
-                    isPendingDownload := func() bool {
-                        dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
-                        if ok && dl.state == "waiting_peer" {
-                            return true
-                        }
-                        return false
-                    }()
-                    if isPendingDownload {
-                        // request another peer connection
-                        if p.client.conf.ModePassive == false {
-                            p.client.connectToMe(p.remoteNick)
-                        } else {
-                            p.client.revConnectToMe(p.remoteNick)
-                        }
-                    }
-
-                } else {
-                    return fmt.Errorf("equal random numbers")
-                }
-
-            } else {
-                return fmt.Errorf("double upload request")
-            }
-
-            key := nickDirectionPair{ p.remoteNick, direction }
-
-            if _,ok := p.client.peerConnsByKey[key]; ok {
-                return fmt.Errorf("a connection with this peer and direction already exists")
-            }
-            p.client.peerConnsByKey[key] = p
-
-            p.direction = direction
-
-            // upload
-            if p.direction == "upload" {
-                p.state = "wait_upload"
-
-            // download
-            } else {
-                p.state = "wait_download"
-
-                dl := func() *Download {
+                // check if there's a pending download
+                isPendingDownload := func() bool {
                     dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
                     if ok && dl.state == "waiting_peer" {
-                        return dl
+                        return true
                     }
-                    return nil
+                    return false
                 }()
-
-                if dl != nil {
-                    p.state = "delegated"
-                    p.download = dl
-                    dl.pconn = p
-                    dl.wakeUp <- struct{}{}
-                }
-            }
-
-        case "ADCGET":
-            if p.state != "wait_upload" {
-                return fmt.Errorf("[%s] invalid state: %s", msg.Key, p.state)
-            }
-            args := reCmdAdcGet.FindStringSubmatch(msg.Args)
-            if args == nil {
-                return fmt.Errorf("Cannot parse ADCGET args: %s", msg.Args)
-            }
-
-            err := newUpload(p.client, p, args)
-            if err != nil {
-                dolog(LevelInfo, "cannot start upload: %s", err)
-
-                if err == errorNoSlots {
-                    p.conn.Send <- msgCommand{ "MaxedOut", "" }
-                } else {
-                    p.conn.Send <- msgCommand{ "Error", "File Not Available" }
+                if isPendingDownload {
+                    // request another peer connection
+                    if p.client.conf.ModePassive == false {
+                        p.client.connectToMe(p.remoteNick)
+                    } else {
+                        p.client.revConnectToMe(p.remoteNick)
+                    }
                 }
 
             } else {
-                p.state = "delegated"
+                return fmt.Errorf("equal random numbers")
             }
 
-        default:
-            return fmt.Errorf("unhandled: [%s] %s", msg.Key, msg.Args)
+        } else {
+            return fmt.Errorf("double upload request")
         }
+
+        key := nickDirectionPair{ p.remoteNick, direction }
+
+        if _,ok := p.client.peerConnsByKey[key]; ok {
+            return fmt.Errorf("a connection with this peer and direction already exists")
+        }
+        p.client.peerConnsByKey[key] = p
+
+        p.direction = direction
+
+        // upload
+        if p.direction == "upload" {
+            p.state = "wait_upload"
+
+        // download
+        } else {
+            p.state = "wait_download"
+
+            dl := func() *Download {
+                dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
+                if ok && dl.state == "waiting_peer" {
+                    return dl
+                }
+                return nil
+            }()
+
+            if dl != nil {
+                p.state = "delegated"
+                p.download = dl
+                dl.pconn = p
+                dl.wakeUp <- struct{}{}
+            }
+        }
+
+    case *msgNmdcAdcGet:
+        if p.state != "wait_upload" {
+            return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
+        }
+
+        err := newUpload(p.client, p, msg)
+        if err != nil {
+            dolog(LevelInfo, "cannot start upload: %s", err)
+
+            if err == errorNoSlots {
+                p.conn.SendQueued(&msgNmdcMaxedOut{})
+            } else {
+                p.conn.SendQueued(&msgNmdcError{ Error: "File Not Available" })
+            }
+
+        } else {
+            p.state = "delegated"
+        }
+
+    default:
+        return fmt.Errorf("unhandled: %+v", rawmsg)
     }
     return nil
 }
