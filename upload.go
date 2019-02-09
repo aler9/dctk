@@ -19,7 +19,7 @@ type upload struct {
     pconn           *peerConn
     reader          io.ReadCloser
     compressed      bool
-    query         string
+    query           string
     start           uint64
     length          uint64
     offset          uint64
@@ -174,7 +174,6 @@ func (u *upload) terminate() {
     u.state = "terminated"
     delete(u.client.transfers, u)
     u.pconn.state = "wait_upload"
-    u.pconn.wakeUp <- struct{}{}
 }
 
 func (u *upload) do() {
@@ -227,13 +226,11 @@ func (u *upload) do() {
         case "success":
             delete(u.client.transfers, u)
             u.pconn.state = "wait_upload"
-            u.pconn.wakeUp <- struct{}{}
 
         default:
             dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.remoteNick, err)
             delete(u.client.transfers, u)
             u.pconn.state = "wait_upload"
-            u.pconn.wakeUp <- struct{}{}
         }
 
         if u.reader != nil {

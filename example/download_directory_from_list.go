@@ -42,21 +42,14 @@ func main() {
                 panic(err)
             }
 
-            // find dir
+            // find directory
             dir,err := fl.GetDirectory(DirPath)
             if err != nil {
                 panic(err)
             }
 
-            // foreach file in directory
-            for _,file := range dir.Files {
-                // start downloading
-                client.Download(dctk.DownloadConf{
-                    Nick: d.Conf().Nick,
-                    TTH: file.TTH,
-                    Length: int64(file.Size),
-                })
-            }
+            // download every file in the directory
+            client.DownloadDirectory(d.Conf().Nick, dir)
 
         // a file has been downloaded
         } else {
