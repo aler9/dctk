@@ -46,17 +46,21 @@ func (c *Client) DownloadFileList(nick string) (*Download,error) {
     })
 }
 
+// DownloadFile starts downloading a file given a file list entry.
+func (c *Client) DownloadFile(nick string, file *FileListFile) (*Download,error) {
+    return c.Download(DownloadConf{
+        Nick: nick,
+        TTH: file.TTH,
+    })
+}
+
 // DownloadDirectory starts downloading recursively all the files
-// inside a given file list directory.
+// inside a file list directory.
 func (c *Client) DownloadDirectory(nick string, dir *FileListDirectory) error {
     var dlDir func(sdir *FileListDirectory) error
     dlDir = func(sdir *FileListDirectory) error {
         for _,file := range sdir.Files {
-            _,err := c.Download(DownloadConf{
-                Nick: nick,
-                TTH: file.TTH,
-                Length: int64(file.Size),
-            })
+            _,err := c.DownloadFile(file)
             if err != nil {
                 return err
             }
@@ -72,7 +76,7 @@ func (c *Client) DownloadDirectory(nick string, dir *FileListDirectory) error {
     return dlDir(dir)
 }
 
-// Download starts downloading a file. See DownloadConf for the options.
+// Download starts downloading a file by its Tiger Tree Hash (TTH). See DownloadConf for the options.
 func (c *Client) Download(conf DownloadConf) (*Download,error) {
     if conf.Length <= 0 {
         conf.Length = -1

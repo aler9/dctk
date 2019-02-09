@@ -48,12 +48,8 @@ func main() {
                 panic(err)
             }
 
-            // start downloading
-            client.Download(dctk.DownloadConf{
-                Nick: d.Conf().Nick,
-                TTH: file.TTH,
-                Length: int64(file.Size),
-            })
+            // start downloading the file
+            client.DownloadFile(nick, file)
 
         // file has been downloaded
         } else {
