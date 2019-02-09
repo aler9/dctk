@@ -295,7 +295,7 @@ func (c *Client) ShareDel(alias string) {
         return
     }
 
-    delete(c.shareRoots[alias], dpath)
+    delete(c.shareRoots, alias)
 
     // always schedule indexing
     if c.shareIndexer.indexingRequested == false {
