@@ -388,7 +388,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgNmdcConnectToMe:
-        if h.state != "initialized" {
+        if h.state != "initialized" && h.state != "preinitialized" {
             return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
         }
         if msg.Encrypted == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
@@ -400,7 +400,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgNmdcRevConnectToMe:
-        if h.state != "initialized" {
+        if h.state != "initialized" && h.state != "preinitialized" {
             return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
         }
         // we can process RevConnectToMe only in active mode
