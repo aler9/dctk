@@ -72,11 +72,7 @@ func client2() {
                 panic(err)
             }
 
-            client.Download(dctk.DownloadConf{
-                Nick: d.Conf().Nick,
-                TTH: file.TTH,
-                Length: int64(file.Size),
-            })
+            client.DownloadFile(d.Conf().Nick, file)
 
         } else {
             ok = true

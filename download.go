@@ -60,7 +60,7 @@ func (c *Client) DownloadDirectory(nick string, dir *FileListDirectory) error {
     var dlDir func(sdir *FileListDirectory) error
     dlDir = func(sdir *FileListDirectory) error {
         for _,file := range sdir.Files {
-            _,err := c.DownloadFile(file)
+            _,err := c.DownloadFile(nick, file)
             if err != nil {
                 return err
             }

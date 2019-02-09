@@ -49,7 +49,7 @@ func main() {
             }
 
             // start downloading the file
-            client.DownloadFile(nick, file)
+            client.DownloadFile(d.Conf().Nick, file)
 
         // file has been downloaded
         } else {
