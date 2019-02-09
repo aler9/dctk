@@ -274,8 +274,28 @@ func (sm *shareIndexer) terminate() {
     sm.state = "terminated"
 }
 
-func (c *Client) ShareAdd(alias string, root string) {
-    c.shareRoots[alias] = root
+// ShareAdd adds a given directory (dpath) to the client share, with the given
+// alias, and starts indexing its subdirectories and files.
+// if a folder with the same alias was added previously, it is replaced with the
+// new one. OnShareIndexed is called when the indexing is finished.
+func (c *Client) ShareAdd(alias string, dpath string) {
+    c.shareRoots[alias] = dpath
+
+    // always schedule indexing
+    if c.shareIndexer.indexingRequested == false {
+        c.shareIndexer.indexingRequested = true
+        c.shareIndexer.wakeUp <- struct{}{}
+    }
+}
+
+// ShareDel removes a directory with the given alias from the client share, and
+// starts reindexing the current share.
+func (c *Client) ShareDel(alias string) {
+    if _,ok := c.shareRoots[alias]; !ok {
+        return
+    }
+
+    delete(c.shareRoots[alias], dpath)
 
     // always schedule indexing
     if c.shareIndexer.indexingRequested == false {

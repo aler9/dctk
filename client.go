@@ -72,7 +72,7 @@ type ClientConf struct {
     UdpPort                     uint
     TcpTlsPort                  uint
     // the maximum number of file to download in parallel. When this number is
-    // exceeded, the other downloads are queued and started when a slot is available
+    // exceeded, the other downloads are queued and started when a slot becomes available
     DownloadMaxParallel         uint
     // the maximum number of file to upload in parallel
     UploadMaxParallel           uint

@@ -10,9 +10,9 @@ import (
 
 type protocolNetReader struct { net.Conn }
 
-// we provide a io.ByteReader interface for zlib.NewReader()
-// otherwise a bufio layer is added, resulting in a constant 4096-bytes request
-// to Read(), that messes up the zlib on/off phase
+// we provide a io.ByteReader interface to net.Conn
+// otherwise zlib.NewReader() adds a bufio layer, resulting in a constant
+// 4096-bytes request to Read(), that messes up the zlib on/off phase
 // https://golang.org/src/compress/flate/inflate.go -> makeReader()
 func (nr protocolNetReader) ReadByte() (byte, error) {
     var dest [1]byte
@@ -20,10 +20,10 @@ func (nr protocolNetReader) ReadByte() (byte, error) {
     return dest[0], err
 }
 
-// this is exactly like bufio and its ReadSlice(), except it does not buffer
+// this is exactly like bufio.ReadSlice(), except it does not buffer
 // anything, to allow the zlib on/off phase
 func readUntilDelim(in io.Reader, delim byte) ([]byte,error) {
-    var buffer [1024 * 10]byte // max message size
+    var buffer [10 * 1024]byte // max message size
     offset := 0
     for {
         // read one character at a time

@@ -80,12 +80,12 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     return d, nil
 }
 
-// Conf returns the configuration passed at download initialization
+// Conf returns the configuration passed at download initialization.
 func (d *Download) Conf() DownloadConf {
     return d.conf
 }
 
-// Content returns the downloaded file content
+// Content returns the downloaded file content.
 func (d *Download) Content() []byte {
     return d.content
 }
