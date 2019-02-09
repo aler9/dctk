@@ -336,7 +336,7 @@ func (c *Client) onSearchRequest(req *searchRequest) {
         res.SlotAvail = c.uploadSlotAvail
         res.SlotCount = c.conf.UploadMaxParallel
         res.HubIp = c.hubSolvedIp
-        res.HubPort = c.conf.HubPort
+        res.HubPort = c.hubPort
     }
 
     if req.IsActive {

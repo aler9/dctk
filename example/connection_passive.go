@@ -8,8 +8,7 @@ import (
 func main() {
     // automatically connect to hub
     client,err := dctk.NewClient(dctk.ClientConf{
-        HubAddress: "hubip",
-        HubPort: 411,
+        HubUrl: "nmdc://hubip:411",
         Nick: "mynick",
         Mode: dctk.ModePassive,
     })

@@ -1,6 +1,7 @@
 package main
 
 import (
+    "os"
     "fmt"
     "reflect"
     dctk "github.com/gswly/dctoolkit"
