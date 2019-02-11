@@ -66,40 +66,64 @@ func (c *Client) Search(conf SearchConf) error {
     if conf.Type == TypeInvalid {
         conf.Type = TypeAny
     }
-    if conf.MaxSize != 0 && conf.MinSize != 0 {
-        return fmt.Errorf("max size and min size cannot be used together")
-    }
     if conf.Type == TypeTTH && TTHIsValid(conf.Query) == false {
         return fmt.Errorf("invalid TTH")
     }
-    if c.conf.ModePassive == false && c.ip == "" {
-        return fmt.Errorf("we do not know our ip")
-    }
 
-    c.hubConn.conn.SendQueued(&msgNmdcSearchRequest{
-        Type: conf.Type,
-        MaxSize: conf.MaxSize,
-        MinSize: conf.MinSize,
-        Query: conf.Query,
-        Ip: func() string {
-            if c.conf.ModePassive == false {
-                return c.ip
-            }
-            return ""
-        }(),
-        UdpPort: func() uint {
-            if c.conf.ModePassive == false {
-                return c.conf.UdpPort
-            }
-            return 0
-        }(),
-        Nick: func() string {
-            if c.conf.ModePassive == true {
-                return c.conf.Nick
-            }
-            return ""
-        }(),
-    })
+    if c.proto == "adc" {
+        if conf.Type != TypeAny && conf.Type != TypeFolder {
+            return fmt.Errorf("only types any and folder are supported")
+        }
+
+        fields := map[string]string{
+            "AN": conf.Query,
+        }
+        if conf.MaxSize != 0 {
+            fields["LE"] = fmt.Sprintf("%d", conf.MaxSize)
+        }
+        if conf.MinSize != 0 {
+            fields["GE"] = fmt.Sprintf("%d", conf.MinSize)
+        }
+        if conf.Type == TypeFolder {
+            fields["TY"] = "2"
+        } else {
+            fields["TY"] = "1"
+        }
+
+        c.hubConn.conn.Send(&msgAdcBSearchRequest{
+            msgAdcTypeB{ c.sessionId },
+            msgAdcKeySearchRequest{ Fields: fields },
+        })
+    } else {
+        if conf.MaxSize != 0 && conf.MinSize != 0 {
+            return fmt.Errorf("max size and min size cannot be used together")
+        }
+
+        c.hubConn.conn.Send(&msgNmdcSearchRequest{
+            Type: conf.Type,
+            MaxSize: conf.MaxSize,
+            MinSize: conf.MinSize,
+            Query: conf.Query,
+            Ip: func() string {
+                if c.conf.ModePassive == false {
+                    return c.ip
+                }
+                return ""
+            }(),
+            UdpPort: func() uint {
+                if c.conf.ModePassive == false {
+                    return c.conf.UdpPort
+                }
+                return 0
+            }(),
+            Nick: func() string {
+                if c.conf.ModePassive == true {
+                    return c.conf.Nick
+                }
+                return ""
+            }(),
+        })
+    }
     return nil
 }
 
@@ -190,34 +214,39 @@ func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
         }
     }
 
-    // fill additional data
-    for _,msg := range replies {
-        msg.Nick = c.conf.Nick
-        msg.SlotAvail = c.uploadSlotAvail
-        msg.SlotCount = c.conf.UploadMaxParallel
-        msg.HubIp = c.hubSolvedIp
-        msg.HubPort = c.hubPort
-    }
+    if c.proto == "adc" {
 
-    if req.IsActive == true {
-        // send to peer
-        go func() {
-            conn,err := net.Dial("udp", fmt.Sprintf("%s:%d", req.Ip, req.UdpPort))
-            if err != nil {
-                return
-            }
-            defer conn.Close()
-
-            for _,msg := range replies {
-                conn.Write(msg.Encode())
-            }
-        }()
 
     } else {
-        // send to hub
+        // fill additional data
         for _,msg := range replies {
-            msg.TargetNick = req.Nick
-            c.hubConn.conn.SendQueued(msg)
+            msg.Nick = c.conf.Nick
+            msg.SlotAvail = c.uploadSlotAvail
+            msg.SlotCount = c.conf.UploadMaxParallel
+            msg.HubIp = c.hubSolvedIp
+            msg.HubPort = c.hubPort
+        }
+
+        if req.IsActive == true {
+            // send to peer
+            go func() {
+                conn,err := net.Dial("udp", fmt.Sprintf("%s:%d", req.Ip, req.UdpPort))
+                if err != nil {
+                    return
+                }
+                defer conn.Close()
+
+                for _,msg := range replies {
+                    conn.Write(msg.NmdcEncode())
+                }
+            }()
+
+        } else {
+            // send to hub
+            for _,msg := range replies {
+                msg.TargetNick = req.Nick
+                c.hubConn.conn.Send(msg)
+            }
         }
     }
 

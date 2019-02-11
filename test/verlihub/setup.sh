@@ -38,7 +38,7 @@ echo "UPDATE SetupList SET val = '1' WHERE var = 'send_user_ip';" |  mysql -D ve
 echo "UPDATE SetupList SET val = 'test topic' WHERE var = 'hub_topic';" | mysql -D verlihub
 echo "UPDATE SetupList SET val = '10' WHERE var = 'search_number';" | mysql -D verlihub
 echo "INSERT INTO reglist (nick, class, reg_date, reg_op, pwd_change, pwd_crypt, login_pwd) VALUES \
-    ('[OP]testdctk', 3, UNIX_TIMESTAMP(NOW()), 'installation', 0, 0, 'testpa\$ss');" \
+    ('testdctk_auth', 3, UNIX_TIMESTAMP(NOW()), 'installation', 0, 0, 'testpa\$ss');" \
     | mysql -D verlihub
 
 kill -TERM $MPID

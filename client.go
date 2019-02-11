@@ -24,25 +24,31 @@ type Peer struct {
     Nick            string
     // peer description, if provided
     Description     string
-    // peer connection string
-    Connection      string
-    // peer status byte
-    Status          byte
     // peer email, if provided
     Email           string
     // total size of files shared by peer
     ShareSize       uint64
     // peer ip, if sent by hub
     Ip              string
-    // whether peer is a hub operator
-    IsOperator      bool
-    // whether peer is a hub bot
+    // whether peer is a bot
     IsBot           bool
+    // whether peer is a operator
+    IsOperator      bool
+    // (adc only) peer session id
+    AdcSessionId    string
+    // (adc only) peer client id
+    AdcClientId     []byte
+    // (adc only) peer supported features
+    AdcSupports     []string
+    // (nmdc only) peer connection string
+    NmdcConnection  string
+    // (nmdc only) peer status byte
+    NmdcStatusByte  byte
 }
 
 func (p *Peer) supportTls() bool {
     // we check only for bit 4
-    return (p.Status & (0x01 << 4)) == (0x01 << 4)
+    return (p.NmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
 }
 
 type transfer interface {
@@ -116,8 +122,7 @@ type Client struct {
     mutex                   sync.Mutex
     wg                      sync.WaitGroup
     wakeUp                  chan struct{}
-    clientId                string
-    hubProto                string
+    proto                   string
     hubHostname             string
     hubPort                 uint
     hubSolvedIp             string
@@ -125,12 +130,17 @@ type Client struct {
     shareIndexer            *shareIndexer
     shareRoots              map[string]string
     shareTree               map[string]*shareRootDirectory
+    shareCount              uint
     shareSize               uint64
     fileList                []byte
     tcpListener             *tcpListener
     tcpTlsListener          *tcpListener
     udpListener             *udpListener
     hubConn                 *hubConn
+    // we follow the ADC way to handle IDs, even when using NMDC
+    privateId               []byte
+    clientId                []byte
+    sessionId               string // we save it encoded since it is 20 bits and cannot be decoded easily
     peers                   map[string]*Peer
     downloadSlotAvail       uint
     uploadSlotAvail         uint
@@ -228,7 +238,7 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf: conf,
         state: "running",
         wakeUp: make(chan struct{}, 1),
-        hubProto: u.Scheme,
+        proto: u.Scheme,
         hubHostname: u.Hostname(),
         hubPort: atoui(u.Port()),
         shareRoots: make(map[string]string),
@@ -240,8 +250,16 @@ func NewClient(conf ClientConf) (*Client,error) {
         peerConnsByKey: make(map[nickDirectionPair]*peerConn),
         transfers: make(map[transfer]struct{}),
         activeDownloadsByPeer: make(map[string]*Download),
-        clientId: dcRandomClientId(),
     }
+
+    // generate privateId (random)
+    c.privateId = make([]byte, 24)
+    rand.Read(c.privateId)
+
+    // generate clientId (hash of privateId)
+    hasher := tigerNew()
+    hasher.Write(c.privateId)
+    c.clientId = hasher.Sum(nil)
 
     if err := newshareIndexer(c); err != nil {
         return nil, err
@@ -405,7 +423,7 @@ func (c *Client) myInfo() {
         statusByte |= (0x01 << 4) | (0x01 << 5)
     }
 
-    c.hubConn.conn.SendQueued(&msgNmdcMyInfo{
+    c.hubConn.conn.Send(&msgNmdcMyInfo{
         Nick: c.conf.Nick,
         Description: c.conf.Description,
         Client: c.conf.ClientString,
@@ -428,7 +446,7 @@ func (c *Client) connectToMe(target string) {
         return
     }
 
-    c.hubConn.conn.SendQueued(&msgNmdcConnectToMe{
+    c.hubConn.conn.Send(&msgNmdcConnectToMe{
         Target: target,
         Ip: c.ip,
         Port: func() uint {
@@ -442,7 +460,7 @@ func (c *Client) connectToMe(target string) {
 }
 
 func (c *Client) revConnectToMe(target string) {
-    c.hubConn.conn.SendQueued(&msgNmdcRevConnectToMe{
+    c.hubConn.conn.Send(&msgNmdcRevConnectToMe{
         Author: c.conf.Nick,
         Target: target,
     })
@@ -462,7 +480,7 @@ func (c *Client) Conf() ClientConf {
     return c.conf
 }
 
-// DownloadCount returns the number of remaining queued downloads.
+// DownloadCount returns the number of remaining downloads, queued or active.
 func (c *Client) DownloadCount() int {
     count := 0
     for t,_ := range c.transfers {
@@ -480,10 +498,26 @@ func (c *Client) Peers() map[string]*Peer {
 
 // PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
-    c.hubConn.conn.SendQueued(&msgNmdcPublicChat{ c.conf.Nick, content })
+    if c.proto == "adc" {
+        c.hubConn.conn.Send(&msgAdcBMessage{
+            msgAdcTypeB{ c.sessionId },
+            msgAdcKeyMessage{ Content: content },
+        })
+
+    } else {
+        c.hubConn.conn.Send(&msgNmdcPublicChat{ c.conf.Nick, content })
+    }
 }
 
 // PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
-    c.hubConn.conn.SendQueued(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
+    if c.proto == "adc" {
+        c.hubConn.conn.Send(&msgAdcDMessage{
+            msgAdcTypeD{ c.sessionId, dest.AdcSessionId },
+            msgAdcKeyMessage{ Content: content },
+        })
+
+    } else {
+        c.hubConn.conn.Send(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
+    }
 }

@@ -9,19 +9,9 @@ import (
     "regexp"
     "net/url"
     "encoding/base32"
-    "github.com/cxmcc/tiger"
 )
 
 var reTTH = regexp.MustCompile("^"+reStrTTH+"$")
-
-// MagnetLink generates a link to a shared file. The link can be shared anywhere
-// and can be opened by most of the available DC clients, starting the download.
-func MagnetLink(name string, size uint64, tth string) string {
-    return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%v&dn=%s",
-        tth,
-        size,
-        url.QueryEscape(name))
-}
 
 // TTHIsValid check the validity of a Tiger Tree Hash (TTH), the 39-digits string
 // associated to a specific shared file.
@@ -79,7 +69,7 @@ type tthLevel struct {
 }
 
 func tthLeavesFromReader(in io.Reader) ([]byte,error) {
-    hasher := tiger.New()
+    hasher := tigerNew()
     var out []byte
 
     firstHash := true
@@ -109,7 +99,7 @@ func tthLeavesFromReader(in io.Reader) ([]byte,error) {
 // TTHFromLeaves computes the Tiger Tree Hash (TTH) of a given leaves sequence.
 func TTHFromLeaves(leaves []byte) string {
     // ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
-    hasher := tiger.New()
+    hasher := tigerNew()
     var levels []*tthLevel
     levels = append(levels, &tthLevel{}) // add level zero
 
@@ -182,7 +172,7 @@ func TTHFromLeaves(leaves []byte) string {
 
 func tthFromReader(in io.Reader) (string,error) {
     // ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
-    hasher := tiger.New()
+    hasher := tigerNew()
     var levels []*tthLevel
     levels = append(levels, &tthLevel{}) // add level zero
 
@@ -256,4 +246,13 @@ func tthFromReader(in io.Reader) (string,error) {
 
     out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
     return out,nil
+}
+
+// MagnetLink generates a link to a shared file. The link can be shared anywhere
+// and can be opened by most of the available DC clients, starting the download.
+func MagnetLink(name string, size uint64, tth string) string {
+    return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%v&dn=%s",
+        tth,
+        size,
+        url.QueryEscape(name))
 }

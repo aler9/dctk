@@ -4,6 +4,7 @@ import (
     "fmt"
     "net"
     "time"
+    "strings"
 )
 
 type hubConn struct {
@@ -82,7 +83,7 @@ func (h *hubConn) do() {
             h.state = "connected"
 
             // do not use read timeout since hub does not send data continuously
-            h.conn = newProtocol(rawconn, "h", 0, 10 * time.Second)
+            h.conn = newProtocol(rawconn, h.client.proto, "h", 0, 10 * time.Second)
         })
 
         // activate TCP keepalive
@@ -91,6 +92,15 @@ func (h *hubConn) do() {
         }
         if err := rawconn.(*net.TCPConn).SetKeepAlivePeriod(60 * time.Second); err != nil {
             return err
+        }
+
+        if h.client.proto == "adc" {
+            h.conn.Send(&msgAdcHSupports{
+                msgAdcTypeH{},
+                msgAdcKeySupports{
+                    Features: []string{ "ADBAS0", "ADBASE", "ADTIGR", "ADUCM0", "ADBLO0", "ADZLIF"},
+                },
+            })
         }
 
         for {
@@ -136,6 +146,218 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
     }
 
     switch msg := rawmsg.(type) {
+    case *msgAdcISupports:
+        if h.state != "connected" {
+            return fmt.Errorf("[Supports] invalid state: %s", h.state)
+        }
+        h.state = "supports"
+
+    case *msgAdcISessionId:
+        if h.state != "supports" {
+            return fmt.Errorf("[SessionId] invalid state: %s", h.state)
+        }
+        h.state = "sessionid"
+        h.client.sessionId = msg.Sid
+
+    case *msgAdcIInfos:
+        if h.state != "sessionid" {
+            return fmt.Errorf("[Infos] invalid state: %s", h.state)
+        }
+        h.state = "hubinfos"
+
+        for key,desc := range map[string]string{
+            adcInfoName: "name",
+            adcInfoSoftware: "software",
+            adcInfoVersion: "version",
+            adcInfoDescription: "description",
+        } {
+            if val,ok := msg.Fields[key]; ok {
+                dolog(LevelInfo, "[hub info] [%s] %s", desc, val)
+            }
+        }
+
+        supports := []string{ "SEGA" }
+        //if h.client.PeerEncryptionMode != DisableEncryption {
+        //    supports = append(supports, "ADCS")
+        //}
+        if h.client.conf.ModePassive == false {
+            supports = append(supports, "TCP4", "UDP4")
+        }
+
+        fields := map[string]string{
+            adcInfoName: h.client.conf.Nick,
+            adcInfoDescription: h.client.conf.Description,
+            adcInfoShareCount: fmt.Sprintf("%d", h.client.shareCount),
+            adcInfoShareSize: fmt.Sprintf("%d", h.client.shareSize),
+            adcInfoHubUnregisteredCount: fmt.Sprintf("%d", h.client.conf.HubUnregisteredCount),
+            adcInfoHubRegisteredCount: fmt.Sprintf("%d", h.client.conf.HubRegisteredCount),
+            adcInfoHubOperatorCount: fmt.Sprintf("%d", h.client.conf.HubOperatorCount),
+            adcInfoClientId: adcBase32Encode(h.client.clientId),
+            adcInfoPrivateId: adcBase32Encode(h.client.privateId),
+            adcInfoVersion: h.client.conf.ListGenerator,
+            adcInfoSupports: strings.Join(supports, ","),
+        }
+
+        if h.client.conf.ModePassive == false {
+            fields[adcInfoIp] = h.client.ip
+            fields[adcInfoUdpPort] = fmt.Sprintf("%d", h.client.conf.UdpPort)
+        }
+
+        h.conn.Send(&msgAdcBInfos{
+            msgAdcTypeB{ SessionId: h.client.sessionId },
+            msgAdcKeyInfos{ Fields: fields },
+        })
+
+    case *msgAdcIGetPass:
+        if h.state != "hubinfos" {
+            return fmt.Errorf("[Sup] invalid state: %s", h.state)
+        }
+        h.state = "getpass"
+
+        hasher := tigerNew()
+        hasher.Write([]byte(h.client.conf.Password))
+        hasher.Write(msg.Data)
+        data := hasher.Sum(nil)
+
+        h.conn.Send(&msgAdcHPass{
+            msgAdcTypeH{},
+            msgAdcKeyPass{ Data: data },
+        })
+
+    case *msgAdcIStatus:
+        if msg.Code != 0 {
+            return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
+        }
+
+    case *msgAdcBInfos:
+        p,exist := h.client.peers[msg.Fields[adcInfoName]]
+        if exist == false {
+            p = &Peer{ Nick: msg.Fields[adcInfoName] }
+        }
+
+        p.AdcSessionId = msg.SessionId
+
+        for key,val := range msg.Fields {
+            switch key {
+            case adcInfoDescription: p.Description = val
+            case adcInfoEmail: p.Email = val
+            case adcInfoShareSize: p.ShareSize = atoui64(val)
+            case adcInfoIp: p.Ip = val
+            case adcInfoClientId: p.AdcClientId = adcBase32Decode(val)
+            case adcInfoSupports: p.AdcSupports = strings.Split(val, ",")
+            case adcInfoCategory:
+                ct := atoui(val)
+                p.IsBot = (ct & 1) != 0
+                p.IsOperator = ((ct & 4) | (ct & 8) | (ct & 16)) != 0
+            }
+        }
+
+        h.client.peers[p.Nick] = p
+
+        if exist == false {
+            dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
+            if h.client.OnPeerConnected != nil {
+                h.client.OnPeerConnected(p)
+            }
+
+        } else {
+            if h.client.OnPeerUpdated != nil {
+                h.client.OnPeerUpdated(p)
+            }
+        }
+
+    case *msgAdcIQuit:
+        // self quit, used instead of ForceMove
+        if msg.SessionId == h.client.sessionId {
+            return fmt.Errorf("received Quit message: %s", msg.Reason)
+
+        // peer quit
+        } else {
+            // solve session id
+            p := func() *Peer {
+                for _,p := range h.client.peers {
+                    if p.AdcSessionId == msg.SessionId {
+                        return p
+                    }
+                }
+                return nil
+            }()
+            if p != nil {
+                delete(h.client.peers, p.Nick)
+                dolog(LevelInfo, "[peer off] %s", p.Nick)
+                if h.client.OnPeerDisconnected != nil {
+                    h.client.OnPeerDisconnected(p)
+                }
+            }
+        }
+
+    case *msgAdcICommand:
+        // switch to initialized
+        if h.state != "initialized" {
+            h.state = "initialized"
+            dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
+            if h.client.OnHubConnected != nil {
+                h.client.OnHubConnected()
+            }
+        }
+
+    case *msgAdcBMessage:
+        // solve session id
+        p := func() *Peer {
+            for _,p := range h.client.peers {
+                if p.AdcSessionId == msg.SessionId {
+                    return p
+                }
+            }
+            return nil
+        }()
+        if p == nil {
+            return fmt.Errorf("private message with unknown author")
+        }
+        dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
+        if h.client.OnPublicMessage != nil {
+            h.client.OnPublicMessage(p, msg.Content)
+        }
+
+    case *msgAdcDMessage:
+        // solve session id
+        p := func() *Peer {
+            for _,p := range h.client.peers {
+                if p.AdcSessionId == msg.AuthorId {
+                    return p
+                }
+            }
+            return nil
+        }()
+        if p == nil {
+            return fmt.Errorf("private message with unknown author")
+        }
+        dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
+        if h.client.OnPrivateMessage != nil {
+            h.client.OnPrivateMessage(p, msg.Content)
+        }
+
+    case *msgAdcBSearchRequest:
+        // TODO
+        /*temp := &msgNmdcSearchRequest{}
+        if val,ok := msg.Fields["LE"]; ok {
+            temp.MaxSize = atoui(val)
+        }
+        if val,ok := msg.Fields["GE"]; ok {
+            temp.MinSize = atoui(val)
+        }
+        if val,ok := msg.Fields["TY"]; ok {
+            if val == "1" {
+                temp.Type = TypeAny
+            } else if val == "2" {
+                temp.Type = TypeFolder
+            }
+        }
+        if val,ok := msg.Fields["AN"]; ok {
+            temp.Query = val
+        }
+        h.client.onSearchRequest(temp)*/
+
     case *msgNmdcLock:
         if h.state != "connected" {
             return fmt.Errorf("[Lock] invalid state: %s", h.state)
@@ -153,9 +375,9 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
             hubSupports = append(hubSupports, "TLS")
         }
 
-        h.conn.SendQueued(&msgNmdcSupports{ Features: hubSupports })
-        h.conn.SendQueued(&msgNmdcKey{ Key: dcComputeKey([]byte(msg.Values[0])) })
-        h.conn.SendQueued(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
+        h.conn.Send(&msgNmdcSupports{ Features: hubSupports })
+        h.conn.Send(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
+        h.conn.Send(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
 
     case *msgNmdcSupports:
         if h.state != "lock" {
@@ -194,7 +416,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         if h.state != "preinitialized" {
             return fmt.Errorf("[GetPass] invalid state: %s", h.state)
         }
-        h.conn.SendQueued(&msgNmdcMyPass{ Pass: h.client.conf.Password })
+        h.conn.Send(&msgNmdcMyPass{ Pass: h.client.conf.Password })
         if _,ok := h.uniqueCmds["GetPass"]; ok {
             return fmt.Errorf("GetPass sent twice")
         }
@@ -220,9 +442,9 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
 
         // The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
         // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
-        h.conn.SendQueued(&msgNmdcVersion{})
+        h.conn.Send(&msgNmdcVersion{})
         h.client.myInfo()
-        h.conn.SendQueued(&msgNmdcGetNickList{})
+        h.conn.Send(&msgNmdcGetNickList{})
 
     case *msgNmdcMyInfo:
         if h.state != "preinitialized" && h.state != "initialized" {
@@ -234,16 +456,20 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
             h.myInfoReceived = true
 
         } else {
-            p := &Peer{
-                Nick: msg.Nick,
-                Description: msg.Description,
-                Connection: msg.Connection,
-                Status: msg.StatusByte,
-                Email: msg.Email,
-                ShareSize: msg.ShareSize,
+            p,exist := h.client.peers[msg.Nick]
+            if exist == false {
+                p = &Peer{ Nick: msg.Nick }
             }
 
-            if _,exist := h.client.peers[p.Nick]; !exist {
+            p.Description = msg.Description
+            p.Email = msg.Email
+            p.ShareSize = msg.ShareSize
+            p.NmdcConnection = msg.Connection
+            p.NmdcStatusByte = msg.StatusByte
+
+            h.client.peers[p.Nick] = p
+
+            if exist == false {
                 dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
                 if h.client.OnPeerConnected != nil {
                     h.client.OnPeerConnected(p)
@@ -254,8 +480,6 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
                     h.client.OnPeerUpdated(p)
                 }
             }
-
-            h.client.peers[p.Nick] = p
         }
 
     case *msgNmdcUserIp:
@@ -343,16 +567,13 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         if h.state != "initialized" {
             return fmt.Errorf("[Quit] invalid state: %s", h.state)
         }
-        if _,ok := h.client.peers[msg.Nick]; ok {
-            p := h.client.peers[msg.Nick]
+        p,ok := h.client.peers[msg.Nick]
+        if ok {
             delete(h.client.peers, p.Nick)
             dolog(LevelInfo, "[peer off] %s", p.Nick)
             if h.client.OnPeerDisconnected != nil {
                 h.client.OnPeerDisconnected(p)
             }
-
-        } else {
-            return fmt.Errorf("received quit() on unconnected peer: %s", msg.Nick)
         }
 
     case *msgNmdcForceMove:
@@ -409,25 +630,27 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgNmdcPublicChat:
+        p := h.client.peers[msg.Author]
+        if p == nil { // create a dummy peer if not found
+            p = &Peer{ Nick: msg.Author }
+        }
+        dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
         if h.client.OnPublicMessage != nil {
-            p := h.client.peers[msg.Author]
-            if p == nil { // create a dummy peer if not found
-                p = &Peer{ Nick: msg.Author }
-            }
             h.client.OnPublicMessage(p, msg.Content)
         }
 
     case *msgNmdcPrivateChat:
+        p := h.client.peers[msg.Author]
+        if p == nil { // create a dummy peer if not found
+            p = &Peer{ Nick: msg.Author }
+        }
+        dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
         if h.client.OnPrivateMessage != nil {
-            p := h.client.peers[msg.Author]
-            if p == nil { // create a dummy peer if not found
-                p = &Peer{ Nick: msg.Author }
-            }
             h.client.OnPrivateMessage(p, msg.Content)
         }
 
     default:
-        return fmt.Errorf("unhandled: %+v", rawmsg)
+        return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
     }
     return nil
 }

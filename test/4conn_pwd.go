@@ -12,7 +12,7 @@ func main() {
 
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: os.Getenv("HUBURL"),
-        Nick: "[OP]testdctk",
+        Nick: "testdctk_auth",
         Password: "testpa$ss",
         PrivateIp: true,
         TcpPort: 3006,
