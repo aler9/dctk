@@ -57,15 +57,20 @@ func (u *udpListener) do() {
             }
             msgStr := string(buf[:n])
 
-            matches := reNmdcCommand.FindStringSubmatch(msgStr)
-            if matches == nil {
+            if msgStr[len(msgStr)-1] != '|' {
                 dolog(LevelDebug, "unable to parse incoming UDP (1): %s", msgStr)
+                continue
+            }
+
+            matches := reNmdcCommand.FindStringSubmatch(msgStr[:len(msgStr)-1])
+            if matches == nil {
+                dolog(LevelDebug, "unable to parse incoming UDP (2): %s", msgStr)
                 continue
             }
 
             // udp is used only for search results
             if matches[1] != "SR" {
-                dolog(LevelDebug, "unable to parse incoming UDP (2): %s", msgStr)
+                dolog(LevelDebug, "unable to parse incoming UDP (3): %s", msgStr)
                 continue
             }
 

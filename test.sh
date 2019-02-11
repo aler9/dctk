@@ -25,7 +25,7 @@ run_test() {
 }
 
 usage() {
-    echo "usage: $0 [--all] [-v] [nmdc|adc] [test_name]" 1>&2
+    echo "usage: $0 [--all] [-v] [[nmdc|adc] [test_file]]" 1>&2
     exit 1;
 }
 

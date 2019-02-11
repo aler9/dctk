@@ -19,7 +19,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * Examples provided for every feature
 * Comprehensive test set
 
-Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited. Nonetheless, the public API is considered stable.
+Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited. Nonetheless, the public API is to be considered stable.
 
 ## Examples
 
