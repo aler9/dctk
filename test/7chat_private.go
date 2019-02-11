@@ -18,7 +18,7 @@ func client1() {
     }
 
     client.OnPrivateMessage = func(p *dctk.Peer, content string) {
-        if p.Nick == "client2" || p.Nick == "[UNREG]client2" {
+        if p.Nick == "client2" {
             if content == "hi client1" {
                 client.PrivateMessage(p, "hi client2")
             }
@@ -39,13 +39,13 @@ func client2() {
     }
 
     client.OnPeerConnected = func(p *dctk.Peer) {
-        if p.Nick == "client1" || p.Nick == "[UNREG]client1" {
+        if p.Nick == "client1" {
             client.PrivateMessage(p, "hi client1")
         }
     }
 
     client.OnPrivateMessage = func(p *dctk.Peer, content string) {
-        if p.Nick == "client1" || p.Nick == "[UNREG]client1" {
+        if p.Nick == "client1" {
             if content == "hi client2" {
                 ok = true
                 client.Terminate()
