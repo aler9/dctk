@@ -6,37 +6,41 @@ import (
     "regexp"
 )
 
-var errorArgsFormat = fmt.Errorf("not formatted correctly")
+const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
-var reNmdcCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?\\|$")
-var reNmdcPublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)\\|$")
-var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)|$")
+var reNmdcCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
+var reAdcCmdSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
+var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
+var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
+var reNmdcCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?) ?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
+var reNmdcCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+")$")
+var reNmdcCmdSearchReqActive = regexp.MustCompile("^("+reStrIp+"):("+reStrPort+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
+var reNmdcCmdSearchReqPassive = regexp.MustCompile("^Hub:("+reStrNick+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
+var reNmdcCmdSearchResult = regexp.MustCompile("^("+reStrNick+") (.+?) ([0-9]+)/([0-9]+)\x05TTH:("+reStrTTH+") \\(("+reStrIp+"):("+reStrPort+")\\)$")
+var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
+var reNmdcCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
 
-func dcCommandEncode(key string, args string) []byte {
+func nmdcCommandEncode(key string, args string) []byte {
     return []byte(fmt.Sprintf("$%s %s|", key, args))
 }
 
-type msgDecodable interface{}
-
-type msgEncodable interface {
-    Encode()     []byte
+type msgNmdcCommandDecodable interface {
+    NmdcDecode(args string) error
 }
 
-type msgDecodableNmdcCommand interface {
-    DecodeArgs(args string) error
+type msgNmdcEncodable interface {
+    NmdcEncode()    []byte
 }
 
 type msgNmdcAdcGet struct {
-    Query       string
-    Start       uint64
-    Length      int64
-    Compress    bool
+    Query           string
+    Start           uint64
+    Length          int64
+    Compress        bool
 }
 
-var reCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
-
-func (m *msgNmdcAdcGet) DecodeArgs(args string) error {
-    matches := reCmdAdcGet.FindStringSubmatch(args)
+func (m *msgNmdcAdcGet) NmdcDecode(args string) error {
+    matches := reNmdcCmdAdcGet.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -45,8 +49,8 @@ func (m *msgNmdcAdcGet) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcAdcGet) Encode() []byte {
-    return dcCommandEncode("ADCGET", fmt.Sprintf("%s %d %d%s",
+func (m *msgNmdcAdcGet) NmdcEncode() []byte {
+    return nmdcCommandEncode("ADCGET", fmt.Sprintf("%s %d %d%s",
         m.Query, m.Start, m.Length,
         func() string {
             if m.Compress == true {
@@ -63,10 +67,8 @@ type msgNmdcAdcSnd struct {
     Compressed  bool
 }
 
-var reCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
-
-func (m *msgNmdcAdcSnd) DecodeArgs(args string) error {
-    matches := reCmdAdcSnd.FindStringSubmatch(args)
+func (m *msgNmdcAdcSnd) NmdcDecode(args string) error {
+    matches := reAdcCmdSnd.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -75,8 +77,8 @@ func (m *msgNmdcAdcSnd) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcAdcSnd) Encode() []byte {
-    return dcCommandEncode("ADCSND", fmt.Sprintf("%s %d %d%s",
+func (m *msgNmdcAdcSnd) NmdcEncode() []byte {
+    return nmdcCommandEncode("ADCSND", fmt.Sprintf("%s %d %d%s",
         m.Query, m.Start, m.Length,
         func() string {
             if m.Compressed {
@@ -90,7 +92,7 @@ type msgNmdcBinary struct {
     Content []byte
 }
 
-func (c *msgNmdcBinary) Encode() []byte {
+func (c *msgNmdcBinary) NmdcEncode() []byte {
     return c.Content
 }
 
@@ -98,7 +100,7 @@ type msgNmdcBotList struct {
     Bots []string
 }
 
-func (m *msgNmdcBotList) DecodeArgs(args string) error {
+func (m *msgNmdcBotList) NmdcDecode(args string) error {
     for _,bot := range strings.Split(strings.TrimSuffix(args, "$$"), "$$") {
         m.Bots = append(m.Bots, bot)
     }
@@ -112,10 +114,8 @@ type msgNmdcConnectToMe struct {
     Encrypted   bool
 }
 
-var reCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
-
-func (m *msgNmdcConnectToMe) DecodeArgs(args string) error {
-    matches := reCmdConnectToMe.FindStringSubmatch(args)
+func (m *msgNmdcConnectToMe) NmdcDecode(args string) error {
+    matches := reNmdcCmdConnectToMe.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -124,8 +124,8 @@ func (m *msgNmdcConnectToMe) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcConnectToMe) Encode() []byte {
-    return dcCommandEncode("ConnectToMe", fmt.Sprintf("%s %s:%d%s",
+func (m *msgNmdcConnectToMe) NmdcEncode() []byte {
+    return nmdcCommandEncode("ConnectToMe", fmt.Sprintf("%s %s:%d%s",
         m.Target, m.Ip, m.Port,
         func() string {
             if m.Encrypted {
@@ -140,10 +140,8 @@ type msgNmdcDirection struct {
     Bet         uint
 }
 
-var reCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
-
-func (m *msgNmdcDirection) DecodeArgs(args string) error {
-    matches := reCmdDirection.FindStringSubmatch(args)
+func (m *msgNmdcDirection) NmdcDecode(args string) error {
+    matches := reNmdcCmdDirection.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -151,99 +149,99 @@ func (m *msgNmdcDirection) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcDirection) Encode() []byte {
-    return dcCommandEncode("Direction", fmt.Sprintf("%s %d", m.Direction, m.Bet))
+func (m *msgNmdcDirection) NmdcEncode() []byte {
+    return nmdcCommandEncode("Direction", fmt.Sprintf("%s %d", m.Direction, m.Bet))
 }
 
 type msgNmdcError struct {
     Error string
 }
 
-func (m *msgNmdcError) DecodeArgs(args string) error {
+func (m *msgNmdcError) NmdcDecode(args string) error {
     m.Error = args
     return nil
 }
 
-func (m *msgNmdcError) Encode() []byte {
-    return dcCommandEncode("Error", m.Error)
+func (m *msgNmdcError) NmdcEncode() []byte {
+    return nmdcCommandEncode("Error", m.Error)
 }
 
 type msgNmdcForceMove struct {}
 
-func (m *msgNmdcForceMove) DecodeArgs(args string) error {
+func (m *msgNmdcForceMove) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcGetNickList struct {}
 
-func (m *msgNmdcGetNickList) Encode() []byte {
-    return dcCommandEncode("GetNickList", "")
+func (m *msgNmdcGetNickList) NmdcEncode() []byte {
+    return nmdcCommandEncode("GetNickList", "")
 }
 
 type msgNmdcGetPass struct {}
 
-func (m *msgNmdcGetPass) DecodeArgs(args string) error {
+func (m *msgNmdcGetPass) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcHello struct {}
 
-func (m *msgNmdcHello) DecodeArgs(args string) error {
+func (m *msgNmdcHello) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcHubName struct {}
 
-func (m *msgNmdcHubName) DecodeArgs(args string) error {
+func (m *msgNmdcHubName) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcHubTopic struct {}
 
-func (m *msgNmdcHubTopic) DecodeArgs(args string) error {
+func (m *msgNmdcHubTopic) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcKey struct {
-    Key string
+    Key []byte
 }
 
-func (m *msgNmdcKey) DecodeArgs(args string) error {
-    m.Key = args
+func (m *msgNmdcKey) NmdcDecode(args string) error {
+    m.Key = []byte(args)
     return nil
 }
 
-func (m *msgNmdcKey) Encode() []byte {
-    return dcCommandEncode("Key", m.Key)
+func (m *msgNmdcKey) NmdcEncode() []byte {
+    return nmdcCommandEncode("Key", string(m.Key))
 }
 
 type msgNmdcLock struct {
     Values []string
 }
 
-func (m *msgNmdcLock) DecodeArgs(args string) error {
+func (m *msgNmdcLock) NmdcDecode(args string) error {
     m.Values = strings.Split(args, " ")
     return nil
 }
 
-func (m *msgNmdcLock) Encode() []byte {
-    return dcCommandEncode("Lock", strings.Join(m.Values, " "))
+func (m *msgNmdcLock) NmdcEncode() []byte {
+    return nmdcCommandEncode("Lock", strings.Join(m.Values, " "))
 }
 
 type msgNmdcLoggedIn struct {}
 
-func (m *msgNmdcLoggedIn) DecodeArgs(args string) error {
+func (m *msgNmdcLoggedIn) NmdcDecode(args string) error {
     return nil
 }
 
 type msgNmdcMaxedOut struct {}
 
-func (m *msgNmdcMaxedOut) DecodeArgs(args string) error {
+func (m *msgNmdcMaxedOut) NmdcDecode(args string) error {
     return nil
 }
 
-func (m *msgNmdcMaxedOut) Encode() []byte {
-    return dcCommandEncode("MaxedOut", "")
+func (m *msgNmdcMaxedOut) NmdcEncode() []byte {
+    return nmdcCommandEncode("MaxedOut", "")
 }
 
 type msgNmdcMyInfo struct {
@@ -262,10 +260,8 @@ type msgNmdcMyInfo struct {
     ShareSize               uint64
 }
 
-var reCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?) ?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
-
-func (m *msgNmdcMyInfo) DecodeArgs(args string) error {
-    matches := reCmdInfo.FindStringSubmatch(args)
+func (m *msgNmdcMyInfo) NmdcDecode(args string) error {
+    matches := reNmdcCmdInfo.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -275,8 +271,8 @@ func (m *msgNmdcMyInfo) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcMyInfo) Encode() []byte {
-    return dcCommandEncode("MyINFO", fmt.Sprintf("$ALL %s %s <%s V:%s,M:%s,H:%d/%d/%d,S:%d>$ $%s%s$%s$%d$",
+func (m *msgNmdcMyInfo) NmdcEncode() []byte {
+    return nmdcCommandEncode("MyINFO", fmt.Sprintf("$ALL %s %s <%s V:%s,M:%s,H:%d/%d/%d,S:%d>$ $%s%s$%s$%d$",
         m.Nick, m.Description, m.Client, m.Version, m.Mode,
         m.HubUnregisteredCount, m.HubRegisteredCount, m.HubOperatorCount,
         m.UploadSlots, m.Connection,
@@ -287,28 +283,28 @@ type msgNmdcMyNick struct {
     Nick string
 }
 
-func (m *msgNmdcMyNick) DecodeArgs(args string) error {
+func (m *msgNmdcMyNick) NmdcDecode(args string) error {
     m.Nick = args
     return nil
 }
 
-func (m *msgNmdcMyNick) Encode() []byte {
-    return dcCommandEncode("MyNick", m.Nick)
+func (m *msgNmdcMyNick) NmdcEncode() []byte {
+    return nmdcCommandEncode("MyNick", m.Nick)
 }
 
 type msgNmdcMyPass struct {
     Pass string
 }
 
-func (m *msgNmdcMyPass) Encode() []byte {
-    return dcCommandEncode("MyPass", m.Pass)
+func (m *msgNmdcMyPass) NmdcEncode() []byte {
+    return nmdcCommandEncode("MyPass", m.Pass)
 }
 
 type msgNmdcOpList struct {
     Ops []string
 }
 
-func (m *msgNmdcOpList) DecodeArgs(args string) error {
+func (m *msgNmdcOpList) NmdcDecode(args string) error {
     for _,op := range strings.Split(strings.TrimSuffix(args, "$$"), "$$") {
         m.Ops = append(m.Ops, op)
     }
@@ -321,7 +317,7 @@ type msgNmdcPrivateChat struct {
     Content     string
 }
 
-func (c *msgNmdcPrivateChat) Encode() []byte {
+func (c *msgNmdcPrivateChat) NmdcEncode() []byte {
     return []byte(fmt.Sprintf("$To: %s From: %s $<%s> %s|", c.Dest, c.Author, c.Author, c.Content))
 }
 
@@ -330,7 +326,7 @@ type msgNmdcPublicChat struct {
     Content     string
 }
 
-func (c *msgNmdcPublicChat) Encode() []byte {
+func (c *msgNmdcPublicChat) NmdcEncode() []byte {
     return []byte(fmt.Sprintf("<%s> %s|", c.Author, c.Content))
 }
 
@@ -338,7 +334,7 @@ type msgNmdcQuit struct {
     Nick string
 }
 
-func (m *msgNmdcQuit) DecodeArgs(args string) error {
+func (m *msgNmdcQuit) NmdcDecode(args string) error {
     m.Nick = args
     return nil
 }
@@ -348,10 +344,8 @@ type msgNmdcRevConnectToMe struct {
     Target      string
 }
 
-var reCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+")$")
-
-func (m *msgNmdcRevConnectToMe) DecodeArgs(args string) error {
-    matches := reCmdRevConnectToMe.FindStringSubmatch(args)
+func (m *msgNmdcRevConnectToMe) NmdcDecode(args string) error {
+    matches := reNmdcCmdRevConnectToMe.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -359,8 +353,8 @@ func (m *msgNmdcRevConnectToMe) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcRevConnectToMe) Encode() []byte {
-    return dcCommandEncode("RevConnectToMe", fmt.Sprintf("%s %s", m.Author, m.Target))
+func (m *msgNmdcRevConnectToMe) NmdcEncode() []byte {
+    return nmdcCommandEncode("RevConnectToMe", fmt.Sprintf("%s %s", m.Author, m.Target))
 }
 
 type msgNmdcSearchRequest struct {
@@ -374,12 +368,8 @@ type msgNmdcSearchRequest struct {
     Nick        string  // passive only
 }
 
-var reCmdSearchReqActive = regexp.MustCompile("^("+reStrIp+"):("+reStrPort+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
-
-var reCmdSearchReqPassive = regexp.MustCompile("^Hub:("+reStrNick+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
-
-func (m *msgNmdcSearchRequest) DecodeArgs(args string) error {
-    if matches := reCmdSearchReqActive.FindStringSubmatch(args); matches != nil {
+func (m *msgNmdcSearchRequest) NmdcDecode(args string) error {
+    if matches := reNmdcCmdSearchReqActive.FindStringSubmatch(args); matches != nil {
         m.IsActive = true
         m.Ip, m.UdpPort = matches[1], atoui(matches[2])
         m.MaxSize = func() uint {
@@ -397,7 +387,7 @@ func (m *msgNmdcSearchRequest) DecodeArgs(args string) error {
         m.Type = SearchType(atoi(matches[6]))
         m.Query = searchUnescape(matches[7])
 
-    } else if matches := reCmdSearchReqPassive.FindStringSubmatch(args); matches != nil {
+    } else if matches := reNmdcCmdSearchReqPassive.FindStringSubmatch(args); matches != nil {
         m.IsActive = false
         m.Nick = matches[1]
         m.MaxSize = func() uint {
@@ -421,9 +411,9 @@ func (m *msgNmdcSearchRequest) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcSearchRequest) Encode() []byte {
+func (m *msgNmdcSearchRequest) NmdcEncode() []byte {
     // <sizeRestricted>?<isMaxSize>?<size>?<fileType>?<searchPattern>
-    return dcCommandEncode("Search", fmt.Sprintf("%s %s?%s?%d?%d?%s",
+    return nmdcCommandEncode("Search", fmt.Sprintf("%s %s?%s?%d?%d?%s",
         func() string {
             if m.Ip != "" {
                 return fmt.Sprintf("%s:%d", m.Ip, m.UdpPort)
@@ -469,12 +459,8 @@ type msgNmdcSearchResult struct {
     TargetNick      string // send only, passive only
 }
 
-const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-
-var reCmdSearchResult = regexp.MustCompile("^("+reStrNick+") (.+?) ([0-9]+)/([0-9]+)\x05TTH:("+reStrTTH+") \\(("+reStrIp+"):("+reStrPort+")\\)$")
-
-func (m *msgNmdcSearchResult) DecodeArgs(args string) error {
-    matches := reCmdSearchResult.FindStringSubmatch(args)
+func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
+    matches := reNmdcCmdSearchResult.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -490,8 +476,8 @@ func (m *msgNmdcSearchResult) DecodeArgs(args string) error {
     return nil
 }
 
-func (m *msgNmdcSearchResult) Encode() []byte {
-    return dcCommandEncode("SR", fmt.Sprintf("%s %s %d/%d\x05TTH:%s (%s:%d)%s",
+func (m *msgNmdcSearchResult) NmdcEncode() []byte {
+    return nmdcCommandEncode("SR", fmt.Sprintf("%s %s %d/%d\x05TTH:%s (%s:%d)%s",
         m.Nick, m.Path, m.SlotAvail, m.SlotCount,
         func() string {
             if m.IsDir == true {
@@ -512,21 +498,19 @@ type msgNmdcSupports struct {
     Features []string
 }
 
-func (m *msgNmdcSupports) DecodeArgs(args string) error {
+func (m *msgNmdcSupports) NmdcDecode(args string) error {
     m.Features = strings.Split(args, " ")
     return nil
 }
 
-func (m *msgNmdcSupports) Encode() []byte {
-    return dcCommandEncode("Supports", strings.Join(m.Features, " "))
+func (m *msgNmdcSupports) NmdcEncode() []byte {
+    return nmdcCommandEncode("Supports", strings.Join(m.Features, " "))
 }
 
 type msgNmdcUserCommand struct {}
 
-var reCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
-
-func (m *msgNmdcUserCommand) DecodeArgs(args string) error {
-    matches := reCmdUserCommand.FindStringSubmatch(args)
+func (m *msgNmdcUserCommand) NmdcDecode(args string) error {
+    matches := reNmdcCmdUserCommand.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -537,12 +521,10 @@ type msgNmdcUserIp struct {
     Ips     map[string]string
 }
 
-var reCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
-
-func (m *msgNmdcUserIp) DecodeArgs(args string) error {
+func (m *msgNmdcUserIp) NmdcDecode(args string) error {
     m.Ips = make(map[string]string)
     for _,ipstr := range strings.Split(strings.TrimSuffix(args, "$$"), "$$") {
-        matches := reCmdUserIP.FindStringSubmatch(ipstr)
+        matches := reNmdcCmdUserIP.FindStringSubmatch(ipstr)
         if matches == nil {
             return errorArgsFormat
         }
@@ -555,18 +537,18 @@ type msgNmdcValidateNick struct {
     Nick string
 }
 
-func (m *msgNmdcValidateNick) Encode() []byte {
-    return dcCommandEncode("ValidateNick", m.Nick)
+func (m *msgNmdcValidateNick) NmdcEncode() []byte {
+    return nmdcCommandEncode("ValidateNick", m.Nick)
 }
 
 type msgNmdcVersion struct {}
 
-func (m *msgNmdcVersion) Encode() []byte {
-    return dcCommandEncode("Version", "1,0091")
+func (m *msgNmdcVersion) NmdcEncode() []byte {
+    return nmdcCommandEncode("Version", "1,0091")
 }
 
 type msgNmdcZon struct {}
 
-func (m *msgNmdcZon) DecodeArgs(args string) error {
+func (m *msgNmdcZon) NmdcDecode(args string) error {
     return nil
 }

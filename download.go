@@ -103,7 +103,7 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     }()
 
     dolog(LevelInfo, "[download request] %s/%s (s=%d l=%d)",
-        d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
+        d.conf.Nick, adcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
     go d.do()
@@ -271,12 +271,12 @@ func (d *Download) do() {
         // call callbacks once the procedure has terminated
         if d.state == "success" {
             dolog(LevelInfo, "[download finished] %s/%s (s=%d l=%d)",
-                d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
+                d.conf.Nick, adcReadableQuery(d.query), d.conf.Start, len(d.content))
             if d.client.OnDownloadSuccessful != nil {
                 d.client.OnDownloadSuccessful(d)
             }
         } else {
-            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, dcReadableQuery(d.query))
+            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, adcReadableQuery(d.query))
             if d.client.OnDownloadError != nil {
                 d.client.OnDownloadError(d)
             }
@@ -290,7 +290,7 @@ func (d *Download) requestFile() {
         (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10)))
     d.state = "request_file"
 
-    d.pconn.conn.SendQueued(&msgNmdcAdcGet{
+    d.pconn.conn.Send(&msgNmdcAdcGet{
         Query: d.query,
         Start: d.conf.Start,
         Length: d.conf.Length,
@@ -380,7 +380,7 @@ func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
             }
 
         default:
-            return fmt.Errorf("unhandled: %+v", rawmsg)
+            return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
         }
         return nil
     }()

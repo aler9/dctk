@@ -5,9 +5,11 @@ import (
     "strings"
     "time"
     "net"
+    "hash"
     "strconv"
     "math/rand"
     "encoding/base32"
+    "github.com/cxmcc/tiger"
 )
 
 const reStrNick = "[^\\$ \\|]+"
@@ -17,16 +19,37 @@ const reStrTTH = "[A-Z0-9]{39}"
 
 var errorTerminated = fmt.Errorf("terminated")
 
-func dcEscape(in string) string {
-    in = strings.Replace(in, "&", "&amp;", -1)
-    in = strings.Replace(in, "$", "&#36;", -1)
-    in = strings.Replace(in, "|", "&#124;", -1)
-    return in
+// base32 without padding, which can be one or multiple =
+func adcBase32Encode(in []byte) string {
+    return strings.TrimSuffix(base32.StdEncoding.EncodeToString(in), "=")
+}
+
+// base32 without padding, which can be one or multiple =
+func adcBase32Decode(in string) []byte {
+    // add missing padding
+    if len(in) % 8 != 0 {
+        mlen := (8 - (len(in) % 8))
+        for n := 0; n < mlen; n++ {
+            in += "="
+        }
+    }
+    out,_ := base32.StdEncoding.DecodeString(in)
+    return out
+}
+
+func adcReadableQuery(request string) string {
+    if strings.HasPrefix(request, "tthl TTH/") {
+        return "tthl/" + strings.TrimPrefix(request, "tthl TTH/")
+    }
+    if strings.HasPrefix(request, "file TTH/") {
+        return "tth/" + strings.TrimPrefix(request, "file TTH/")
+    }
+    return "filelist"
 }
 
 // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_key
 // https://web.archive.org/web/20150529002427/http://wiki.gusari.org/index.php?title=LockToKey%28%29
-func dcComputeKey(lock []byte) string {
+func nmdcComputeKey(lock []byte) []byte {
     // the key has exactly as many characters as the lock
     key := make([]byte, len(lock))
 
@@ -55,23 +78,12 @@ func dcComputeKey(lock []byte) string {
             res = append(res, byt)
         }
     }
-    return string(res)
+    return res
 }
 
-func dcRandomClientId() string {
-    var randomBytes [24]byte
-    rand.Read(randomBytes[:])
-    return base32.StdEncoding.EncodeToString(randomBytes[:])[:39]
-}
-
-func dcReadableQuery(request string) string {
-    if strings.HasPrefix(request, "tthl TTH/") {
-        return "tthl/" + strings.TrimPrefix(request, "tthl TTH/")
-    }
-    if strings.HasPrefix(request, "file TTH/") {
-        return "tth/" + strings.TrimPrefix(request, "file TTH/")
-    }
-    return "filelist"
+// tiger hash used through the library
+func tigerNew() hash.Hash {
+    return tiger.New()
 }
 
 func randomInt(min, max int) int {

@@ -18,8 +18,10 @@ func client1() {
     }
 
     client.OnPublicMessage = func(p *dctk.Peer, content string) {
-        if p.Nick == "client2" && content == "hi client1" {
-            client.PublicMessage("hi client2")
+        if p.Nick == "client2" {
+            if content == "hi client1" {
+                client.PublicMessage("hi client2")
+            }
         }
     }
 
@@ -43,9 +45,11 @@ func client2() {
     }
 
     client.OnPublicMessage = func(p *dctk.Peer, content string) {
-        if p.Nick == "client1" && content == "hi client2" {
-            ok = true
-            client.Terminate()
+        if p.Nick == "client1" {
+            if content == "hi client2" {
+                ok = true
+                client.Terminate()
+            }
         }
     }
 

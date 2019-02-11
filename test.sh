@@ -15,14 +15,8 @@ run_test() {
         $HUBIMAGE $1 >/dev/null \
         || exit 1
 
-    CMD="docker run --rm -it --network=dctk-test --name=dctk-test \
-        -v ${PWD}:/src -e HUBURL=$HUBURL -e TEST=$1 dctk-test"
-
-    if [ $VERBOSE -eq 1 ]; then
-        $CMD
-    else
-        $CMD >/dev/null
-    fi
+    docker run --rm -it --network=dctk-test --name=dctk-test \
+        -v ${PWD}:/src -e HUBURL=$HUBURL -e TEST=$1 dctk-test > $DEVOUT
     RETCODE=$?
 
     [ "$RETCODE" -eq 0 ] && echo "SUCCESS" || echo "FAILED"
@@ -31,7 +25,7 @@ run_test() {
 }
 
 usage() {
-    echo "usage: $0 [-v] [--all] [nmdc|adc] [test_name]" 1>&2
+    echo "usage: $0 [--all] [-v] [nmdc|adc] [test_name]" 1>&2
     exit 1;
 }
 
@@ -43,8 +37,8 @@ main() {
     TEST=""
     while [ $# -gt 0 ]; do
         case $1 in
-            -v) VERBOSE=1;;
             --all) ALL=1;;
+            -v) VERBOSE=1;;
             -*) usage;;
             *) [ "$PROTO" = "" ] && PROTO=$1 || TEST=$1;;
         esac
@@ -53,8 +47,10 @@ main() {
 
     if [ $ALL -eq 0 ]; then
         [ "$PROTO" != "nmdc" ] && [ "$PROTO" != "adc" ] && usage
-        [ -n "$TEST" ] && [ -f "test/$TEST.go" ] || usage
+        [ -n "$TEST" ] && [ -f "test/$TEST.go" ] || { echo "test not found"; exit 1; }
     fi
+
+    [ $VERBOSE -eq 1 ] && DEVOUT=/dev/stdout || DEVOUT=/dev/null
 
     # cleanup residuals of previous tests
     docker container kill dctk-hub dctk-test >/dev/null 2>&1; \
@@ -62,10 +58,10 @@ main() {
 
     # create images and network
     printf "building images..."
-    docker build test/verlihub -t dctk-verlihub >/dev/null \
-        && docker build test/luadch -t dctk-luadch >/dev/null \
-        && docker build . -f test/Dockerfile -t dctk-test >/dev/null \
-        && docker network create dctk-test >/dev/null \
+    ( docker build test/verlihub -t dctk-verlihub \
+        && docker build test/luadch -t dctk-luadch \
+        && docker build . -f test/Dockerfile -t dctk-test \
+        && docker network create dctk-test ) > $DEVOUT \
         || exit 1
     echo "ok\n"
 

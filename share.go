@@ -58,8 +58,10 @@ func (sm *shareIndexer) index() {
     })
 
     // generate new tree
-    shareTree := func() (tree map[string]*shareRootDirectory) {
-        tree = make(map[string]*shareRootDirectory)
+    shareTree,shareCount,shareSize := func() (map[string]*shareRootDirectory,uint,uint64) {
+        tree := make(map[string]*shareRootDirectory)
+        count := uint(0)
+        size := uint64(0)
         var scanDir func(dpath string, oldDir *shareDirectory) (*shareDirectory,error)
         scanDir = func(dpath string, oldDir *shareDirectory) (*shareDirectory,error) {
             dir := &shareDirectory{
@@ -127,6 +129,8 @@ func (sm *shareIndexer) index() {
                         tthl: tthl,
                         tth: tth,
                     }
+                    count += 1
+                    size += fileSize
                 }
         	}
             return dir,nil
@@ -147,13 +151,13 @@ func (sm *shareIndexer) index() {
                 path: root,
             }
         }
-        return
+        return tree, count, size
     }()
 
     // generate new file list
     fileList,err := func() ([]byte,error) {
         fl := &FileList{
-            CID: sm.client.clientId,
+            CID: adcBase32Encode(sm.client.clientId),
             Generator: sm.client.conf.ListGenerator,
         }
 
@@ -204,27 +208,11 @@ func (sm *shareIndexer) index() {
         panic(err)
     }
 
-    // compute share size
-    shareSize := func() (ret uint64) {
-        var scanDir func(dir *shareDirectory)
-        scanDir = func(dir *shareDirectory) {
-            for _,f := range dir.files {
-                ret += f.size
-            }
-            for _,d := range dir.dirs {
-                scanDir(d)
-            }
-        }
-        for _,d := range shareTree {
-            scanDir(d.shareDirectory)
-        }
-        return
-    }()
-
     sm.client.Safe(func() {
         // override atomically
         sm.client.shareTree = shareTree
         sm.client.fileList = fileList
+        sm.client.shareCount = shareCount
         sm.client.shareSize = shareSize
 
         // inform hub

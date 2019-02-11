@@ -51,7 +51,7 @@ func newPeerConn(client *Client, tls bool, isActive bool, rawconn net.Conn, ip s
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+        p.conn = newProtocol(rawconn, client.proto, "p", 60 * time.Second, 10 * time.Second)
     } else {
         dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
         p.state = "connecting"
@@ -131,15 +131,15 @@ func (p *peerConn) do() {
                 if p.tls == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                p.conn = newProtocol(rawconn, "p", 60 * time.Second, 10 * time.Second)
+                p.conn = newProtocol(rawconn, p.client.proto, "p", 60 * time.Second, 10 * time.Second)
             })
             if err != nil {
                 return err
             }
 
             // if transfer is passive, we are the first to send MyNick and Lock
-            p.conn.SendQueued(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.SendQueued(&msgNmdcLock{ Values: []string{fmt.Sprintf(
+            p.conn.Send(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.Send(&msgNmdcLock{ Values: []string{fmt.Sprintf(
                 "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
                 p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
         }
@@ -209,8 +209,8 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
 
         // if transfer is active, wait remote before sending MyNick and Lock
         if p.isActive {
-            p.conn.SendQueued(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.SendQueued(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
+            p.conn.Send(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.Send(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
                 "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue) } })
         }
 
@@ -218,7 +218,7 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
         if p.client.conf.PeerDisableCompression == false {
             clientSupports = append(clientSupports, "ZLIG")
         }
-        p.conn.SendQueued(&msgNmdcSupports{ Features: clientSupports })
+        p.conn.Send(&msgNmdcSupports{ Features: clientSupports })
 
         // check if there's a pending download
         isPendingDownload := func() bool {
@@ -234,20 +234,20 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
         // try download
         if isPendingDownload {
             p.localDirection = "download"
-            p.conn.SendQueued(&msgNmdcDirection{
+            p.conn.Send(&msgNmdcDirection{
                 Direction: "Download",
                 Bet: p.localBet,
             })
         // upload
         } else {
             p.localDirection = "upload"
-            p.conn.SendQueued(&msgNmdcDirection{
+            p.conn.Send(&msgNmdcDirection{
                 Direction: "Upload",
                 Bet: p.localBet,
             })
         }
 
-        p.conn.SendQueued(&msgNmdcKey{ Key: dcComputeKey(p.remoteLock) })
+        p.conn.Send(&msgNmdcKey{ Key: nmdcComputeKey(p.remoteLock) })
 
     case *msgNmdcSupports:
         if p.state != "lock" {
@@ -353,9 +353,9 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
             dolog(LevelInfo, "cannot start upload: %s", err)
 
             if err == errorNoSlots {
-                p.conn.SendQueued(&msgNmdcMaxedOut{})
+                p.conn.Send(&msgNmdcMaxedOut{})
             } else {
-                p.conn.SendQueued(&msgNmdcError{ Error: "File Not Available" })
+                p.conn.Send(&msgNmdcError{ Error: "File Not Available" })
             }
 
         } else {
@@ -363,7 +363,7 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
         }
 
     default:
-        return fmt.Errorf("unhandled: %+v", rawmsg)
+        return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
     }
     return nil
 }

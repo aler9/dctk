@@ -70,7 +70,7 @@ func (u *udpListener) do() {
             }
 
             msg := &msgNmdcSearchResult{}
-            err = msg.DecodeArgs(matches[3])
+            err = msg.NmdcDecode(matches[3])
             if err != nil {
                 dolog(LevelInfo, "unable to parse incoming search result: %s", msgStr)
             }

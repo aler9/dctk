@@ -7,18 +7,19 @@ dctoolkit is a library that implements the client part of the Direct Connect pee
 
 Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH), listed in a file list generated for each user and searchable on a hub-basis. There exist two implementations, the traditional NMDC protocol (NeoModus Direct Connect) and the newer ADC protocol (Advanced Direct Connect).
 
-**At the moment this library supports only the NMDC protocol**
-
 ## Features
 
+* ADC and NMDC transparent protocol support
 * **Active** and **passive** mode
 * **Hub**: connection with configurable try count, password authentication, keepalive, compression
 * **Chat**: bidirectional public and private chat
-* **File search**: by name or TTH, reply to requests
-* **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
-* **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support
+* (NMDC only) **File search**: by name or TTH, reply to requests
+* (NMDC only) **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
+* (NMDC only) **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support
 * Examples provided for every feature
 * Comprehensive test set
+
+Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited. Nonetheless, the public API is considered stable.
 
 ## Examples
 
@@ -59,10 +60,10 @@ go get github.com/gswly/dctoolkit
 ## Links
 
 Protocol references
-* (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
-* (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
 * (ADC) https://adc.dcbase.org/Protocol
 * (ADC) https://adc.dcbase.org/Extensions
+* (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
+* (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
 
 Hubs
 * (NMDC) http://www.ptokax.org
