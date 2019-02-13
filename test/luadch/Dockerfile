@@ -24,16 +24,16 @@ RUN git clone https://github.com/luadch/luadch \
 WORKDIR /luadch-out
 
 # allow guests
-RUN sed -i "s/reg_only = .\\+,/reg_only = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(reg_only\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
 
-# disable redirect for guests
-RUN sed -i '/cmd_redirect_level/{n;n;s/true/false/;}' /luadch-out/cfg/cfg.tbl
+# disable redirect
+RUN sed -i "s/\(cmd_redirect_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
 
 # do not use tags
-RUN sed -i "s/usr_nick_prefix_activate = .\\+,/usr_nick_prefix_activate = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(usr_nick_prefix_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
 
 # do not limit traffic
-RUN sed -i "s/etc_trafficmanager_activate = .\\+,/etc_trafficmanager_activate = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(etc_trafficmanager_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
 
 RUN sed -i 's/test/testpa$ss/' /luadch-out/cfg/user.tbl
 RUN sed -i "s/dummy/testdctk_auth/" /luadch-out/cfg/user.tbl
