@@ -13,14 +13,14 @@ import (
 
 type listenerTcp struct {
     client      *Client
-    isTls       bool
+    isEncryted       bool
     state       string
     listener    net.Listener
 }
 
-func newListenerTcp(client *Client, isTls bool) error {
+func newListenerTcp(client *Client, isEncryted bool) error {
     var listener net.Listener
-    if isTls == true {
+    if isEncryted == true {
         var err error
         priv,err := rsa.GenerateKey(crand.Reader, 1024)
         if err != nil {
@@ -64,11 +64,11 @@ func newListenerTcp(client *Client, isTls bool) error {
 
     l := &listenerTcp{
         client: client,
-        isTls: isTls,
+        isEncryted: isEncryted,
         state: "running",
         listener: listener,
     }
-    if isTls == true {
+    if isEncryted == true {
         client.tcpTlsListener = l
     } else {
         client.listenerTcp = l
@@ -106,7 +106,7 @@ func (t *listenerTcp) do() {
             }
 
             t.client.Safe(func() {
-                newConnPeer(t.client, t.isTls, true, rawconn, "", 0)
+                newConnPeer(t.client, t.isEncryted, true, rawconn, "", 0)
             })
         }
     }()
