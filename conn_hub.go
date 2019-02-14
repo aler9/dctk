@@ -366,7 +366,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
         if val,ok := msg.Fields["TY"]; ok {
             if val == "1" {
-                temp.Type = TypeAny
+                temp.Type = nsTypeAny
             } else if val == "2" {
                 temp.Type = TypeFolder
             }

@@ -9,41 +9,51 @@ import (
 
 type SearchType int
 const (
-    TypeInvalid     SearchType = 0
-    TypeAny         SearchType = 1
-    TypeAudio       SearchType = 2
-    TypeCompressed  SearchType = 3
-    TypeDocument    SearchType = 4
-    TypeExe         SearchType = 5
-    TypePicture     SearchType = 6
-    TypeVideo       SearchType = 7
-    TypeFolder      SearchType = 8
-    TypeTTH         SearchType = 9
+    // search for a file by name
+    SearchFile      SearchType = iota
+    // search for a directory by name
+    SearchDirectory
+    // search for a file by TTH
+    SearchTTH
 )
 
-func searchEscape(in string) string {
+type nmdcSearchType int
+const (
+    nsTypeInvalid     nmdcSearchType = 0
+    nsTypeAny         nmdcSearchType = 1
+    nsTypeAudio       nmdcSearchType = 2
+    nsTypeCompressed  nmdcSearchType = 3
+    nsTypeDocument    nmdcSearchType = 4
+    nsTypeExe         nmdcSearchType = 5
+    nsTypePicture     nmdcSearchType = 6
+    nsTypeVideo       nmdcSearchType = 7
+    nsTypeDirectory   nmdcSearchType = 8
+    nsTypeTTH         nmdcSearchType = 9
+)
+
+func nmdcSearchEscape(in string) string {
     return strings.Replace(in, " ", "$", -1)
 }
 
-func searchUnescape(in string) string {
+func nmdcSearchUnescape(in string) string {
     return strings.Replace(in, "$", " ", -1)
 }
 
 type SearchResult struct {
+    // whether the result is a directory
+    IsDir       bool
+    // path of a file or directory matching a search request
+    Path        string
+    // file TTH
+    TTH         string
     // whether the search result was received in passive or active mode
     IsActive    bool
     // the nickname of the peer sending the result
     Nick        string
-    // the path to a file matching a search request
-    Path        string
     // the currently available upload slots of the peer
     SlotAvail   uint
     // the total number of the upload slots of the peer
     SlotCount   uint
-    // the file TTH
-    TTH         string
-    // whether the result is a directory
-    IsDir       bool
     // the hub ip
     HubIp       string
     // the hub port
@@ -51,30 +61,24 @@ type SearchResult struct {
 }
 
 type SearchConf struct {
-    // the search type, defaults to TypeAny. See SearchType for all the available options
+    // the search type, defaults to SearchFile. See SearchType for all the available options
     Type        SearchType
-    // the minimum size of the file you want to search
+    // the minimum size of the searched file
     MinSize     uint
-    // the maximum size of the file you want to search
+    // the maximum size of the searched fil
     MaxSize     uint
-    // part of a file name, a directory name (if type is TypeFolder) or a TTH (if type is TypeTTH)
+    // part of a file name (if type is SearchFile), part of a directory name
+    // (if type is SearchFolder) or a TTH (if type is SearchTTH)
     Query       string
 }
 
 // Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
-    if conf.Type == TypeInvalid {
-        conf.Type = TypeAny
-    }
-    if conf.Type == TypeTTH && TTHIsValid(conf.Query) == false {
+    if conf.Type == SearchTTH && TTHIsValid(conf.Query) == false {
         return fmt.Errorf("invalid TTH")
     }
 
     if c.hubIsAdc == true {
-        if conf.Type != TypeAny && conf.Type != TypeFolder {
-            return fmt.Errorf("only types any and folder are supported")
-        }
-
         fields := map[string]string{
             "AN": conf.Query,
         }
@@ -84,7 +88,7 @@ func (c *Client) Search(conf SearchConf) error {
         if conf.MinSize != 0 {
             fields["GE"] = fmt.Sprintf("%d", conf.MinSize)
         }
-        if conf.Type == TypeFolder {
+        if conf.Type == SearchDirectory {
             fields["TY"] = "2"
         } else {
             fields["TY"] = "1"
@@ -94,13 +98,20 @@ func (c *Client) Search(conf SearchConf) error {
             msgAdcTypeB{ c.sessionId },
             msgAdcKeySearchRequest{ Fields: fields },
         })
+
     } else {
         if conf.MaxSize != 0 && conf.MinSize != 0 {
             return fmt.Errorf("max size and min size cannot be used together")
         }
 
         c.connHub.conn.Write(&msgNmdcSearchRequest{
-            Type: conf.Type,
+            Type: func() nmdcSearchType {
+                switch conf.Type {
+                case SearchFile: return nsTypeAny
+                case SearchDirectory: return nsTypeDirectory
+                }
+                return nsTypeTTH
+            }(),
             MaxSize: conf.MaxSize,
             MinSize: conf.MinSize,
             Query: conf.Query,
@@ -128,31 +139,36 @@ func (c *Client) Search(conf SearchConf) error {
 }
 
 func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
-    if req.Type == TypeInvalid {
-        return
-    }
     if len(req.Query) < 3 {
         return
     }
-    if req.Type == TypeTTH &&
+    // we support only these nmdc types
+    if _,ok := map[nmdcSearchType]struct{}{
+        nsTypeAny: struct{}{},
+        nsTypeDirectory: struct{}{},
+        nsTypeTTH: struct{}{},
+    }[req.Type]; !ok {
+        return
+    }
+    if req.Type == nsTypeTTH &&
         (!strings.HasPrefix(req.Query, "TTH:") || !TTHIsValid(req.Query[4:])) {
         return
     }
 
     // normalize query
-    if req.Type != TypeTTH {
+    if req.Type != nsTypeTTH {
         req.Query = strings.ToLower(req.Query)
     }
 
     var replies []*msgNmdcSearchResult
     var scanDir func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool)
 
-    // search by file name
-    if req.Type != TypeTTH {
+    // search file or directory by name
+    if req.Type != nsTypeTTH {
         scanDir = func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool) {
+            // always add directories
             if dirAddToResults == false {
-                dirAddToResults = (req.Type == TypeAny || req.Type == TypeFolder) &&
-                    strings.Contains(strings.ToLower(dname), req.Query)
+                dirAddToResults = strings.Contains(strings.ToLower(dname), req.Query)
             }
             if dirAddToResults {
                 replies = append(replies, &msgNmdcSearchResult{
@@ -160,30 +176,35 @@ func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
                     IsDir: true,
                 })
             }
-            for fname,file := range dir.files {
-                fileAddToResults := dirAddToResults
-                if fileAddToResults == false {
-                    fileAddToResults = req.Type != TypeFolder &&
-                        strings.Contains(strings.ToLower(fname), req.Query)
-                }
-                if fileAddToResults {
-                    replies = append(replies, &msgNmdcSearchResult{
-                        Path: filepath.Join(dpath, dname, fname),
-                        IsDir: false,
-                        TTH: file.tth,
-                    })
+
+            // add files only if nsTypeAny
+            if req.Type == nsTypeAny {
+                for fname,file := range dir.files {
+                    fileAddToResults := dirAddToResults
+                    if fileAddToResults == false {
+                        fileAddToResults = strings.Contains(strings.ToLower(fname), req.Query)
+                    }
+                    if fileAddToResults {
+                        replies = append(replies, &msgNmdcSearchResult{
+                            Path: filepath.Join(dpath, dname, fname),
+                            IsDir: false,
+                            TTH: file.tth,
+                        })
+                    }
                 }
             }
+
             for sname,sdir := range dir.dirs {
                 scanDir(filepath.Join(dpath, dname), sname, sdir, dirAddToResults)
             }
         }
 
-    // search by TTH
+    // search file by TTH
     } else {
+        reqTTH := req.Query[4:]
         scanDir = func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool) {
             for fname,file := range dir.files {
-                if file.tth == req.Query[4:] {
+                if file.tth == reqTTH {
                     replies = append(replies, &msgNmdcSearchResult{
                         Path: filepath.Join(dpath, dname, fname),
                         IsDir: false,
@@ -215,7 +236,6 @@ func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
     }
 
     if c.hubIsAdc == true {
-
 
     } else {
         // fill additional data
