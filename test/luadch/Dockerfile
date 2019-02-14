@@ -35,6 +35,9 @@ RUN sed -i "s/\(usr_nick_prefix_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg
 # do not limit traffic
 RUN sed -i "s/\(etc_trafficmanager_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
 
+# activate tls
+RUN cd /luadch-out/certs && echo "testing" > UID.txt && ./make_cert.sh
+
 RUN sed -i 's/test/testpa$ss/' /luadch-out/cfg/user.tbl
 RUN sed -i "s/dummy/testdctk_auth/" /luadch-out/cfg/user.tbl
 

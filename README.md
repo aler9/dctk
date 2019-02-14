@@ -11,7 +11,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 
 * ADC and NMDC transparent protocol support
 * **Active** and **passive** mode
-* **Hub**: connection with configurable try count, password authentication, keepalive, compression
+* **Hub**: connection with configurable try count, password authentication, keepalive, compression, encryption
 * **Chat**: bidirectional public and private chat
 * (NMDC only) **File search**: by name or TTH, reply to requests
 * (NMDC only) **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
@@ -19,7 +19,9 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * Examples provided for every feature
 * Comprehensive test set
 
-Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited. Nonetheless, the public API is to be considered stable.
+Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited.
+
+The public API is to be considered stable.
 
 ## Examples
 

@@ -86,7 +86,8 @@ type ClientConf struct {
     PeerDisableCompression      bool
     // set the policy regarding encryption with other peers. See EncryptionMode for options
     PeerEncryptionMode          EncryptionMode
-    // The hub url in the format nmdc://address:port or adc://address:port
+    // The hub url in the format protocol://address:port
+    // supported protocols are adc, adcs, nmdc and nmdcs
     HubUrl                      string
     // how many times attempting connection with hub before giving up
     HubConnTries                uint
@@ -122,7 +123,8 @@ type Client struct {
     mutex                   sync.Mutex
     wg                      sync.WaitGroup
     wakeUp                  chan struct{}
-    proto                   string
+    hubIsAdc                bool
+    hubIsEncrypted          bool
     hubHostname             string
     hubPort                 uint
     hubSolvedIp             string
@@ -226,7 +228,12 @@ func NewClient(conf ClientConf) (*Client,error) {
     if err != nil {
         return nil, fmt.Errorf("unable to parse hub url")
     }
-    if u.Scheme != "nmdc" && u.Scheme != "adc" {
+    if _,ok := map[string]struct{}{
+        "adc": struct{}{},
+        "adcs": struct{}{},
+        "nmdc": struct{}{},
+        "nmdcs": struct{}{},
+    }[u.Scheme]; !ok {
         return nil, fmt.Errorf("unsupported protocol: %s", u.Scheme)
     }
     if u.Port() == "" {
@@ -238,7 +245,8 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf: conf,
         state: "running",
         wakeUp: make(chan struct{}, 1),
-        proto: u.Scheme,
+        hubIsAdc: (u.Scheme == "adc" || u.Scheme == "adcs"),
+        hubIsEncrypted: (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
         hubHostname: u.Hostname(),
         hubPort: atoui(u.Port()),
         shareRoots: make(map[string]string),
@@ -498,7 +506,7 @@ func (c *Client) Peers() map[string]*Peer {
 
 // PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
-    if c.proto == "adc" {
+    if c.hubIsAdc == true {
         c.hubConn.conn.Send(&msgAdcBMessage{
             msgAdcTypeB{ c.sessionId },
             msgAdcKeyMessage{ Content: content },
@@ -511,7 +519,7 @@ func (c *Client) PublicMessage(content string) {
 
 // PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
-    if c.proto == "adc" {
+    if c.hubIsAdc == true {
         c.hubConn.conn.Send(&msgAdcDMessage{
             msgAdcTypeD{ c.sessionId, dest.AdcSessionId },
             msgAdcKeyMessage{ Content: content },

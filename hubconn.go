@@ -5,6 +5,7 @@ import (
     "net"
     "time"
     "strings"
+    "crypto/tls"
 )
 
 type hubConn struct {
@@ -78,14 +79,6 @@ func (h *hubConn) do() {
             return err
         }
 
-        h.client.Safe(func() {
-            dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
-            h.state = "connected"
-
-            // do not use read timeout since hub does not send data continuously
-            h.conn = newProtocol(rawconn, h.client.proto, "h", 0, 10 * time.Second)
-        })
-
         // activate TCP keepalive
         if err := rawconn.(*net.TCPConn).SetKeepAlive(true); err != nil {
             return err
@@ -94,7 +87,19 @@ func (h *hubConn) do() {
             return err
         }
 
-        if h.client.proto == "adc" {
+        if h.client.hubIsEncrypted == true {
+            rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
+        }
+
+        h.client.Safe(func() {
+            dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
+            h.state = "connected"
+
+            // do not use read timeout since hub does not send data continuously
+            h.conn = newProtocol(rawconn, h.client.hubIsAdc, "h", 0, 10 * time.Second)
+        })
+
+        if h.client.hubIsAdc == true {
             h.conn.Send(&msgAdcHSupports{
                 msgAdcTypeH{},
                 msgAdcKeySupports{

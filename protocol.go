@@ -55,7 +55,7 @@ func readStringUntilDelim(in io.Reader, delim byte) (string,error) {
 }
 
 type protocol struct {
-    proto               string
+    isAdc               bool
     remoteLabel         string
     sendChan            chan msgEncodable
     terminated          bool
@@ -69,10 +69,10 @@ type protocol struct {
     writerJoined        chan struct{}
 }
 
-func newProtocol(nconn net.Conn, proto string, remoteLabel string,
+func newProtocol(nconn net.Conn, isAdc bool, remoteLabel string,
     readTimeout time.Duration, writeTimeout time.Duration) *protocol {
     c := &protocol{
-        proto: proto,
+        isAdc: isAdc,
         remoteLabel: remoteLabel,
         writeTimeout: writeTimeout,
         writerJoined: make(chan struct{}),
@@ -165,13 +165,12 @@ func (c *protocol) writer() {
         dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
 
         encoded := func() []byte {
-            if c.proto == "adc" {
+            if c.isAdc == true {
                 adc,ok := msg.(msgAdcTypeKeyEncodable)
                 if !ok {
                     panic("command not fit for adc")
                 }
                 ret := []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
-                fmt.Println(string(ret))
                 return ret
 
             } else {
@@ -211,7 +210,7 @@ func (c *protocol) Receive() (msgDecodable,error) {
     // message mode
     if c.binaryMode == false {
         // adc
-        if c.proto == "adc" {
+        if c.isAdc == true {
             for {
                 msgStr,err := readStringUntilDelim(c.activeReader, '\n')
                 if err != nil {

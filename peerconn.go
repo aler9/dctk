@@ -15,7 +15,7 @@ type nickDirectionPair struct {
 
 type peerConn struct {
     client              *Client
-    tls                 bool
+    isEncrypted         bool
     isActive            bool
     wakeUp              chan struct{}
     state               string
@@ -32,17 +32,17 @@ type peerConn struct {
     download            *Download
 }
 
-func newPeerConn(client *Client, tls bool, isActive bool, rawconn net.Conn, ip string, port uint) *peerConn {
+func newPeerConn(client *Client, isEncrypted bool, isActive bool, rawconn net.Conn, ip string, port uint) *peerConn {
     p := &peerConn{
         client: client,
-        tls: tls,
+        isEncrypted: isEncrypted,
         isActive: isActive,
         wakeUp: make(chan struct{}, 1),
     }
     p.client.peerConns[p] = struct{}{}
 
     securestr := func() string {
-        if p.tls {
+        if p.isEncrypted == true {
             return " (secure)"
         }
         return ""
@@ -51,7 +51,7 @@ func newPeerConn(client *Client, tls bool, isActive bool, rawconn net.Conn, ip s
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        p.conn = newProtocol(rawconn, client.proto, "p", 60 * time.Second, 10 * time.Second)
+        p.conn = newProtocol(rawconn, client.hubIsAdc, "p", 60 * time.Second, 10 * time.Second)
     } else {
         dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
         p.state = "connecting"
@@ -121,17 +121,17 @@ func (p *peerConn) do() {
                 }
 
                 securestr := func() string {
-                    if p.tls {
+                    if p.isEncrypted == true {
                         return " (secure)"
                     }
                     return ""
                 }()
                 dolog(LevelInfo, "[peer connected] %s%s", connRemoteAddr(rawconn), securestr)
                 p.state = "connected"
-                if p.tls == true {
+                if p.isEncrypted == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                p.conn = newProtocol(rawconn, p.client.proto, "p", 60 * time.Second, 10 * time.Second)
+                p.conn = newProtocol(rawconn, p.client.hubIsAdc, "p", 60 * time.Second, 10 * time.Second)
             })
             if err != nil {
                 return err
