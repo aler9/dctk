@@ -5,19 +5,19 @@ import (
     "net"
 )
 
-type udpListener struct {
+type listenerUdp struct {
     client      *Client
     state       string
     listener    net.PacketConn
 }
 
-func newUdpListener(client *Client) error {
+func newListenerUdp(client *Client) error {
     listener,err := net.ListenPacket("udp", fmt.Sprintf(":%d", client.conf.UdpPort))
     if err != nil {
         return err
     }
 
-    client.udpListener = &udpListener{
+    client.listenerUdp = &listenerUdp{
         client: client,
         state: "running",
         listener: listener,
@@ -26,7 +26,7 @@ func newUdpListener(client *Client) error {
     return nil
 }
 
-func (u *udpListener) terminate() {
+func (u *listenerUdp) terminate() {
     switch u.state {
     case "terminated":
         return
@@ -40,7 +40,7 @@ func (u *udpListener) terminate() {
     u.state = "terminated"
 }
 
-func (u *udpListener) do() {
+func (u *listenerUdp) do() {
     defer u.client.wg.Done()
 
     err := func() error {

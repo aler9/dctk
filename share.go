@@ -216,7 +216,7 @@ func (sm *shareIndexer) index() {
         sm.client.shareSize = shareSize
 
         // inform hub
-        if sm.client.hubConn != nil && sm.client.hubConn.state == "initialized" {
+        if sm.client.connHub != nil && sm.client.connHub.state == "initialized" {
             sm.client.myInfo()
         }
 
