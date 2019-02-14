@@ -16,7 +16,7 @@ var errorNoSlots = fmt.Errorf("no slots available")
 type upload struct {
     client          *Client
     state           string
-    pconn           *peerConn
+    pconn           *connPeer
     reader          io.ReadCloser
     compressed      bool
     query           string
@@ -28,7 +28,7 @@ type upload struct {
 
 func (*upload) isTransfer() {}
 
-func newUpload(client *Client, pconn *peerConn, msg *msgNmdcAdcGet) error {
+func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
     u := &upload{
         client: client,
         state: "transfering",

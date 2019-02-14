@@ -90,7 +90,7 @@ func (c *Client) Search(conf SearchConf) error {
             fields["TY"] = "1"
         }
 
-        c.hubConn.conn.Write(&msgAdcBSearchRequest{
+        c.connHub.conn.Write(&msgAdcBSearchRequest{
             msgAdcTypeB{ c.sessionId },
             msgAdcKeySearchRequest{ Fields: fields },
         })
@@ -99,7 +99,7 @@ func (c *Client) Search(conf SearchConf) error {
             return fmt.Errorf("max size and min size cannot be used together")
         }
 
-        c.hubConn.conn.Write(&msgNmdcSearchRequest{
+        c.connHub.conn.Write(&msgNmdcSearchRequest{
             Type: conf.Type,
             MaxSize: conf.MaxSize,
             MinSize: conf.MinSize,
@@ -245,7 +245,7 @@ func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
             // send to hub
             for _,msg := range replies {
                 msg.TargetNick = req.Nick
-                c.hubConn.conn.Write(msg)
+                c.connHub.conn.Write(msg)
             }
         }
     }

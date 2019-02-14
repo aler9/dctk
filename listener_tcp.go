@@ -11,14 +11,14 @@ import (
     "math/big"
 )
 
-type tcpListener struct {
+type listenerTcp struct {
     client      *Client
     isTls       bool
     state       string
     listener    net.Listener
 }
 
-func newTcpListener(client *Client, isTls bool) error {
+func newListenerTcp(client *Client, isTls bool) error {
     var listener net.Listener
     if isTls == true {
         var err error
@@ -62,7 +62,7 @@ func newTcpListener(client *Client, isTls bool) error {
         }
     }
 
-    l := &tcpListener{
+    l := &listenerTcp{
         client: client,
         isTls: isTls,
         state: "running",
@@ -71,12 +71,12 @@ func newTcpListener(client *Client, isTls bool) error {
     if isTls == true {
         client.tcpTlsListener = l
     } else {
-        client.tcpListener = l
+        client.listenerTcp = l
     }
     return nil
 }
 
-func (t *tcpListener) terminate() {
+func (t *listenerTcp) terminate() {
     switch t.state {
     case "terminated":
         return
@@ -90,7 +90,7 @@ func (t *tcpListener) terminate() {
     t.state = "terminated"
 }
 
-func (t *tcpListener) do() {
+func (t *listenerTcp) do() {
     defer t.client.wg.Done()
 
     err := func() error {
@@ -106,7 +106,7 @@ func (t *tcpListener) do() {
             }
 
             t.client.Safe(func() {
-                newPeerConn(t.client, t.isTls, true, rawconn, "", 0)
+                newConnPeer(t.client, t.isTls, true, rawconn, "", 0)
             })
         }
     }()

@@ -135,10 +135,10 @@ type Client struct {
     shareCount              uint
     shareSize               uint64
     fileList                []byte
-    tcpListener             *tcpListener
-    tcpTlsListener          *tcpListener
-    udpListener             *udpListener
-    hubConn                 *hubConn
+    listenerTcp             *listenerTcp
+    tcpTlsListener          *listenerTcp
+    listenerUdp             *listenerUdp
+    connHub                 *connHub
     // we follow the ADC way to handle IDs, even when using NMDC
     privateId               []byte
     clientId                []byte
@@ -146,8 +146,8 @@ type Client struct {
     peers                   map[string]*Peer
     downloadSlotAvail       uint
     uploadSlotAvail         uint
-    peerConns               map[*peerConn]struct{}
-    peerConnsByKey          map[nickDirectionPair]*peerConn
+    connPeers               map[*connPeer]struct{}
+    connPeersByKey          map[nickDirectionPair]*connPeer
     transfers               map[transfer]struct{}
     activeDownloadsByPeer   map[string]*Download
 
@@ -254,8 +254,8 @@ func NewClient(conf ClientConf) (*Client,error) {
         peers: make(map[string]*Peer),
         downloadSlotAvail: conf.DownloadMaxParallel,
         uploadSlotAvail: conf.UploadMaxParallel,
-        peerConns: make(map[*peerConn]struct{}),
-        peerConnsByKey: make(map[nickDirectionPair]*peerConn),
+        connPeers: make(map[*connPeer]struct{}),
+        connPeersByKey: make(map[nickDirectionPair]*connPeer),
         transfers: make(map[transfer]struct{}),
         activeDownloadsByPeer: make(map[string]*Download),
     }
@@ -274,24 +274,24 @@ func NewClient(conf ClientConf) (*Client,error) {
     }
 
     if c.conf.ModePassive == false && c.conf.PeerEncryptionMode != ForceEncryption {
-        if err := newTcpListener(c, false); err != nil {
+        if err := newListenerTcp(c, false); err != nil {
             return nil, err
         }
     }
 
     if c.conf.ModePassive == false && c.conf.PeerEncryptionMode != DisableEncryption {
-        if err := newTcpListener(c, true); err != nil {
+        if err := newListenerTcp(c, true); err != nil {
             return nil, err
         }
     }
 
     if c.conf.ModePassive == false {
-        if err := newUdpListener(c); err != nil {
+        if err := newListenerUdp(c); err != nil {
             return nil, err
         }
     }
 
-    if err := newHub(c); err != nil {
+    if err := newConnHub(c); err != nil {
         return nil, err
     }
 
@@ -327,17 +327,17 @@ func (c *Client) Run() {
     c.wg.Add(1)
     go c.shareIndexer.do()
 
-    if c.tcpListener != nil {
+    if c.listenerTcp != nil {
         c.wg.Add(1)
-        go c.tcpListener.do()
+        go c.listenerTcp.do()
     }
     if c.tcpTlsListener != nil {
         c.wg.Add(1)
         go c.tcpTlsListener.do()
     }
-    if c.udpListener != nil {
+    if c.listenerUdp != nil {
         c.wg.Add(1)
-        go c.udpListener.do()
+        go c.listenerUdp.do()
     }
 
     if c.OnInitialized != nil {
@@ -353,21 +353,21 @@ func (c *Client) Run() {
     <- c.wakeUp
 
     c.Safe(func() {
-        c.hubConn.terminate()
+        c.connHub.terminate()
         for t,_ := range c.transfers {
             t.terminate()
         }
-        for p,_ := range c.peerConns {
+        for p,_ := range c.connPeers {
             p.terminate()
         }
-        if c.udpListener != nil {
-            c.udpListener.terminate()
+        if c.listenerUdp != nil {
+            c.listenerUdp.terminate()
         }
         if c.tcpTlsListener != nil {
             c.tcpTlsListener.terminate()
         }
-        if c.tcpListener != nil {
-            c.tcpListener.terminate()
+        if c.listenerTcp != nil {
+            c.listenerTcp.terminate()
         }
         c.shareIndexer.terminate()
     })
@@ -431,7 +431,7 @@ func (c *Client) myInfo() {
         statusByte |= (0x01 << 4) | (0x01 << 5)
     }
 
-    c.hubConn.conn.Write(&msgNmdcMyInfo{
+    c.connHub.conn.Write(&msgNmdcMyInfo{
         Nick: c.conf.Nick,
         Description: c.conf.Description,
         Client: c.conf.ClientString,
@@ -454,7 +454,7 @@ func (c *Client) connectToMe(target string) {
         return
     }
 
-    c.hubConn.conn.Write(&msgNmdcConnectToMe{
+    c.connHub.conn.Write(&msgNmdcConnectToMe{
         Target: target,
         Ip: c.ip,
         Port: func() uint {
@@ -468,7 +468,7 @@ func (c *Client) connectToMe(target string) {
 }
 
 func (c *Client) revConnectToMe(target string) {
-    c.hubConn.conn.Write(&msgNmdcRevConnectToMe{
+    c.connHub.conn.Write(&msgNmdcRevConnectToMe{
         Author: c.conf.Nick,
         Target: target,
     })
@@ -507,25 +507,25 @@ func (c *Client) Peers() map[string]*Peer {
 // PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
     if c.hubIsAdc == true {
-        c.hubConn.conn.Write(&msgAdcBMessage{
+        c.connHub.conn.Write(&msgAdcBMessage{
             msgAdcTypeB{ c.sessionId },
             msgAdcKeyMessage{ Content: content },
         })
 
     } else {
-        c.hubConn.conn.Write(&msgNmdcPublicChat{ c.conf.Nick, content })
+        c.connHub.conn.Write(&msgNmdcPublicChat{ c.conf.Nick, content })
     }
 }
 
 // PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
     if c.hubIsAdc == true {
-        c.hubConn.conn.Write(&msgAdcDMessage{
+        c.connHub.conn.Write(&msgAdcDMessage{
             msgAdcTypeD{ c.sessionId, dest.AdcSessionId },
             msgAdcKeyMessage{ Content: content },
         })
 
     } else {
-        c.hubConn.conn.Write(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
+        c.connHub.conn.Write(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
     }
 }

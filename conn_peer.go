@@ -13,7 +13,7 @@ type nickDirectionPair struct {
     direction string
 }
 
-type peerConn struct {
+type connPeer struct {
     client              *Client
     isEncrypted         bool
     isActive            bool
@@ -32,14 +32,15 @@ type peerConn struct {
     download            *Download
 }
 
-func newPeerConn(client *Client, isEncrypted bool, isActive bool, rawconn net.Conn, ip string, port uint) *peerConn {
-    p := &peerConn{
+func newConnPeer(client *Client, isEncrypted bool, isActive bool,
+    rawconn net.Conn, ip string, port uint) *connPeer {
+    p := &connPeer{
         client: client,
         isEncrypted: isEncrypted,
         isActive: isActive,
         wakeUp: make(chan struct{}, 1),
     }
-    p.client.peerConns[p] = struct{}{}
+    p.client.connPeers[p] = struct{}{}
 
     securestr := func() string {
         if p.isEncrypted == true {
@@ -68,7 +69,7 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool, rawconn net.Co
     return p
 }
 
-func (p *peerConn) terminate() {
+func (p *connPeer) terminate() {
     switch p.state {
     case "terminated":
         return
@@ -83,13 +84,13 @@ func (p *peerConn) terminate() {
         panic(fmt.Errorf("terminate() unsupported in state '%s'", p.state))
     }
     if p.remoteNick != "" && p.direction != "" {
-        delete(p.client.peerConnsByKey, nickDirectionPair{ p.remoteNick, p.direction })
+        delete(p.client.connPeersByKey, nickDirectionPair{ p.remoteNick, p.direction })
     }
-    delete(p.client.peerConns, p)
+    delete(p.client.connPeers, p)
     p.state = "terminated"
 }
 
-func (p *peerConn) do() {
+func (p *connPeer) do() {
     defer p.client.wg.Done()
 
     err := func() error {
@@ -178,16 +179,16 @@ func (p *peerConn) do() {
         case "terminated":
 
         default:
-            dolog(LevelInfo, "ERR (peerConn): %s", err)
+            dolog(LevelInfo, "ERR (connPeer): %s", err)
             if p.remoteNick != "" && p.direction != "" {
-                delete(p.client.peerConnsByKey, nickDirectionPair{ p.remoteNick, p.direction })
+                delete(p.client.connPeersByKey, nickDirectionPair{ p.remoteNick, p.direction })
             }
-            delete(p.client.peerConns, p)
+            delete(p.client.connPeers, p)
         }
     })
 }
 
-func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
+func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
     p.client.mutex.Lock()
     defer p.client.mutex.Unlock()
 
@@ -320,10 +321,10 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
 
         key := nickDirectionPair{ p.remoteNick, direction }
 
-        if _,ok := p.client.peerConnsByKey[key]; ok {
+        if _,ok := p.client.connPeersByKey[key]; ok {
             return fmt.Errorf("a connection with this peer and direction already exists")
         }
-        p.client.peerConnsByKey[key] = p
+        p.client.connPeersByKey[key] = p
 
         p.direction = direction
 

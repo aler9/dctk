@@ -27,7 +27,7 @@ type Download struct {
     client              *Client
     state               string
     wakeUp              chan struct{}
-    pconn               *peerConn
+    pconn               *connPeer
     query               string
     content             []byte
     length              uint64
@@ -175,7 +175,7 @@ func (d *Download) do() {
                         d.client.activeDownloadsByPeer[d.conf.Nick] = d
                         d.client.downloadSlotAvail -= 1
 
-                        if pconn,ok := d.client.peerConnsByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
+                        if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
                             // request peer connection
                             if d.client.conf.ModePassive == false {
                                 d.client.connectToMe(d.conf.Nick)

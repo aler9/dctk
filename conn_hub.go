@@ -8,7 +8,7 @@ import (
     "crypto/tls"
 )
 
-type hubConn struct {
+type connHub struct {
     client          *Client
     state           string
     conn            protocol
@@ -16,8 +16,8 @@ type hubConn struct {
     myInfoReceived  bool
 }
 
-func newHub(client *Client) error {
-    client.hubConn = &hubConn{
+func newConnHub(client *Client) error {
+    client.connHub = &connHub{
         client: client,
         state: "uninitialized",
         uniqueCmds: make(map[string]struct{}),
@@ -28,16 +28,16 @@ func newHub(client *Client) error {
 // HubConnect must be called only when HubManualConnect is turned on. It starts
 // the connection to the hub.
 func (c *Client) HubConnect() {
-    if c.hubConn.state != "uninitialized" {
+    if c.connHub.state != "uninitialized" {
         return
     }
 
-    c.hubConn.state = "connecting"
+    c.connHub.state = "connecting"
     c.wg.Add(1)
-    go c.hubConn.do()
+    go c.connHub.do()
 }
 
-func (h *hubConn) terminate() {
+func (h *connHub) terminate() {
     switch h.state {
     case "terminated":
         return
@@ -51,7 +51,7 @@ func (h *hubConn) terminate() {
     h.state = "terminated"
 }
 
-func (h *hubConn) do() {
+func (h *connHub) do() {
     defer h.client.wg.Done()
 
     err := func() error {
@@ -155,7 +155,7 @@ func (h *hubConn) do() {
     })
 }
 
-func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
+func (h *connHub) handleMessage(rawmsg msgDecodable) error {
     h.client.mutex.Lock()
     defer h.client.mutex.Unlock()
 
@@ -635,7 +635,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         } else if msg.Encrypted == false && h.client.conf.PeerEncryptionMode == ForceEncryption {
             dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
         } else {
-            newPeerConn(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port)
+            newConnPeer(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port)
         }
 
     case *msgNmdcRevConnectToMe:
