@@ -27,7 +27,7 @@ func main() {
 
         // or search by TTH
         client.Search(dctk.SearchConf{
-            Type: dctk.nsTypeTTH,
+            Type: dctk.SearchTTH,
             Query: "LDGE7FZYHQUKVFMEBAIMEFLNEMACI5ZGOTZNOIQ",
         })
     }
