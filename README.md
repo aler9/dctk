@@ -59,6 +59,13 @@ If you are using an older Go version or you have not switched to modules yet, ru
 go get github.com/gswly/dctoolkit
 ```
 
+## Testing
+
+If you want to edit this library and test the results, you can you automated tests through
+```
+./test.sh --all
+```
+
 ## Links
 
 Protocol references
