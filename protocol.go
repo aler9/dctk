@@ -5,7 +5,6 @@ import (
     "fmt"
     "time"
     "io"
-    "regexp"
     "compress/zlib"
 )
 
