@@ -290,7 +290,7 @@ func (d *Download) requestFile() {
         (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10)))
     d.state = "request_file"
 
-    d.pconn.conn.Send(&msgNmdcAdcGet{
+    d.pconn.conn.Write(&msgNmdcAdcGet{
         Query: d.query,
         Start: d.conf.Start,
         Length: d.conf.Length,
@@ -334,7 +334,7 @@ func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
             }
 
             d.content = make([]byte, d.length)
-            d.pconn.conn.SetBinaryMode(true)
+            d.pconn.conn.SetReadBinary(true)
             if msg.Compressed == true {
                 d.pconn.conn.SetReadCompressionOn()
             }
@@ -354,7 +354,7 @@ func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
             }
 
             if d.offset == d.length {
-                d.pconn.conn.SetBinaryMode(false)
+                d.pconn.conn.SetReadBinary(false)
 
                 // file list: unzip
                 if d.conf.filelist {

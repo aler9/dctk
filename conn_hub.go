@@ -11,7 +11,7 @@ import (
 type hubConn struct {
     client          *Client
     state           string
-    conn            *protocol
+    conn            protocol
     uniqueCmds      map[string]struct{}
     myInfoReceived  bool
 }
@@ -43,7 +43,7 @@ func (h *hubConn) terminate() {
         return
 
     case "initialized":
-        h.conn.terminate()
+        h.conn.Terminate()
 
     default:
         panic(fmt.Errorf("Terminate() unsupported in state '%s'", h.state))
@@ -91,16 +91,29 @@ func (h *hubConn) do() {
             rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
         }
 
+        // do not use read timeout since hub does not send data continuously
+        if h.client.hubIsAdc == true {
+            h.conn = newProtocolAdc("h", rawconn, false, true)
+        } else {
+            h.conn = newProtocolNmdc("h", rawconn, false, true)
+        }
+
+        exit := false
         h.client.Safe(func() {
+            if h.state == "terminated" {
+                h.conn.Terminate()
+                exit = true
+                return
+            }
             dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
             h.state = "connected"
-
-            // do not use read timeout since hub does not send data continuously
-            h.conn = newProtocol(rawconn, h.client.hubIsAdc, "h", 0, 10 * time.Second)
         })
+        if exit == true {
+            return errorTerminated
+        }
 
         if h.client.hubIsAdc == true {
-            h.conn.Send(&msgAdcHSupports{
+            h.conn.Write(&msgAdcHSupports{
                 msgAdcTypeH{},
                 msgAdcKeySupports{
                     Features: []string{ "ADBAS0", "ADBASE", "ADTIGR", "ADUCM0", "ADBLO0", "ADZLIF"},
@@ -109,15 +122,15 @@ func (h *hubConn) do() {
         }
 
         for {
-            msg,err := h.conn.Receive()
+            msg,err := h.conn.Read()
             if err != nil {
-                h.conn.terminate()
+                h.conn.Terminate()
                 return err
             }
 
             err = h.handleMessage(msg)
             if err != nil {
-                h.conn.terminate()
+                h.conn.Terminate()
                 return err
             }
         }
@@ -208,7 +221,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
             fields[adcInfoUdpPort] = fmt.Sprintf("%d", h.client.conf.UdpPort)
         }
 
-        h.conn.Send(&msgAdcBInfos{
+        h.conn.Write(&msgAdcBInfos{
             msgAdcTypeB{ SessionId: h.client.sessionId },
             msgAdcKeyInfos{ Fields: fields },
         })
@@ -224,7 +237,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         hasher.Write(msg.Data)
         data := hasher.Sum(nil)
 
-        h.conn.Send(&msgAdcHPass{
+        h.conn.Write(&msgAdcHPass{
             msgAdcTypeH{},
             msgAdcKeyPass{ Data: data },
         })
@@ -380,9 +393,9 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
             hubSupports = append(hubSupports, "TLS")
         }
 
-        h.conn.Send(&msgNmdcSupports{ Features: hubSupports })
-        h.conn.Send(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
-        h.conn.Send(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
+        h.conn.Write(&msgNmdcSupports{ Features: hubSupports })
+        h.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
+        h.conn.Write(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
 
     case *msgNmdcSupports:
         if h.state != "lock" {
@@ -421,7 +434,7 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
         if h.state != "preinitialized" {
             return fmt.Errorf("[GetPass] invalid state: %s", h.state)
         }
-        h.conn.Send(&msgNmdcMyPass{ Pass: h.client.conf.Password })
+        h.conn.Write(&msgNmdcMyPass{ Pass: h.client.conf.Password })
         if _,ok := h.uniqueCmds["GetPass"]; ok {
             return fmt.Errorf("GetPass sent twice")
         }
@@ -447,9 +460,9 @@ func (h *hubConn) handleMessage(rawmsg msgDecodable) error {
 
         // The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
         // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
-        h.conn.Send(&msgNmdcVersion{})
+        h.conn.Write(&msgNmdcVersion{})
         h.client.myInfo()
-        h.conn.Send(&msgNmdcGetNickList{})
+        h.conn.Write(&msgNmdcGetNickList{})
 
     case *msgNmdcMyInfo:
         if h.state != "preinitialized" && h.state != "initialized" {

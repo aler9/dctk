@@ -4,6 +4,7 @@ import (
     "fmt"
     "strings"
     "regexp"
+    "net"
 )
 
 const (
@@ -45,6 +46,84 @@ func adcEscape(in string) string {
     in = strings.Replace(in, "\n", "\\n", -1)
     in = strings.Replace(in, " ", "\\s", -1)
     return in
+}
+
+type protocolAdc struct {
+    *protocolBase
+}
+
+func newProtocolAdc(remoteLabel string, nconn net.Conn,
+    applyReadTimeout bool, applyWriteTimeout bool) protocol {
+    p := &protocolAdc{
+        protocolBase: newProtocolBase(remoteLabel,
+            nconn, applyReadTimeout, applyWriteTimeout, '\n'),
+    }
+    return p
+}
+
+func (p *protocolAdc) Read() (msgDecodable,error) {
+    if p.readBinary == false {
+        buf,err := p.ReadMessage()
+        if err != nil {
+            return nil,err
+        }
+
+        msgStr := string(buf)
+
+        if len(msgStr) < 5 {
+            return nil, fmt.Errorf("message too short: %s", msgStr)
+        }
+
+        if msgStr[4] != ' ' {
+            return nil, fmt.Errorf("invalid message: %s", msgStr)
+        }
+
+        msg := func() msgAdcTypeKeyDecodable {
+            switch msgStr[:4] {
+            case "BINF": return &msgAdcBInfos{}
+            case "BMSG": return &msgAdcBMessage{}
+            case "BSCH": return &msgAdcBSearchRequest{}
+            case "DMSG": return &msgAdcDMessage{}
+            case "ICMD": return &msgAdcICommand{}
+            case "IGPA": return &msgAdcIGetPass{}
+            case "IINF": return &msgAdcIInfos{}
+            case "IQUI": return &msgAdcIQuit{}
+            case "ISID": return &msgAdcISessionId{}
+            case "ISTA": return &msgAdcIStatus{}
+            case "ISUP": return &msgAdcISupports{}
+            }
+            return nil
+        }()
+        if msg == nil {
+            return nil, fmt.Errorf("unrecognized command: %s", msgStr)
+        }
+
+        n,err := msg.AdcTypeDecode(msgStr[5:])
+        if err != nil {
+            return nil, fmt.Errorf("unable to decode command type: %s", msgStr)
+        }
+
+        err = msg.AdcKeyDecode(msgStr[5+n:])
+        if err != nil {
+            return nil, fmt.Errorf("unable to decode command key. type: %s key: %s err: %s",
+                msgStr[:5+n], msgStr[5+n:], err)
+        }
+
+        dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+        return msg, nil
+
+    } else {
+        return nil, fmt.Errorf("unimplemented")
+    }
+}
+
+func (c *protocolAdc) Write(msg msgEncodable) {
+    adc,ok := msg.(msgAdcTypeKeyEncodable)
+    if !ok {
+        panic("command not fit for adc")
+    }
+    dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
+    c.sendChan <- []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
 }
 
 type msgAdcTypeDecodable interface {

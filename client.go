@@ -431,7 +431,7 @@ func (c *Client) myInfo() {
         statusByte |= (0x01 << 4) | (0x01 << 5)
     }
 
-    c.hubConn.conn.Send(&msgNmdcMyInfo{
+    c.hubConn.conn.Write(&msgNmdcMyInfo{
         Nick: c.conf.Nick,
         Description: c.conf.Description,
         Client: c.conf.ClientString,
@@ -454,7 +454,7 @@ func (c *Client) connectToMe(target string) {
         return
     }
 
-    c.hubConn.conn.Send(&msgNmdcConnectToMe{
+    c.hubConn.conn.Write(&msgNmdcConnectToMe{
         Target: target,
         Ip: c.ip,
         Port: func() uint {
@@ -468,7 +468,7 @@ func (c *Client) connectToMe(target string) {
 }
 
 func (c *Client) revConnectToMe(target string) {
-    c.hubConn.conn.Send(&msgNmdcRevConnectToMe{
+    c.hubConn.conn.Write(&msgNmdcRevConnectToMe{
         Author: c.conf.Nick,
         Target: target,
     })
@@ -507,25 +507,25 @@ func (c *Client) Peers() map[string]*Peer {
 // PublicMessage publishes a message in the hub public chat.
 func (c *Client) PublicMessage(content string) {
     if c.hubIsAdc == true {
-        c.hubConn.conn.Send(&msgAdcBMessage{
+        c.hubConn.conn.Write(&msgAdcBMessage{
             msgAdcTypeB{ c.sessionId },
             msgAdcKeyMessage{ Content: content },
         })
 
     } else {
-        c.hubConn.conn.Send(&msgNmdcPublicChat{ c.conf.Nick, content })
+        c.hubConn.conn.Write(&msgNmdcPublicChat{ c.conf.Nick, content })
     }
 }
 
 // PrivateMessage sends a private message to a specific peer connected to the hub.
 func (c *Client) PrivateMessage(dest *Peer, content string) {
     if c.hubIsAdc == true {
-        c.hubConn.conn.Send(&msgAdcDMessage{
+        c.hubConn.conn.Write(&msgAdcDMessage{
             msgAdcTypeD{ c.sessionId, dest.AdcSessionId },
             msgAdcKeyMessage{ Content: content },
         })
 
     } else {
-        c.hubConn.conn.Send(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
+        c.hubConn.conn.Write(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
     }
 }
