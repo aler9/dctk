@@ -18,13 +18,40 @@ var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reS
 type msgDecodable interface{}
 type msgEncodable interface {}
 
-type protocolNetReader struct { net.Conn }
+type protocolTimedNetReadWriter struct {
+    in              net.Conn
+    readTimeout     time.Duration
+    writeTimeout    time.Duration
+}
 
-// we provide a io.ByteReader interface to net.Conn
-// otherwise zlib.NewReader() adds a bufio layer, resulting in a constant
-// 4096-bytes request to Read(), that messes up the zlib on/off phase
+func (nr protocolTimedNetReadWriter) Close() {
+    nr.in.Close()
+}
+
+func (nr protocolTimedNetReadWriter) Read(buf []byte) (int, error) {
+    if nr.readTimeout > 0 {
+        if err := nr.in.SetReadDeadline(time.Now().Add(nr.readTimeout)); err != nil {
+            return 0, err
+        }
+    }
+    return nr.in.Read(buf)
+}
+
+func (nr protocolTimedNetReadWriter) Write(buf []byte) (int, error) {
+    if nr.writeTimeout > 0 {
+        if err := nr.in.SetWriteDeadline(time.Now().Add(nr.writeTimeout)); err != nil {
+            return 0, err
+        }
+    }
+    return nr.in.Write(buf)
+}
+
+// we provide a io.ByteReader interface, otherwise zlib.NewReader()
+// adds a bufio layer, resulting in a constant 4096-bytes request to Read(),
+// that messes up the zlib on/off phase.
 // https://golang.org/src/compress/flate/inflate.go -> makeReader()
-func (nr protocolNetReader) ReadByte() (byte, error) {
+// this could be replaced by a bufio wrapper, but is IMHO less efficients
+func (nr protocolTimedNetReadWriter) ReadByte() (byte, error) {
     var dest [1]byte
     _,err := nr.Read(dest[:])
     return dest[0], err
@@ -32,7 +59,7 @@ func (nr protocolNetReader) ReadByte() (byte, error) {
 
 // this is like bufio.ReadSlice(), except it does not buffer
 // anything, to allow the zlib on/off phase
-// and it also strip the delimiter
+// and it also strips the delimiter
 func readStringUntilDelim(in io.Reader, delim byte) (string,error) {
     var buffer [10 * 1024]byte // max message size
     offset := 0
@@ -59,9 +86,8 @@ type protocol struct {
     remoteLabel         string
     sendChan            chan msgEncodable
     terminated          bool
-    writeTimeout        time.Duration
     binaryMode          bool
-    netReadWriter       protocolNetReader
+    netReadWriter       protocolTimedNetReadWriter
     zlibReader          io.ReadCloser
     activeReader        io.Reader
     zlibWriter          *zlib.Writer
@@ -74,10 +100,13 @@ func newProtocol(nconn net.Conn, isAdc bool, remoteLabel string,
     c := &protocol{
         isAdc: isAdc,
         remoteLabel: remoteLabel,
-        writeTimeout: writeTimeout,
         writerJoined: make(chan struct{}),
         binaryMode: true,
-        netReadWriter: protocolNetReader{nconn},
+        netReadWriter: protocolTimedNetReadWriter{
+            in: nconn,
+            readTimeout: readTimeout,
+            writeTimeout: writeTimeout,
+        },
     }
     c.activeReader = c.netReadWriter
     c.activeWriter = c.netReadWriter
@@ -189,11 +218,6 @@ func (c *protocol) writer() {
 }
 
 func (c *protocol) WriteBinary(in []byte) error {
-    if c.writeTimeout > 0 {
-        if err := c.netReadWriter.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
-            return err
-        }
-    }
     _,err := c.activeWriter.Write(in)
     if err != nil {
         return err
@@ -231,6 +255,10 @@ func (c *protocol) Receive() (msgDecodable,error) {
                     return nil, fmt.Errorf("message too short: %s", msgStr)
                 }
 
+                if msgStr[4] != ' ' {
+                    return nil, fmt.Errorf("invalid message: %s", msgStr)
+                }
+
                 msg := func() msgAdcTypeKeyDecodable {
                     switch msgStr[:4] {
                     case "BINF": return &msgAdcBInfos{}
@@ -251,15 +279,15 @@ func (c *protocol) Receive() (msgDecodable,error) {
                     return nil, fmt.Errorf("unrecognized command: %s", msgStr)
                 }
 
-                n,err := msg.AdcTypeDecode(msgStr)
+                n,err := msg.AdcTypeDecode(msgStr[5:])
                 if err != nil {
                     return nil, fmt.Errorf("unable to decode command type: %s", msgStr)
                 }
 
-                err = msg.AdcKeyDecode(msgStr[n:])
+                err = msg.AdcKeyDecode(msgStr[5+n:])
                 if err != nil {
                     return nil, fmt.Errorf("unable to decode command key. type: %s key: %s err: %s",
-                        msgStr[:n], msgStr[n:], err)
+                        msgStr[:5+n], msgStr[5+n:], err)
                 }
 
                 dolog(LevelDebug, "[%s->c] %T %+v", c.remoteLabel, msg, msg)

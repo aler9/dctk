@@ -25,8 +25,8 @@ const (
     adcInfoVersion              = "VE"
 )
 
-var reAdcTypeB = regexp.MustCompile("^(.){4} ([A-Z0-9]{4}) ")
-var reAdcTypeD = regexp.MustCompile("^(.){4} ([A-Z0-9]{4}) ([A-Z0-9]{4}) ")
+var reAdcTypeB = regexp.MustCompile("^([A-Z0-9]{4}) ")
+var reAdcTypeD = regexp.MustCompile("^([A-Z0-9]{4}) ([A-Z0-9]{4}) ")
 
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
 var reAdcQuit = regexp.MustCompile("^([A-Z0-9]+) (.+)$")
@@ -82,7 +82,7 @@ func (t *msgAdcTypeB) AdcTypeDecode(msg string) (int,error) {
     if matches == nil {
         return 0, errorArgsFormat
     }
-    t.SessionId = matches[2]
+    t.SessionId = matches[1]
     return len(matches[0]), nil
 }
 
@@ -102,7 +102,7 @@ func (t *msgAdcTypeD) AdcTypeDecode(msg string) (int,error) {
     if matches == nil {
         return 0, errorArgsFormat
     }
-    t.AuthorId, t.TargetId = matches[2], matches[3]
+    t.AuthorId, t.TargetId = matches[1], matches[2]
     return len(matches[0]), nil
 }
 
@@ -123,7 +123,7 @@ func (t *msgAdcTypeH) AdcTypeEncode(keyEncoded string) string {
 type msgAdcTypeI struct {}
 
 func (t *msgAdcTypeI) AdcTypeDecode(msg string) (int,error) {
-    return 5, nil
+    return 0, nil
 }
 
 type msgAdcTypeU struct {}
