@@ -9,10 +9,8 @@ type LogLevel int
 const (
     // pring everything
     LevelDebug LogLevel = iota
-
     // print only important messages
     LevelInfo
-
     // print only error messages
     LevelError
 )

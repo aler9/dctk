@@ -26,7 +26,7 @@ func main() {
     // download peer file list
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == PeerName {
-            client.DownloadFileList(p.Nick)
+            client.DownloadFLFileList(p.Nick)
         }
     }
 
@@ -49,7 +49,7 @@ func main() {
             }
 
             // start downloading the file
-            client.DownloadFile(d.Conf().Nick, file)
+            client.DownloadFLFile(d.Conf().Nick, file)
 
         // file has been downloaded
         } else {
