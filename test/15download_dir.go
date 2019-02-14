@@ -57,7 +57,7 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.DownloadFLFileList("client1")
+            client.DownloadFileList("client1")
         }
     }
 

@@ -38,8 +38,8 @@ type Download struct {
 
 func (*Download) isTransfer() {}
 
-// DownloadFLFileList starts downloading the file list of a given peer.
-func (c *Client) DownloadFLFileList(nick string) (*Download,error) {
+// DownloadFileList starts downloading the file list of a given peer.
+func (c *Client) DownloadFileList(nick string) (*Download,error) {
     return c.Download(DownloadConf{
         Nick: nick,
         filelist: true,
