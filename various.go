@@ -18,6 +18,7 @@ const reStrPort = "[0-9]{1,5}"
 const reStrTTH = "[A-Z0-9]{39}"
 
 var errorTerminated = fmt.Errorf("terminated")
+var errorArgsFormat = fmt.Errorf("not formatted correctly")
 
 // base32 without padding, which can be one or multiple =
 func adcBase32Encode(in []byte) string {
