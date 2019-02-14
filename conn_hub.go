@@ -333,8 +333,8 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("private message with unknown author")
         }
         dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnPublicMessage != nil {
-            h.client.OnPublicMessage(p, msg.Content)
+        if h.client.OnMessagePublic != nil {
+            h.client.OnMessagePublic(p, msg.Content)
         }
 
     case *msgAdcDMessage:
@@ -351,8 +351,8 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("private message with unknown author")
         }
         dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnPrivateMessage != nil {
-            h.client.OnPrivateMessage(p, msg.Content)
+        if h.client.OnMessagePrivate != nil {
+            h.client.OnMessagePrivate(p, msg.Content)
         }
 
     case *msgAdcBSearchRequest:
@@ -653,8 +653,8 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             p = &Peer{ Nick: msg.Author }
         }
         dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnPublicMessage != nil {
-            h.client.OnPublicMessage(p, msg.Content)
+        if h.client.OnMessagePublic != nil {
+            h.client.OnMessagePublic(p, msg.Content)
         }
 
     case *msgNmdcPrivateChat:
@@ -663,8 +663,8 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             p = &Peer{ Nick: msg.Author }
         }
         dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnPrivateMessage != nil {
-            h.client.OnPrivateMessage(p, msg.Content)
+        if h.client.OnMessagePrivate != nil {
+            h.client.OnMessagePrivate(p, msg.Content)
         }
 
     default:
