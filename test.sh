@@ -15,7 +15,7 @@ run_test() {
         $HUBIMAGE $1 >/dev/null \
         || exit 1
 
-    docker run --rm -it --network=dctk-test --name=dctk-test \
+    docker run --rm -it --network=dctk-test --name=dctk-test -p 5001:5001 \
         -v ${PWD}:/src -e HUBURL=$HUBURL -e TEST=$1 dctk-test > $DEVOUT
     RETCODE=$?
 
