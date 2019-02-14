@@ -82,8 +82,6 @@ type ClientConf struct {
     DownloadMaxParallel         uint
     // the maximum number of file to upload in parallel
     UploadMaxParallel           uint
-    // disables compression. Can be useful for debug purposes
-    PeerDisableCompression      bool
     // set the policy regarding encryption with other peers. See EncryptionMode for options
     PeerEncryptionMode          EncryptionMode
     // The hub url in the format protocol://address:port
@@ -115,6 +113,8 @@ type ClientConf struct {
     HubUnregisteredCount        uint
     HubRegisteredCount          uint
     HubOperatorCount            uint
+    // options useful only for debugging purposes
+    PeerDisableCompression      bool
 }
 
 type Client struct {
