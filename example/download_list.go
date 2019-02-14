@@ -20,7 +20,7 @@ func main() {
 
     // download file list of a certain user
     client.OnHubConnected = func() {
-        client.DownloadFileList("othernick")
+        client.DownloadFLFileList("othernick")
     }
 
     // download has finished

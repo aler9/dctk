@@ -57,7 +57,7 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.DownloadFileList("client1")
+            client.DownloadFLFileList("client1")
         }
     }
 
@@ -85,7 +85,7 @@ func client2() {
                 panic(err)
             }
 
-            client.DownloadDirectory(d.Conf().Nick, dir)
+            client.DownloadFLDirectory(d.Conf().Nick, dir)
 
         } else {
             if _,ok := tthMap[d.Conf().TTH]; !ok {

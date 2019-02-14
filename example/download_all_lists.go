@@ -22,7 +22,7 @@ func main() {
     client.OnHubConnected = func() {
         for _,p := range client.Peers() {
             if p.ShareSize > 0 && p.Nick != client.Conf().Nick {
-                client.DownloadFileList(p.Nick)
+                client.DownloadFLFileList(p.Nick)
             }
         }
     }

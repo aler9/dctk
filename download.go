@@ -38,29 +38,29 @@ type Download struct {
 
 func (*Download) isTransfer() {}
 
-// DownloadFileList starts downloading the file list of a given peer.
-func (c *Client) DownloadFileList(nick string) (*Download,error) {
+// DownloadFLFileList starts downloading the file list of a given peer.
+func (c *Client) DownloadFLFileList(nick string) (*Download,error) {
     return c.Download(DownloadConf{
         Nick: nick,
         filelist: true,
     })
 }
 
-// DownloadFile starts downloading a file given a file list entry.
-func (c *Client) DownloadFile(nick string, file *FileListFile) (*Download,error) {
+// DownloadFLFile starts downloading a file given a file list entry.
+func (c *Client) DownloadFLFile(nick string, file *FileListFile) (*Download,error) {
     return c.Download(DownloadConf{
         Nick: nick,
         TTH: file.TTH,
     })
 }
 
-// DownloadDirectory starts downloading recursively all the files
+// DownloadFLDirectory starts downloading recursively all the files
 // inside a file list directory.
-func (c *Client) DownloadDirectory(nick string, dir *FileListDirectory) error {
+func (c *Client) DownloadFLDirectory(nick string, dir *FileListDirectory) error {
     var dlDir func(sdir *FileListDirectory) error
     dlDir = func(sdir *FileListDirectory) error {
         for _,file := range sdir.Files {
-            _,err := c.DownloadFile(nick, file)
+            _,err := c.DownloadFLFile(nick, file)
             if err != nil {
                 return err
             }
@@ -137,10 +137,6 @@ func (d *Download) terminate() {
         d.pconn.state = "wait_download"
         d.delegatedError <- errorTerminated
     }
-}
-
-func (d *Download) Terminate() {
-    d.terminate()
 }
 
 func (d *Download) do() {
