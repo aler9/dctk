@@ -70,7 +70,7 @@ func (c *Client) Search(conf SearchConf) error {
         return fmt.Errorf("invalid TTH")
     }
 
-    if c.proto == "adc" {
+    if c.hubIsAdc == true {
         if conf.Type != TypeAny && conf.Type != TypeFolder {
             return fmt.Errorf("only types any and folder are supported")
         }
@@ -214,7 +214,7 @@ func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
         }
     }
 
-    if c.proto == "adc" {
+    if c.hubIsAdc == true {
 
 
     } else {

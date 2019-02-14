@@ -8,7 +8,7 @@ run_test() {
         HUBURL="nmdc://dctk-hub:4111"
     else
         HUBIMAGE="dctk-luadch"
-        HUBURL="adc://dctk-hub:5000"
+        HUBURL="adcs://dctk-hub:5001"
     fi
 
     docker run --rm -d --network=dctk-test --name=dctk-hub \
