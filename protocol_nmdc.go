@@ -461,7 +461,7 @@ func (m *msgNmdcRevConnectToMe) NmdcEncode() []byte {
 }
 
 type msgNmdcSearchRequest struct {
-    Type        SearchType
+    Type        nmdcSearchType
     MinSize     uint
     MaxSize     uint
     Query       string
@@ -487,8 +487,8 @@ func (m *msgNmdcSearchRequest) NmdcDecode(args string) error {
             }
             return 0
         }()
-        m.Type = SearchType(atoi(matches[6]))
-        m.Query = searchUnescape(matches[7])
+        m.Type = nmdcSearchType(atoi(matches[6]))
+        m.Query = nmdcSearchUnescape(matches[7])
 
     } else if matches := reNmdcCmdSearchReqPassive.FindStringSubmatch(args); matches != nil {
         m.IsActive = false
@@ -505,8 +505,8 @@ func (m *msgNmdcSearchRequest) NmdcDecode(args string) error {
             }
             return 0
         }()
-        m.Type = SearchType(atoi(matches[5]))
-        m.Query = searchUnescape(matches[6])
+        m.Type = nmdcSearchType(atoi(matches[5]))
+        m.Query = nmdcSearchUnescape(matches[6])
 
     } else {
         return fmt.Errorf("invalid args")
@@ -543,10 +543,10 @@ func (m *msgNmdcSearchRequest) NmdcEncode() []byte {
         }(),
         m.Type,
         func() string {
-            if m.Type == TypeTTH {
+            if m.Type == nsTypeTTH {
                 return "TTH:" + m.Query
             }
-            return searchEscape(m.Query)
+            return nmdcSearchEscape(m.Query)
         }()))
 }
 

@@ -25,7 +25,8 @@ func client1() {
     }
 
     os.Mkdir("/share", 0755)
-    ioutil.WriteFile("/share/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+    os.Mkdir("/share/inner folder", 0755)
+    ioutil.WriteFile("/share/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
 
     client.OnInitialized = func() {
         client.ShareAdd("aliasname", "/share")
@@ -57,25 +58,42 @@ func client2() {
                 time.Sleep(2 * time.Second)
                 client.Safe(func() {
                     client.Search(dctk.SearchConf{
-                        Type: dctk.TypeAny,
-                        Query: "test file",
+                        Type: dctk.SearchDirectory,
+                        Query: "ner fo",
                     })
                 })
             }()
         }
     }
 
-    searchrecv := false
+    step := 0
     client.OnSearchResult = func(res *dctk.SearchResult) {
-        if searchrecv == false {
-            searchrecv = true
-            client.Search(dctk.SearchConf{
-                Type: dctk.TypeTTH,
-                Query: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
-            })
-        } else {
-            ok = true
-            client.Terminate()
+        switch step {
+        case 0:
+            if res.IsDir == true && res.Path == "aliasname/inner folder" {
+                step++
+                client.Search(dctk.SearchConf{
+                    Type: dctk.SearchFile,
+                    Query: "test file",
+                })
+            }
+
+        case 1:
+            if res.IsDir == false && res.Path == "aliasname/inner folder/test file.txt" &&
+                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" {
+                step++
+                client.Search(dctk.SearchConf{
+                    Type: dctk.SearchTTH,
+                    Query: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
+                })
+            }
+
+        case 2:
+            if res.IsDir == false && res.Path == "aliasname/inner folder/test file.txt" &&
+                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" {
+                ok = true
+                client.Terminate()
+            }
         }
     }
 
