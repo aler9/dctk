@@ -24,24 +24,24 @@ RUN git clone https://github.com/luadch/luadch \
 WORKDIR /luadch-out
 
 # allow guests
-RUN sed -i "s/\(reg_only\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(reg_only\) = .\\+,/\1 = false,/" ./cfg/cfg.tbl
 
 # disable redirect
-RUN sed -i "s/\(cmd_redirect_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(cmd_redirect_activate\) = .\\+,/\1 = false,/" ./cfg/cfg.tbl
 
 # do not use tags
-RUN sed -i "s/\(usr_nick_prefix_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(usr_nick_prefix_activate\) = .\\+,/\1 = false,/" ./cfg/cfg.tbl
 
 # do not limit traffic
-RUN sed -i "s/\(etc_trafficmanager_activate\) = .\\+,/\1 = false,/" /luadch-out/cfg/cfg.tbl
+RUN sed -i "s/\(etc_trafficmanager_activate\) = .\\+,/\1 = false,/" ./cfg/cfg.tbl
 
 # activate tls
-RUN cd /luadch-out/certs && echo "testing" > UID.txt && ./make_cert.sh
+RUN cd ./certs && echo "testing" > UID.txt && ./make_cert.sh
 
-RUN sed -i 's/test/testpa$ss/' /luadch-out/cfg/user.tbl
-RUN sed -i "s/dummy/testdctk_auth/" /luadch-out/cfg/user.tbl
+RUN sed -i 's/test/testpa$ss/' ./cfg/user.tbl
+RUN sed -i "s/dummy/testdctk_auth/" ./cfg/user.tbl
 
-#RUN cat /luadch-out/cfg/cfg.tbl; exit 1
-#RUN cat /luadch-out/cfg/user.tbl; exit 1
+#RUN cat ./cfg/cfg.tbl; exit 1
+#RUN cat ./cfg/user.tbl; exit 1
 
 ENTRYPOINT [ "./luadch" ]
