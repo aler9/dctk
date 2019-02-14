@@ -17,8 +17,8 @@ func main() {
     }
 
     // a private message has been received: reply to sender
-    client.OnPrivateMessage = func(p *dctk.Peer, content string) {
-        client.PrivateMessage(p, fmt.Sprintf("message received! (%s)", content))
+    client.OnMessagePrivate = func(p *dctk.Peer, content string) {
+        client.MessagePrivate(p, fmt.Sprintf("message received! (%s)", content))
     }
 
     client.Run()

@@ -17,10 +17,10 @@ func client1() {
         panic(err)
     }
 
-    client.OnPrivateMessage = func(p *dctk.Peer, content string) {
+    client.OnMessagePrivate = func(p *dctk.Peer, content string) {
         if p.Nick == "client2" {
             if content == "hi client1" {
-                client.PrivateMessage(p, "hi client2")
+                client.MessagePrivate(p, "hi client2")
             }
         }
     }
@@ -40,11 +40,11 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.PrivateMessage(p, "hi client1")
+            client.MessagePrivate(p, "hi client1")
         }
     }
 
-    client.OnPrivateMessage = func(p *dctk.Peer, content string) {
+    client.OnMessagePrivate = func(p *dctk.Peer, content string) {
         if p.Nick == "client1" {
             if content == "hi client2" {
                 ok = true

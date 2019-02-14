@@ -166,9 +166,9 @@ type Client struct {
     // called when a peer disconnects from the hub
     OnPeerDisconnected      func(p *Peer)
     // called when someone has written in the hub public chat
-    OnPublicMessage         func(p *Peer, content string)
+    OnMessagePublic         func(p *Peer, content string)
     // called when a private message has been received
-    OnPrivateMessage        func(p *Peer, content string)
+    OnMessagePrivate        func(p *Peer, content string)
     // called when a seearch result has been received
     OnSearchResult          func(r *SearchResult)
     // called when a given download has finished
@@ -504,8 +504,8 @@ func (c *Client) Peers() map[string]*Peer {
     return c.peers
 }
 
-// PublicMessage publishes a message in the hub public chat.
-func (c *Client) PublicMessage(content string) {
+// MessagePublic publishes a message in the hub public chat.
+func (c *Client) MessagePublic(content string) {
     if c.hubIsAdc == true {
         c.connHub.conn.Write(&msgAdcBMessage{
             msgAdcTypeB{ c.sessionId },
@@ -517,8 +517,8 @@ func (c *Client) PublicMessage(content string) {
     }
 }
 
-// PrivateMessage sends a private message to a specific peer connected to the hub.
-func (c *Client) PrivateMessage(dest *Peer, content string) {
+// MessagePrivate sends a private message to a specific peer connected to the hub.
+func (c *Client) MessagePrivate(dest *Peer, content string) {
     if c.hubIsAdc == true {
         c.connHub.conn.Write(&msgAdcDMessage{
             msgAdcTypeD{ c.sessionId, dest.AdcSessionId },

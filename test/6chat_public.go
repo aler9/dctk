@@ -17,10 +17,10 @@ func client1() {
         panic(err)
     }
 
-    client.OnPublicMessage = func(p *dctk.Peer, content string) {
+    client.OnMessagePublic = func(p *dctk.Peer, content string) {
         if p.Nick == "client2" {
             if content == "hi client1" {
-                client.PublicMessage("hi client2")
+                client.MessagePublic("hi client2")
             }
         }
     }
@@ -40,11 +40,11 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.PublicMessage("hi client1")
+            client.MessagePublic("hi client1")
         }
     }
 
-    client.OnPublicMessage = func(p *dctk.Peer, content string) {
+    client.OnMessagePublic = func(p *dctk.Peer, content string) {
         if p.Nick == "client1" {
             if content == "hi client2" {
                 ok = true

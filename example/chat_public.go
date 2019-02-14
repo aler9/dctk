@@ -16,9 +16,9 @@ func main() {
     }
 
     // a public message has been received: reply
-    client.OnPublicMessage = func(p *dctk.Peer, content string) {
+    client.OnMessagePublic = func(p *dctk.Peer, content string) {
         if content == "hi bot" {
-            client.PublicMessage("hello all")
+            client.MessagePublic("hello all")
         }
     }
 
