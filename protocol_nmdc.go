@@ -7,10 +7,12 @@ import (
     "net"
 )
 
-const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+var reNmdcCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?$")
+var reNmdcPublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)$")
+var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)$")
 
 var reNmdcCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
-var reAdcCmdSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
+var reNmdcCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
 var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
 var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
 var reNmdcCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?) ?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
@@ -20,6 +22,8 @@ var reNmdcCmdSearchReqPassive = regexp.MustCompile("^Hub:("+reStrNick+") (F|T)\\
 var reNmdcCmdSearchResult = regexp.MustCompile("^("+reStrNick+") (.+?) ([0-9]+)/([0-9]+)\x05TTH:("+reStrTTH+") \\(("+reStrIp+"):("+reStrPort+")\\)$")
 var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
 var reNmdcCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
+
+const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 func nmdcCommandEncode(key string, args string) []byte {
     return []byte(fmt.Sprintf("$%s %s|", key, args))
@@ -171,7 +175,7 @@ type msgNmdcAdcSnd struct {
 }
 
 func (m *msgNmdcAdcSnd) NmdcDecode(args string) error {
-    matches := reAdcCmdSnd.FindStringSubmatch(args)
+    matches := reNmdcCmdAdcSnd.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }

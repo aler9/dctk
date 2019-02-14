@@ -9,12 +9,6 @@ import (
     "compress/zlib"
 )
 
-var errorArgsFormat = fmt.Errorf("not formatted correctly")
-
-var reNmdcCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?$")
-var reNmdcPublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)$")
-var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)$")
-
 type msgDecodable interface{}
 type msgEncodable interface {}
 
