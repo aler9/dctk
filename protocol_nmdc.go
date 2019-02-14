@@ -4,6 +4,7 @@ import (
     "fmt"
     "strings"
     "regexp"
+    "net"
 )
 
 const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -22,6 +23,108 @@ var reNmdcCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
 
 func nmdcCommandEncode(key string, args string) []byte {
     return []byte(fmt.Sprintf("$%s %s|", key, args))
+}
+
+type protocolNmdc struct {
+    *protocolBase
+}
+
+func newProtocolNmdc(remoteLabel string, nconn net.Conn,
+    applyReadTimeout bool, applyWriteTimeout bool) protocol {
+    p := &protocolNmdc{
+        protocolBase: newProtocolBase(remoteLabel,
+            nconn, applyReadTimeout, applyWriteTimeout, '|'),
+    }
+    return p
+}
+
+func (p *protocolNmdc) Read() (msgDecodable,error) {
+    if p.readBinary == false {
+        for {
+            buf,err := p.ReadMessage()
+            if err != nil {
+                return nil,err
+            }
+
+            msgStr := string(buf)
+            var msg msgDecodable
+
+            if len(msgStr) == 0 { // empty message: skip
+                continue
+
+            } else if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
+                key, args := matches[1], matches[3]
+
+                cmd := func() msgNmdcCommandDecodable {
+                    switch key {
+                    case "ADCGET": return &msgNmdcAdcGet{}
+                    case "ADCSND": return &msgNmdcAdcSnd{}
+                    case "BotList": return &msgNmdcBotList{}
+                    case "ConnectToMe": return &msgNmdcConnectToMe{}
+                    case "Direction": return &msgNmdcDirection{}
+                    case "Error": return &msgNmdcError{}
+                    case "ForceMove": return &msgNmdcForceMove{}
+                    case "GetPass": return &msgNmdcGetPass{}
+                    case "Hello": return &msgNmdcHello{}
+                    case "HubName": return &msgNmdcHubName{}
+                    case "HubTopic": return &msgNmdcHubTopic{}
+                    case "Key": return &msgNmdcKey{}
+                    case "Lock": return &msgNmdcLock{}
+                    case "LogedIn": return &msgNmdcLoggedIn{}
+                    case "MaxedOut": return &msgNmdcMaxedOut{}
+                    case "MyINFO": return &msgNmdcMyInfo{}
+                    case "MyNick": return &msgNmdcMyNick{}
+                    case "OpList": return &msgNmdcOpList{}
+                    case "Quit": return &msgNmdcQuit{}
+                    case "RevConnectToMe": return &msgNmdcRevConnectToMe{}
+                    case "Search": return &msgNmdcSearchRequest{}
+                    case "SR": return &msgNmdcSearchResult{}
+                    case "Supports": return &msgNmdcSupports{}
+                    case "UserCommand": return &msgNmdcUserCommand{}
+                    case "UserIP": return &msgNmdcUserIp{}
+                    case "ZOn": return &msgNmdcZon{}
+                    }
+                    return nil
+                }()
+                if cmd == nil {
+                    return nil, fmt.Errorf("unrecognized command: %s", msgStr)
+                }
+
+                err := cmd.NmdcDecode(args)
+                if err != nil {
+                    return nil, fmt.Errorf("unable to decode arguments for %s: %s", key, err)
+                }
+                msg = cmd
+
+            } else if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
+                msg = &msgNmdcPublicChat{ Author: matches[1], Content: matches[2] }
+
+            } else if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
+                msg = &msgNmdcPrivateChat{ Author: matches[3], Content: matches[4] }
+
+            } else {
+                return nil, fmt.Errorf("Unable to parse: %s", msgStr)
+            }
+
+            dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+            return msg, nil
+        }
+    } else {
+        buf,err := p.ReadBinary()
+        if err != nil {
+            return nil, err
+        }
+        return &msgNmdcBinary{ Content: buf }, nil
+    }
+}
+
+func (c *protocolNmdc) Write(msg msgEncodable) {
+    nmdc,ok := msg.(msgNmdcEncodable)
+    if !ok {
+        panic("command not fit for nmdc")
+    }
+    dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
+    c.sendChan <- nmdc.NmdcEncode()
 }
 
 type msgNmdcCommandDecodable interface {

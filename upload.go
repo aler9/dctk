@@ -148,7 +148,7 @@ func newUpload(client *Client, pconn *peerConn, msg *msgNmdcAdcGet) error {
         return err
     }
 
-    u.pconn.conn.Send(&msgNmdcAdcSnd{
+    u.pconn.conn.Write(&msgNmdcAdcSnd{
         Query: u.query,
         Start: u.start,
         Length: u.length,
@@ -180,7 +180,7 @@ func (u *upload) do() {
     defer u.client.wg.Done()
 
     err := func() error {
-        u.pconn.conn.SetBinaryMode(true)
+        u.pconn.conn.SetSyncMode(true)
         if u.compressed == true {
             u.pconn.conn.SetWriteCompression(true)
         }
@@ -197,7 +197,7 @@ func (u *upload) do() {
 
             u.offset += uint64(n)
 
-            err = u.pconn.conn.WriteBinary(buf[:n])
+            err = u.pconn.conn.WriteSync(buf[:n])
             if err != nil {
                 return err
             }
@@ -211,7 +211,7 @@ func (u *upload) do() {
         if u.compressed == true {
             u.pconn.conn.SetWriteCompression(false)
         }
-        u.pconn.conn.SetBinaryMode(false)
+        u.pconn.conn.SetSyncMode(false)
 
         u.client.Safe(func() {
             u.state = "success"

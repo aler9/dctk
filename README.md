@@ -21,7 +21,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 
 Support for the NMDC protocol is almost complete, while support for the ADC protocol is currently limited.
 
-The public API is to be considered stable.
+The public API can be considered stable.
 
 ## Examples
 
@@ -61,7 +61,7 @@ go get github.com/gswly/dctoolkit
 
 ## Testing
 
-If you want to edit this library and test the results, you can you automated tests through
+If you want to edit this library and test the results, you can you automated tests through:
 ```
 ./test.sh --all
 ```

@@ -19,7 +19,7 @@ type peerConn struct {
     isActive            bool
     wakeUp              chan struct{}
     state               string
-    conn                *protocol
+    conn                protocol
     passiveIp           string
     passivePort         uint
     remoteNick          string
@@ -51,7 +51,11 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool, rawconn net.Co
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        p.conn = newProtocol(rawconn, client.hubIsAdc, "p", 60 * time.Second, 10 * time.Second)
+        if client.hubIsAdc == true {
+            p.conn = newProtocolAdc("p", rawconn, true, true)
+        } else {
+            p.conn = newProtocolNmdc("p", rawconn, true, true)
+        }
     } else {
         dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
         p.state = "connecting"
@@ -73,7 +77,7 @@ func (p *peerConn) terminate() {
         p.wakeUp <- struct{}{}
 
     case "connected","mynick","lock","wait_upload","wait_download":
-        p.conn.terminate()
+        p.conn.Terminate()
 
     default:
         panic(fmt.Errorf("terminate() unsupported in state '%s'", p.state))
@@ -131,29 +135,33 @@ func (p *peerConn) do() {
                 if p.isEncrypted == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                p.conn = newProtocol(rawconn, p.client.hubIsAdc, "p", 60 * time.Second, 10 * time.Second)
+                if p.client.hubIsAdc == true {
+                    p.conn = newProtocolAdc("p", rawconn, true, true)
+                } else {
+                    p.conn = newProtocolNmdc("p", rawconn, true, true)
+                }
             })
             if err != nil {
                 return err
             }
 
             // if transfer is passive, we are the first to send MyNick and Lock
-            p.conn.Send(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.Send(&msgNmdcLock{ Values: []string{fmt.Sprintf(
+            p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.Write(&msgNmdcLock{ Values: []string{fmt.Sprintf(
                 "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
                 p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
         }
 
         for {
-            msg,err := p.conn.Receive()
+            msg,err := p.conn.Read()
             if err != nil {
-                p.conn.terminate()
+                p.conn.Terminate()
                 return err
             }
 
             err = p.handleMessage(msg)
             if err != nil {
-                p.conn.terminate()
+                p.conn.Terminate()
                 return err
             }
         }
@@ -209,8 +217,8 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
 
         // if transfer is active, wait remote before sending MyNick and Lock
         if p.isActive {
-            p.conn.Send(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.Send(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
+            p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+            p.conn.Write(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
                 "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue) } })
         }
 
@@ -218,7 +226,7 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
         if p.client.conf.PeerDisableCompression == false {
             clientSupports = append(clientSupports, "ZLIG")
         }
-        p.conn.Send(&msgNmdcSupports{ Features: clientSupports })
+        p.conn.Write(&msgNmdcSupports{ Features: clientSupports })
 
         // check if there's a pending download
         isPendingDownload := func() bool {
@@ -234,20 +242,20 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
         // try download
         if isPendingDownload {
             p.localDirection = "download"
-            p.conn.Send(&msgNmdcDirection{
+            p.conn.Write(&msgNmdcDirection{
                 Direction: "Download",
                 Bet: p.localBet,
             })
         // upload
         } else {
             p.localDirection = "upload"
-            p.conn.Send(&msgNmdcDirection{
+            p.conn.Write(&msgNmdcDirection{
                 Direction: "Upload",
                 Bet: p.localBet,
             })
         }
 
-        p.conn.Send(&msgNmdcKey{ Key: nmdcComputeKey(p.remoteLock) })
+        p.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey(p.remoteLock) })
 
     case *msgNmdcSupports:
         if p.state != "lock" {
@@ -353,9 +361,9 @@ func (p *peerConn) handleMessage(rawmsg msgDecodable) error {
             dolog(LevelInfo, "cannot start upload: %s", err)
 
             if err == errorNoSlots {
-                p.conn.Send(&msgNmdcMaxedOut{})
+                p.conn.Write(&msgNmdcMaxedOut{})
             } else {
-                p.conn.Send(&msgNmdcError{ Error: "File Not Available" })
+                p.conn.Write(&msgNmdcError{ Error: "File Not Available" })
             }
 
         } else {
