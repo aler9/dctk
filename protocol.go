@@ -8,7 +8,7 @@ import (
     "compress/zlib"
 )
 
-type msgDecodable interface{}
+type msgDecodable interface {}
 type msgEncodable interface {}
 
 type protocol interface {
