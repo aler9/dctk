@@ -8,7 +8,6 @@ import (
     "bytes"
     "strings"
     "io/ioutil"
-    "path/filepath"
 )
 
 var errorNoSlots = fmt.Errorf("no slots available")
@@ -41,7 +40,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
         msg.Compress == true)
 
     dolog(LevelInfo, "[upload request] %s/%s (s=%d l=%d)",
-        pconn.remoteNick, adcReadableQuery(u.query), u.start, msg.Length)
+        pconn.remoteNick, dcReadableQuery(u.query), u.start, msg.Length)
 
     // check available slots
     if u.client.uploadSlotAvail <= 0 {
@@ -60,64 +59,49 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
             return nil
         }
 
-        // upload is a file by TTH or its tthl
-        fpath,tthl := func() (fpath string, tthl []byte) {
+        // upload is file by TTH or its tthl
+        sfile := func() (ret *shareFile) {
             msgTTH := u.query[9:] // skip "file TTH/" or "tthl TTH/"
-
-            var scanDir func(rpath string, dir *shareDirectory) bool
-            scanDir = func(rpath string, dir *shareDirectory) bool {
-                for fname,file := range dir.files {
+            var scanDir func(dir *shareDirectory) bool
+            scanDir = func(dir *shareDirectory) bool {
+                for _,file := range dir.files {
                     if file.tth == msgTTH {
-                        fpath = filepath.Join(rpath, fname)
-                        tthl = file.tthl
+                        ret = file
                         return true
                     }
                 }
-                for sname,sdir := range dir.dirs {
-                    if scanDir(filepath.Join(rpath, sname), sdir) == true {
+                for _,sdir := range dir.dirs {
+                    if scanDir(sdir) == true {
                         return true
                     }
                 }
                 return false
             }
             for _,dir := range u.client.shareTree {
-                if scanDir(dir.path, dir.shareDirectory) == true {
+                if scanDir(dir) == true {
                     break
                 }
             }
             return
         }()
-        if fpath == "" {
+        if sfile == nil {
             return fmt.Errorf("file does not exists")
         }
 
         // upload is file tthl
-        if strings.HasPrefix(u.query, "tthl TTH") {
+        if strings.HasPrefix(u.query, "tthl") {
             if u.start != 0 || msg.Length != -1 {
                 return fmt.Errorf("tthl seeking is not supported")
             }
-            u.reader = ioutil.NopCloser(bytes.NewReader(tthl))
-            u.length = uint64(len(tthl))
+            u.reader = ioutil.NopCloser(bytes.NewReader(sfile.tthl))
+            u.length = uint64(len(sfile.tthl))
             return nil
         }
 
-        // solve symbolic links
-        var err error
-        fpath,err = filepath.EvalSymlinks(fpath)
-        if err != nil {
-            return err
-        }
-
-        // get size
-        var finfo os.FileInfo
-        finfo,err = os.Stat(fpath)
-        if err != nil {
-            return err
-        }
-
         // open file
+        var err error
         var f *os.File
-        f,err = os.Open(fpath)
+        f,err = os.Open(sfile.realPath)
         if err != nil {
             return err
         }
@@ -130,7 +114,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
         }
 
         // set real length
-        maxLength := uint64(finfo.Size()) - u.start
+        maxLength := sfile.size - u.start
         if msg.Length != -1 {
             if uint64(msg.Length) > maxLength {
                 f.Close()
@@ -241,10 +225,10 @@ func (u *upload) do() {
 
         if u.state == "success" {
             dolog(LevelInfo, "[upload finished] %s/%s (s=%d l=%d)",
-                u.pconn.remoteNick, adcReadableQuery(u.query), u.start, u.length)
+                u.pconn.remoteNick, dcReadableQuery(u.query), u.start, u.length)
         } else {
             dolog(LevelInfo, "[upload failed] %s/%s",
-                u.pconn.remoteNick, adcReadableQuery(u.query))
+                u.pconn.remoteNick, dcReadableQuery(u.query))
         }
     })
 }

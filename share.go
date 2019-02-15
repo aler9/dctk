@@ -16,16 +16,14 @@ type shareFile struct {
     modTime     time.Time
     tth         string
     tthl        []byte
+    realPath    string
+    aliasPath   string
 }
 
 type shareDirectory struct {
     dirs        map[string]*shareDirectory
     files       map[string]*shareFile
-}
-
-type shareRootDirectory struct {
-    *shareDirectory
-    path        string
+    aliasPath   string
 }
 
 type shareIndexer struct {
@@ -58,15 +56,16 @@ func (sm *shareIndexer) index() {
     })
 
     // generate new tree
-    shareTree,shareCount,shareSize := func() (map[string]*shareRootDirectory,uint,uint64) {
-        tree := make(map[string]*shareRootDirectory)
+    shareTree,shareCount,shareSize := func() (map[string]*shareDirectory,uint,uint64) {
+        tree := make(map[string]*shareDirectory)
         count := uint(0)
         size := uint64(0)
-        var scanDir func(dpath string, oldDir *shareDirectory) (*shareDirectory,error)
-        scanDir = func(dpath string, oldDir *shareDirectory) (*shareDirectory,error) {
+        var scanDir func(apath string, dpath string, oldDir *shareDirectory) (*shareDirectory,error)
+        scanDir = func(apath string, dpath string, oldDir *shareDirectory) (*shareDirectory,error) {
             dir := &shareDirectory{
                 dirs: make(map[string]*shareDirectory),
                 files: make(map[string]*shareFile),
+                aliasPath: apath,
             }
 
             files,err := ioutil.ReadDir(dpath)
@@ -81,7 +80,7 @@ func (sm *shareIndexer) index() {
                         }
                         return oldDir.dirs[file.Name()]
                     }()
-                    subdir,err := scanDir(filepath.Join(dpath, file.Name()), subOldDir)
+                    subdir,err := scanDir(filepath.Join(apath, file.Name()), filepath.Join(dpath, file.Name()), subOldDir)
                     if err != nil {
                         return nil,err
                     }
@@ -91,15 +90,18 @@ func (sm *shareIndexer) index() {
                     var tthl []byte
                     var tth string
 
+                    aliasPath := filepath.Join(apath, file.Name())
+                    origPath := filepath.Join(dpath, file.Name())
+
                     // solve symlinks
-                    fpath,err := filepath.EvalSymlinks(filepath.Join(dpath, file.Name()))
+                    realPath,err := filepath.EvalSymlinks(origPath)
                     if err != nil {
                         return nil,err
                     }
 
                     // get real file info
                     var finfo os.FileInfo
-                    finfo,err = os.Stat(fpath)
+                    finfo,err = os.Stat(realPath)
                     if err != nil {
                         return nil,err
                     }
@@ -115,7 +117,7 @@ func (sm *shareIndexer) index() {
 
                     } else {
                         var err error
-                        tthl,err = TTHLeavesFromFile(filepath.Join(dpath, file.Name()))
+                        tthl,err = TTHLeavesFromFile(realPath)
                         if err != nil {
                             return nil,err
                         }
@@ -128,6 +130,8 @@ func (sm *shareIndexer) index() {
                         modTime: fileModTime,
                         tthl: tthl,
                         tth: tth,
+                        aliasPath: aliasPath,
+                        realPath: realPath,
                     }
                     count += 1
                     size += fileSize
@@ -138,18 +142,15 @@ func (sm *shareIndexer) index() {
         for alias,root := range copyRoots {
             oldDir := func() *shareDirectory {
                 if t,ok := sm.client.shareTree[alias]; ok {
-                    return t.shareDirectory
+                    return t
                 }
                 return nil
             }()
-            rdir,err := scanDir(root, oldDir)
+            rdir,err := scanDir("/" + alias, root, oldDir)
             if err != nil {
                 panic(err)
             }
-            tree[alias] = &shareRootDirectory{
-                shareDirectory: rdir,
-                path: root,
-            }
+            tree[alias] = rdir
         }
         return tree, count, size
     }()
@@ -157,18 +158,13 @@ func (sm *shareIndexer) index() {
     // generate new file list
     fileList,err := func() ([]byte,error) {
         fl := &FileList{
-            CID: adcBase32Encode(sm.client.clientId),
+            CID: dcBase32Encode(sm.client.clientId),
             Generator: sm.client.conf.ListGenerator,
         }
 
-        var scanDir func(path string, dir *shareDirectory) *FileListDirectory
-        scanDir = func(path string, dir *shareDirectory) *FileListDirectory {
+        var scanDir func(dir *shareDirectory) *FileListDirectory
+        scanDir = func(dir *shareDirectory) *FileListDirectory {
             fd := &FileListDirectory{}
-            for name,sdir := range dir.dirs {
-                sfd := scanDir(filepath.Join(path, name), sdir)
-                sfd.Name = name
-                fd.Dirs = append(fd.Dirs, sfd)
-            }
             for name,file := range dir.files {
                 fd.Files = append(fd.Files, &FileListFile{
                     Name: name,
@@ -176,10 +172,15 @@ func (sm *shareIndexer) index() {
                     TTH: file.tth,
                 })
             }
+            for name,sdir := range dir.dirs {
+                sfd := scanDir(sdir)
+                sfd.Name = name
+                fd.Dirs = append(fd.Dirs, sfd)
+            }
             return fd
         }
         for alias,dir := range shareTree {
-            fld := scanDir(dir.path, dir.shareDirectory)
+            fld := scanDir(dir)
             fld.Name = alias
             fl.Dirs = append(fl.Dirs, fld)
         }
@@ -217,7 +218,7 @@ func (sm *shareIndexer) index() {
 
         // inform hub
         if sm.client.connHub != nil && sm.client.connHub.state == "initialized" {
-            sm.client.myInfo()
+            sm.client.sendInfos(false)
         }
 
         if sm.client.OnShareIndexed != nil {

@@ -31,7 +31,7 @@ func main() {
         if downloadStarted == false {
             downloadStarted = true
             client.Download(dctk.DownloadConf{
-                Nick: res.Nick,
+                Nick: res.Peer.Nick,
                 TTH: res.TTH,
             })
         }

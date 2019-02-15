@@ -13,7 +13,6 @@ type connHub struct {
     state           string
     conn            protocol
     uniqueCmds      map[string]struct{}
-    myInfoReceived  bool
 }
 
 func newConnHub(client *Client) error {
@@ -92,7 +91,7 @@ func (h *connHub) do() {
         }
 
         // do not use read timeout since hub does not send data continuously
-        if h.client.hubIsAdc == true {
+        if h.client.protoIsAdc == true {
             h.conn = newProtocolAdc("h", rawconn, false, true)
         } else {
             h.conn = newProtocolNmdc("h", rawconn, false, true)
@@ -112,7 +111,7 @@ func (h *connHub) do() {
             return errorTerminated
         }
 
-        if h.client.hubIsAdc == true {
+        if h.client.protoIsAdc == true {
             h.conn.Write(&msgAdcHSupports{
                 msgAdcTypeH{},
                 msgAdcKeySupports{
@@ -184,47 +183,17 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         h.state = "hubinfos"
 
         for key,desc := range map[string]string{
-            adcInfoName: "name",
-            adcInfoSoftware: "software",
-            adcInfoVersion: "version",
-            adcInfoDescription: "description",
+            adcFieldName: "name",
+            adcFieldSoftware: "software",
+            adcFieldVersion: "version",
+            adcFieldDescription: "description",
         } {
             if val,ok := msg.Fields[key]; ok {
                 dolog(LevelInfo, "[hub info] [%s] %s", desc, val)
             }
         }
 
-        supports := []string{ "SEGA" }
-        //if h.client.PeerEncryptionMode != DisableEncryption {
-        //    supports = append(supports, "ADCS")
-        //}
-        if h.client.conf.ModePassive == false {
-            supports = append(supports, "TCP4", "UDP4")
-        }
-
-        fields := map[string]string{
-            adcInfoName: h.client.conf.Nick,
-            adcInfoDescription: h.client.conf.Description,
-            adcInfoShareCount: fmt.Sprintf("%d", h.client.shareCount),
-            adcInfoShareSize: fmt.Sprintf("%d", h.client.shareSize),
-            adcInfoHubUnregisteredCount: fmt.Sprintf("%d", h.client.conf.HubUnregisteredCount),
-            adcInfoHubRegisteredCount: fmt.Sprintf("%d", h.client.conf.HubRegisteredCount),
-            adcInfoHubOperatorCount: fmt.Sprintf("%d", h.client.conf.HubOperatorCount),
-            adcInfoClientId: adcBase32Encode(h.client.clientId),
-            adcInfoPrivateId: adcBase32Encode(h.client.privateId),
-            adcInfoVersion: h.client.conf.ListGenerator,
-            adcInfoSupports: strings.Join(supports, ","),
-        }
-
-        if h.client.conf.ModePassive == false {
-            fields[adcInfoIp] = h.client.ip
-            fields[adcInfoUdpPort] = fmt.Sprintf("%d", h.client.conf.UdpPort)
-        }
-
-        h.conn.Write(&msgAdcBInfos{
-            msgAdcTypeB{ SessionId: h.client.sessionId },
-            msgAdcKeyInfos{ Fields: fields },
-        })
+        h.client.sendInfos(true)
 
     case *msgAdcIGetPass:
         if h.state != "hubinfos" {
@@ -248,31 +217,62 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgAdcBInfos:
-        p,exist := h.client.peers[msg.Fields[adcInfoName]]
-        if exist == false {
-            p = &Peer{ Nick: msg.Fields[adcInfoName] }
-        }
+        exists := true
+        p := h.client.peerBySessionId(msg.SessionId)
+        if p == nil {
+            exists = false
 
-        p.AdcSessionId = msg.SessionId
+            // adcFieldName is mandatory for peer creation
+            if _,ok := msg.Fields[adcFieldName]; !ok {
+                return fmt.Errorf("adcFieldName not sent")
+            }
+            if _,ok := h.client.peers[msg.Fields[adcFieldName]]; ok {
+                return fmt.Errorf("trying to create already-existent peer")
+            }
+
+            p = &Peer{
+                Nick: msg.Fields[adcFieldName],
+                adcSessionId: msg.SessionId,
+            }
+            h.client.peers[p.Nick] = p
+        }
 
         for key,val := range msg.Fields {
             switch key {
-            case adcInfoDescription: p.Description = val
-            case adcInfoEmail: p.Email = val
-            case adcInfoShareSize: p.ShareSize = atoui64(val)
-            case adcInfoIp: p.Ip = val
-            case adcInfoClientId: p.AdcClientId = adcBase32Decode(val)
-            case adcInfoSupports: p.AdcSupports = strings.Split(val, ",")
-            case adcInfoCategory:
+            case adcFieldDescription: p.Description = val
+            case adcFieldEmail: p.Email = val
+            case adcFieldShareSize: p.ShareSize = atoui64(val)
+            case adcFieldIp: p.Ip = val
+            case adcFieldUdpPort: p.adcUdpPort = atoui(val)
+            case adcFieldClientId: p.adcClientId = dcBase32Decode(val)
+            case adcFieldSupports:
+                p.adcSupports = make(map[string]struct{})
+                for _,feat := range strings.Split(val, ",") {
+                    p.adcSupports[feat] = struct{}{}
+                }
+
+            case adcFieldCategory:
                 ct := atoui(val)
                 p.IsBot = (ct & 1) != 0
                 p.IsOperator = ((ct & 4) | (ct & 8) | (ct & 16)) != 0
+
+            case adcFieldSoftware:
+                p.Client = val
+            case adcFieldVersion:
+                p.Version = val
             }
         }
 
-        h.client.peers[p.Nick] = p
+        // a peer is active if it supports udp4, it exposes udp port and ip
+        p.IsPassive = true
+        if _,ok := p.adcSupports["UDP4"]; ok {
+            if p.Ip != "" && p.adcUdpPort != 0 {
+                p.IsPassive = false
+            }
+        }
+        fmt.Println("passive", p.IsPassive)
 
-        if exist == false {
+        if exists == false {
             dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
             if h.client.OnPeerConnected != nil {
                 h.client.OnPeerConnected(p)
@@ -294,7 +294,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             // solve session id
             p := func() *Peer {
                 for _,p := range h.client.peers {
-                    if p.AdcSessionId == msg.SessionId {
+                    if p.adcSessionId == msg.SessionId {
                         return p
                     }
                 }
@@ -320,15 +320,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgAdcBMessage:
-        // solve session id
-        p := func() *Peer {
-            for _,p := range h.client.peers {
-                if p.AdcSessionId == msg.SessionId {
-                    return p
-                }
-            }
-            return nil
-        }()
+        p := h.client.peerBySessionId(msg.SessionId)
         if p == nil {
             return fmt.Errorf("private message with unknown author")
         }
@@ -338,15 +330,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgAdcDMessage:
-        // solve session id
-        p := func() *Peer {
-            for _,p := range h.client.peers {
-                if p.AdcSessionId == msg.AuthorId {
-                    return p
-                }
-            }
-            return nil
-        }()
+        p := h.client.peerBySessionId(msg.AuthorId)
         if p == nil {
             return fmt.Errorf("private message with unknown author")
         }
@@ -356,25 +340,27 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
 
     case *msgAdcBSearchRequest:
-        // TODO
-        /*temp := &msgNmdcSearchRequest{}
-        if val,ok := msg.Fields["LE"]; ok {
-            temp.MaxSize = atoui(val)
-        }
-        if val,ok := msg.Fields["GE"]; ok {
-            temp.MinSize = atoui(val)
-        }
-        if val,ok := msg.Fields["TY"]; ok {
-            if val == "1" {
-                temp.Type = nsTypeAny
-            } else if val == "2" {
-                temp.Type = TypeFolder
+        h.client.onAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+
+    case *msgAdcFSearchRequest:
+        if _,ok := msg.RequiredFeatures["TCP4"]; ok {
+            if h.client.conf.IsPassive == true {
+                dolog(LevelDebug, "[F warning] we are in passive and author requires active")
+                return nil
             }
         }
-        if val,ok := msg.Fields["AN"]; ok {
-            temp.Query = val
+        h.client.onAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+
+    case *msgAdcDSearchResult:
+        p := h.client.peerBySessionId(msg.AuthorId)
+        if p == nil {
+            return fmt.Errorf("search result with unknown author")
         }
-        h.client.onSearchRequest(temp)*/
+        sr := adcMsgToSearchResult(false, p, &msg.msgAdcKeySearchResult)
+        dolog(LevelInfo, "[search res] %+v", sr)
+        if h.client.OnSearchResult != nil {
+            h.client.OnSearchResult(sr)
+        }
 
     case *msgNmdcLock:
         if h.state != "connected" {
@@ -461,42 +447,43 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         // The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
         // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
         h.conn.Write(&msgNmdcVersion{})
-        h.client.myInfo()
+        h.client.sendInfos(true)
         h.conn.Write(&msgNmdcGetNickList{})
 
     case *msgNmdcMyInfo:
         if h.state != "preinitialized" && h.state != "initialized" {
             return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
         }
+        p,exists := h.client.peers[msg.Nick]
+        if exists == false {
+            p = &Peer{ Nick: msg.Nick }
+            h.client.peers[p.Nick] = p
+        }
 
-        // skip first MyINFO since own infos are sent twice
-        if h.myInfoReceived == false {
-            h.myInfoReceived = true
+        p.Description = msg.Description
+        p.Email = msg.Email
+        p.ShareSize = msg.ShareSize
+        p.nmdcConnection = msg.Connection
+        p.nmdcStatusByte = msg.StatusByte
+        if msg.Mode != "" { // set mode only if it has been sent
+            p.IsPassive = (msg.Mode == "P")
+        }
+        if msg.Client != "" {
+            p.Client = msg.Client
+        }
+        if msg.Version != "" {
+            p.Version = msg.Version
+        }
 
-        } else {
-            p,exist := h.client.peers[msg.Nick]
-            if exist == false {
-                p = &Peer{ Nick: msg.Nick }
+        if exists == false {
+            dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
+            if h.client.OnPeerConnected != nil {
+                h.client.OnPeerConnected(p)
             }
 
-            p.Description = msg.Description
-            p.Email = msg.Email
-            p.ShareSize = msg.ShareSize
-            p.NmdcConnection = msg.Connection
-            p.NmdcStatusByte = msg.StatusByte
-
-            h.client.peers[p.Nick] = p
-
-            if exist == false {
-                dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
-                if h.client.OnPeerConnected != nil {
-                    h.client.OnPeerConnected(p)
-                }
-
-            } else {
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
+        } else {
+            if h.client.OnPeerUpdated != nil {
+                h.client.OnPeerUpdated(p)
             }
         }
 
@@ -602,26 +589,19 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
     case *msgNmdcSearchRequest:
         // searches can be received even before initialization; ignore them
         if h.state == "initialized" {
-            h.client.onSearchRequest(msg)
+            h.client.onNmdcSearchRequest(msg)
         }
 
     case *msgNmdcSearchResult:
         if h.state != "initialized" {
             return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
         }
-        sr := &SearchResult{
-            IsActive: false,
-            Nick: msg.Nick,
-            Path: msg.Path,
-            SlotAvail: msg.SlotAvail,
-            SlotCount: msg.SlotCount,
-            TTH: msg.TTH,
-            IsDir: msg.IsDir,
-            HubIp: msg.HubIp,
-            HubPort: msg.HubPort,
+        p,ok := h.client.peers[msg.Nick]
+        if ok == false {
+            return nil
         }
+        sr := nmdcMsgToSearchResult(false, p, msg)
         dolog(LevelInfo, "[search res] %+v", sr)
-
         if h.client.OnSearchResult != nil {
             h.client.OnSearchResult(sr)
         }
@@ -643,7 +623,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
         }
         // we can process RevConnectToMe only in active mode
-        if h.client.conf.ModePassive == false {
+        if h.client.conf.IsPassive == false {
             h.client.connectToMe(msg.Author)
         }
 

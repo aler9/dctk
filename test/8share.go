@@ -16,7 +16,7 @@ func main() {
         HubManualConnect: true,
         Nick: "testdctk",
         PrivateIp: true,
-        ModePassive: true,
+        IsPassive: true,
     })
     if err != nil {
         panic(err)

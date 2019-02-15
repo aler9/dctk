@@ -11,11 +11,11 @@ run_test() {
         HUBURL="adcs://dctk-hub:5001"
     fi
 
-    docker run --rm -d --network=dctk-test --name=dctk-hub \
+    docker run --rm -d --network=dctk-test --name=dctk-hub -p 5001:5000 \
         $HUBIMAGE $1 >/dev/null \
         || exit 1
 
-    docker run --rm -it --network=dctk-test --name=dctk-test -p 5001:5001 \
+    docker run --rm -it --network=dctk-test --name=dctk-test \
         -v ${PWD}:/src -e HUBURL=$HUBURL -e TEST=$1 dctk-test > $DEVOUT
     RETCODE=$?
 

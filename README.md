@@ -13,7 +13,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * **Active** and **passive** mode
 * **Hub**: connection with configurable try count, password authentication, keepalive, compression, encryption
 * **Chat**: bidirectional public and private chat
-* (NMDC only) **File search**: by name or TTH, reply to requests
+* **File search**: by name or TTH, reply to requests
 * (NMDC only) **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
 * (NMDC only) **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support
 * Examples provided for every feature
@@ -78,7 +78,7 @@ Hubs
 * (NMDC) http://www.ptokax.org
 * (NMDC) https://github.com/Verlihub/verlihub
 * (ADC) http://adchpp.sourceforge.net/
-* (NMDC) https://sourceforge.net/projects/flexhubdc/
+* (NMDC & ADC) https://sourceforge.net/projects/flexhubdc/
 * (ADC) https://luadch.github.io/
 * (NMDC & ADC) http://rushub.org/
 * (ADC) https://www.uhub.org/

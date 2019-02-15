@@ -13,7 +13,7 @@ func main() {
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: os.Getenv("HUBURL"),
         Nick: "testdctk",
-        ModePassive: true,
+        IsPassive: true,
     })
     if err != nil {
         panic(err)

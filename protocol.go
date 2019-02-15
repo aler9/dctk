@@ -64,23 +64,23 @@ func (nr protocolTimedNetReadWriter) ReadByte() (byte, error) {
 // this is like bufio.ReadSlice(), except it does not buffer
 // anything, to allow the zlib on/off phase
 // and it also strips the delimiter
-func readUntilDelim(in io.Reader, delim byte) ([]byte,error) {
+func readUntilDelim(in io.Reader, delim byte) (string,error) {
     var buffer [10 * 1024]byte // max message size
     offset := 0
     for {
         // read one character at a time
         read,err := in.Read(buffer[offset:offset+1])
         if read == 0 {
-            return nil, err
+            return "", err
         }
         offset++
 
         if buffer[offset-1] == delim {
-            return buffer[:offset-1], nil
+            return string(buffer[:offset-1]), nil
         }
 
         if offset >= len(buffer) {
-            return nil, fmt.Errorf("message buffer exhausted")
+            return "", fmt.Errorf("message buffer exhausted")
         }
     }
 }
@@ -203,10 +203,10 @@ func (c *protocolBase) SetWriteCompression(val bool) {
     }
 }
 
-func (c *protocolBase) ReadMessage() ([]byte,error) {
+func (c *protocolBase) ReadMessage() (string,error) {
     // Terminate() was called in a previous run
     if c.terminated == true {
-        return nil, errorTerminated
+        return "", errorTerminated
     }
 
     for {
@@ -220,11 +220,11 @@ func (c *protocolBase) ReadMessage() ([]byte,error) {
                 continue
             }
             if c.terminated == true {
-                return nil, errorTerminated
+                return "", errorTerminated
             }
-            return nil, err
+            return "", err
         }
-        return msg,nil
+        return msg, nil
     }
 }
 
