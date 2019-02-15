@@ -12,21 +12,23 @@ import (
     "github.com/cxmcc/tiger"
 )
 
-const reStrNick = "[^\\$ \\|]+"
+const reStrNick = "[^\\$ \\|\n]+"
 const reStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 const reStrPort = "[0-9]{1,5}"
 const reStrTTH = "[A-Z0-9]{39}"
+
+const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 var errorTerminated = fmt.Errorf("terminated")
 var errorArgsFormat = fmt.Errorf("not formatted correctly")
 
 // base32 without padding, which can be one or multiple =
-func adcBase32Encode(in []byte) string {
+func dcBase32Encode(in []byte) string {
     return strings.TrimSuffix(base32.StdEncoding.EncodeToString(in), "=")
 }
 
 // base32 without padding, which can be one or multiple =
-func adcBase32Decode(in string) []byte {
+func dcBase32Decode(in string) []byte {
     // add missing padding
     if len(in) % 8 != 0 {
         mlen := (8 - (len(in) % 8))
@@ -38,7 +40,7 @@ func adcBase32Decode(in string) []byte {
     return out
 }
 
-func adcReadableQuery(request string) string {
+func dcReadableQuery(request string) string {
     if strings.HasPrefix(request, "tthl TTH/") {
         return "tthl/" + strings.TrimPrefix(request, "tthl TTH/")
     }
@@ -46,40 +48,6 @@ func adcReadableQuery(request string) string {
         return "tth/" + strings.TrimPrefix(request, "file TTH/")
     }
     return "filelist"
-}
-
-// http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_key
-// https://web.archive.org/web/20150529002427/http://wiki.gusari.org/index.php?title=LockToKey%28%29
-func nmdcComputeKey(lock []byte) []byte {
-    // the key has exactly as many characters as the lock
-    key := make([]byte, len(lock))
-
-    // Except for the first, each key character is computed from the corresponding lock character and the one before it
-    key[0] = 0
-    for n := 1; n < len(key); n++ {
-        key[n] = lock[n] ^ lock[n-1]
-    }
-
-    // The first key character is calculated from the first lock character and the last two lock characters
-    key[0] = lock[0] ^ lock[len(lock)-1] ^ lock[len(lock)-2] ^ 5
-
-    // Next, every character in the key must be nibble-swapped
-    for n := 0; n < len(key); n++ {
-        key[n] = ((key[n] << 4) & 240) | ((key[n] >> 4) & 15)
-    }
-
-    // the characters with the decimal ASCII values of 0, 5, 36, 96, 124, and 126
-    // cannot be sent to the server. Each character with this value must be
-    // substituted with the string /%DCN000%/, /%DCN005%/, /%DCN036%/, /%DCN096%/, /%DCN124%/, or /%DCN126%/
-    var res []byte
-    for _,byt := range key {
-        if byt == 0 || byt == 5 || byt == 36 || byt == 96 || byt == 124 || byt == 126 {
-            res = append(res, []byte(fmt.Sprintf("/%%DCN%.3d%%/", byt))...)
-        } else {
-            res = append(res, byt)
-        }
-    }
-    return res
 }
 
 // tiger hash used through the library
@@ -90,6 +58,10 @@ func tigerNew() hash.Hash {
 func randomInt(min, max int) int {
     rand.Seed(time.Now().Unix())
     return rand.Intn(max - min) + min
+}
+
+func numtoa(num interface{}) string {
+    return fmt.Sprintf("%d", num)
 }
 
 func atoi(s string) int {

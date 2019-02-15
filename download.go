@@ -103,7 +103,7 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     }()
 
     dolog(LevelInfo, "[download request] %s/%s (s=%d l=%d)",
-        d.conf.Nick, adcReadableQuery(d.query), d.conf.Start, d.conf.Length)
+        d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
     go d.do()
@@ -173,7 +173,7 @@ func (d *Download) do() {
 
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
                             // request peer connection
-                            if d.client.conf.ModePassive == false {
+                            if d.client.conf.IsPassive == false {
                                 d.client.connectToMe(d.conf.Nick)
                             } else {
                                 d.client.revConnectToMe(d.conf.Nick)
@@ -267,12 +267,12 @@ func (d *Download) do() {
         // call callbacks once the procedure has terminated
         if d.state == "success" {
             dolog(LevelInfo, "[download finished] %s/%s (s=%d l=%d)",
-                d.conf.Nick, adcReadableQuery(d.query), d.conf.Start, len(d.content))
+                d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
             if d.client.OnDownloadSuccessful != nil {
                 d.client.OnDownloadSuccessful(d)
             }
         } else {
-            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, adcReadableQuery(d.query))
+            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, dcReadableQuery(d.query))
             if d.client.OnDownloadError != nil {
                 d.client.OnDownloadError(d)
             }

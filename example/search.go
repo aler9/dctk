@@ -22,13 +22,7 @@ func main() {
     client.OnHubConnected = func() {
         // search by name
         client.Search(dctk.SearchConf{
-            Query: "ubuntu",
-        })
-
-        // or search by TTH
-        client.Search(dctk.SearchConf{
-            Type: dctk.SearchTTH,
-            Query: "LDGE7FZYHQUKVFMEBAIMEFLNEMACI5ZGOTZNOIQ",
+            Query: "test",
         })
     }
 

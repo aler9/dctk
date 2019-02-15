@@ -55,7 +55,7 @@ func client2() {
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
             go func() {
-                time.Sleep(2 * time.Second)
+                time.Sleep(1 * time.Second)
                 client.Safe(func() {
                     client.Search(dctk.SearchConf{
                         Type: dctk.SearchDirectory,
@@ -70,17 +70,19 @@ func client2() {
     client.OnSearchResult = func(res *dctk.SearchResult) {
         switch step {
         case 0:
-            if res.IsDir == true && res.Path == "aliasname/inner folder" {
+            if res.IsDir == true && res.Path == "/aliasname/inner folder" &&
+                res.TTH == "" && res.Size == 0 &&
+                res.IsActive == true {
                 step++
                 client.Search(dctk.SearchConf{
-                    Type: dctk.SearchFile,
                     Query: "test file",
                 })
             }
 
         case 1:
-            if res.IsDir == false && res.Path == "aliasname/inner folder/test file.txt" &&
-                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" {
+            if res.IsDir == false && res.Path == "/aliasname/inner folder/test file.txt" &&
+                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" && res.Size == 10000 &&
+                res.IsActive == true {
                 step++
                 client.Search(dctk.SearchConf{
                     Type: dctk.SearchTTH,
@@ -89,8 +91,9 @@ func client2() {
             }
 
         case 2:
-            if res.IsDir == false && res.Path == "aliasname/inner folder/test file.txt" &&
-                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" {
+            if res.IsDir == false && res.Path == "/aliasname/inner folder/test file.txt" &&
+                res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" && res.Size == 10000 &&
+                res.IsActive == true {
                 ok = true
                 client.Terminate()
             }

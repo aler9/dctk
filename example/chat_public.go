@@ -9,7 +9,7 @@ func main() {
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: "nmdc://hubip:411",
         Nick: "mynick",
-        ModePassive: true,
+        IsPassive: true,
     })
     if err != nil {
         panic(err)

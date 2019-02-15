@@ -9,6 +9,7 @@ import (
     "fmt"
     "net"
     "time"
+    "strings"
     "regexp"
     "io/ioutil"
     "net/http"
@@ -19,6 +20,7 @@ import (
 const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
 var rePublicIp = regexp.MustCompile("("+reStrIp+")")
 
+// Peer represents a client connected to a Hub.
 type Peer struct {
     // peer nickname
     Nick            string
@@ -26,29 +28,32 @@ type Peer struct {
     Description     string
     // peer email, if provided
     Email           string
-    // total size of files shared by peer
-    ShareSize       uint64
-    // peer ip, if sent by hub
-    Ip              string
     // whether peer is a bot
     IsBot           bool
     // whether peer is a operator
     IsOperator      bool
-    // (adc only) peer session id
-    AdcSessionId    string
-    // (adc only) peer client id
-    AdcClientId     []byte
-    // (adc only) peer supported features
-    AdcSupports     []string
-    // (nmdc only) peer connection string
-    NmdcConnection  string
-    // (nmdc only) peer status byte
-    NmdcStatusByte  byte
+    // client used by peer (in NMDC this could be hidden)
+    Client          string
+    // version of client (in NMDC this could be hidden)
+    Version         string
+    // overall size of files shared by peer
+    ShareSize       uint64
+    // whether peer is in passive mode (in NMDC this could be hidden)
+    IsPassive       bool
+    // peer ip, if sent by hub
+    Ip              string
+
+    adcSessionId    string
+    adcClientId     []byte
+    adcSupports     map[string]struct{}
+    adcUdpPort      uint
+    nmdcConnection  string
+    nmdcStatusByte  byte
 }
 
 func (p *Peer) supportTls() bool {
     // we check only for bit 4
-    return (p.NmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
+    return (p.nmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
 }
 
 type transfer interface {
@@ -69,7 +74,7 @@ const (
 type ClientConf struct {
     // turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
     // and TcpTlsPort on your router but functionalities are limited
-    ModePassive                 bool
+    IsPassive                   bool
     // whether to use the local IP instead of the IP of your internet provider
     PrivateIp                   bool
     // these are the 3 ports needed for active mode. They must be accessible from the
@@ -123,7 +128,7 @@ type Client struct {
     mutex                   sync.Mutex
     wg                      sync.WaitGroup
     wakeUp                  chan struct{}
-    hubIsAdc                bool
+    protoIsAdc              bool
     hubIsEncrypted          bool
     hubHostname             string
     hubPort                 uint
@@ -131,7 +136,7 @@ type Client struct {
     ip                      string
     shareIndexer            *shareIndexer
     shareRoots              map[string]string
-    shareTree               map[string]*shareRootDirectory
+    shareTree               map[string]*shareDirectory
     shareCount              uint
     shareSize               uint64
     fileList                []byte
@@ -181,13 +186,13 @@ type Client struct {
 func NewClient(conf ClientConf) (*Client,error) {
     rand.Seed(time.Now().UnixNano())
 
-    if conf.ModePassive == false && (conf.TcpPort == 0 || conf.UdpPort == 0) {
+    if conf.IsPassive == false && (conf.TcpPort == 0 || conf.UdpPort == 0) {
         return nil, fmt.Errorf("tcp and udp ports must be both set when in active mode")
     }
-    if conf.ModePassive == false && conf.PeerEncryptionMode != ForceEncryption && conf.TcpPort == 0 {
+    if conf.IsPassive == false && conf.PeerEncryptionMode != ForceEncryption && conf.TcpPort == 0 {
         return nil, fmt.Errorf("tcp port must be set when in active mode and encryption is optional")
     }
-    if conf.ModePassive == false && conf.PeerEncryptionMode != DisableEncryption && conf.TcpTlsPort == 0 {
+    if conf.IsPassive == false && conf.PeerEncryptionMode != DisableEncryption && conf.TcpTlsPort == 0 {
         return nil, fmt.Errorf("tcp tls port must be set when in active mode and encryption is on")
     }
     if conf.TcpPort != 0 && conf.TcpPort == conf.TcpTlsPort {
@@ -209,16 +214,16 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf.Connection = "Cable"
     }
     if conf.ClientString == "" {
-        conf.ClientString = "++" // ok
+        conf.ClientString = "++" // verified
     }
     if conf.ClientVersion == "" {
-        conf.ClientVersion = "0.868" // ok
+        conf.ClientVersion = "0.868" // verified
     }
     if conf.PkValue == "" {
-        conf.PkValue = "DCPLUSPLUS0.868" // ok
+        conf.PkValue = "DCPLUSPLUS0.868" // verified
     }
     if conf.ListGenerator == "" {
-        conf.ListGenerator = "DC++ 0.868" // ok
+        conf.ListGenerator = "DC++ 0.868" // verified
     }
     if conf.HubRegisteredCount == 0 {
         conf.HubRegisteredCount = 1
@@ -237,7 +242,13 @@ func NewClient(conf ClientConf) (*Client,error) {
         return nil, fmt.Errorf("unsupported protocol: %s", u.Scheme)
     }
     if u.Port() == "" {
-        u.Host = u.Hostname() + ":411"
+        if u.Scheme == "adc" {
+            u.Host = u.Hostname() + ":5000"
+        } else if u.Scheme == "adcs" {
+            u.Host = u.Hostname() + ":5001"
+        } else {
+            u.Host = u.Hostname() + ":411"
+        }
     }
     conf.HubUrl = u.String()
 
@@ -245,12 +256,12 @@ func NewClient(conf ClientConf) (*Client,error) {
         conf: conf,
         state: "running",
         wakeUp: make(chan struct{}, 1),
-        hubIsAdc: (u.Scheme == "adc" || u.Scheme == "adcs"),
+        protoIsAdc: (u.Scheme == "adc" || u.Scheme == "adcs"),
         hubIsEncrypted: (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
         hubHostname: u.Hostname(),
         hubPort: atoui(u.Port()),
         shareRoots: make(map[string]string),
-        shareTree: make(map[string]*shareRootDirectory),
+        shareTree: make(map[string]*shareDirectory),
         peers: make(map[string]*Peer),
         downloadSlotAvail: conf.DownloadMaxParallel,
         uploadSlotAvail: conf.UploadMaxParallel,
@@ -273,19 +284,19 @@ func NewClient(conf ClientConf) (*Client,error) {
         return nil, err
     }
 
-    if c.conf.ModePassive == false && c.conf.PeerEncryptionMode != ForceEncryption {
+    if c.conf.IsPassive == false && c.conf.PeerEncryptionMode != ForceEncryption {
         if err := newListenerTcp(c, false); err != nil {
             return nil, err
         }
     }
 
-    if c.conf.ModePassive == false && c.conf.PeerEncryptionMode != DisableEncryption {
+    if c.conf.IsPassive == false && c.conf.PeerEncryptionMode != DisableEncryption {
         if err := newListenerTcp(c, true); err != nil {
             return nil, err
         }
     }
 
-    if c.conf.ModePassive == false {
+    if c.conf.IsPassive == false {
         if err := newListenerUdp(c); err != nil {
             return nil, err
         }
@@ -312,7 +323,7 @@ func (c *Client) Terminate() {
 // Run starts the client and waits until the client has been terminated.
 func (c *Client) Run() {
     // get an ip
-    if c.conf.ModePassive == false {
+    if c.conf.IsPassive == false {
         if c.conf.PrivateIp == false {
             if err := c.dlPublicIp(); err != nil {
                 panic(err)
@@ -416,36 +427,78 @@ func (c *Client) getPrivateIp() error {
     return nil
 }
 
-func (c *Client) myInfo() {
-    modestr := "P"
-    if c.conf.ModePassive == false {
-        modestr = "A"
+func (c *Client) sendInfos(firstTime bool) {
+    if c.protoIsAdc == true {
+        supports := []string{ "SEGA", "ADC0" }
+        //if c.PeerEncryptionMode != DisableEncryption {
+        //    supports = append(supports, "ADCS")
+        //}
+        if c.conf.IsPassive == false {
+            supports = append(supports, "TCP4", "UDP4")
+        }
+
+        fields := map[string]string{
+            adcFieldDescription: c.conf.Description,
+            adcFieldShareCount: numtoa(c.shareCount),
+            adcFieldShareSize: numtoa(c.shareSize),
+            adcFieldHubUnregisteredCount: numtoa(c.conf.HubUnregisteredCount),
+            adcFieldHubRegisteredCount: numtoa(c.conf.HubRegisteredCount),
+            adcFieldHubOperatorCount: numtoa(c.conf.HubOperatorCount),
+            adcFieldSoftware: c.conf.ClientString, // verified
+            adcFieldVersion: c.conf.ClientVersion, // verified
+            adcFieldSupports: strings.Join(supports, ","),
+            adcFieldUploadSpeed: "655",
+            adcFieldUploadSlotCount: numtoa(c.conf.UploadMaxParallel),
+        }
+
+        // these must be send only during initialization
+        if firstTime == true {
+            fields[adcFieldName] = c.conf.Nick
+            fields[adcFieldClientId] = dcBase32Encode(c.clientId)
+            fields[adcFieldPrivateId] = dcBase32Encode(c.privateId)
+        }
+
+        if c.conf.IsPassive == false {
+            fields[adcFieldIp] = c.ip
+            fields[adcFieldUdpPort] = numtoa(c.conf.UdpPort)
+        }
+
+        c.connHub.conn.Write(&msgAdcBInfos{
+            msgAdcTypeB{ SessionId: c.sessionId },
+            msgAdcKeyInfos{ Fields: fields },
+        })
+
+    } else {
+        modestr := "P"
+        if c.conf.IsPassive == false {
+            modestr = "A"
+        }
+
+        // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_myinfo
+        // https://web.archive.org/web/20150323115608/http://wiki.gusari.org/index.php?title=$MyINFO
+        var statusByte byte = 0x01
+
+        // add upload and download TLS support
+        if c.conf.PeerEncryptionMode != DisableEncryption {
+            statusByte |= (0x01 << 4) | (0x01 << 5)
+        }
+
+        c.connHub.conn.Write(&msgNmdcMyInfo{
+            Nick: c.conf.Nick,
+            Description: c.conf.Description,
+            Client: c.conf.ClientString,
+            Version: c.conf.ClientVersion,
+            Mode: modestr,
+            HubUnregisteredCount: c.conf.HubUnregisteredCount,
+            HubRegisteredCount: c.conf.HubRegisteredCount,
+            HubOperatorCount: c.conf.HubOperatorCount,
+            UploadSlots: c.conf.UploadMaxParallel,
+            Connection: c.conf.Connection,
+            StatusByte: statusByte,
+            Email: c.conf.Email,
+            ShareSize: c.shareSize,
+        })
     }
-
-    // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_myinfo
-    // https://web.archive.org/web/20150323115608/http://wiki.gusari.org/index.php?title=$MyINFO
-    var statusByte byte = 0x01
-
-    // add upload and download TLS support
-    if c.conf.PeerEncryptionMode != DisableEncryption {
-        statusByte |= (0x01 << 4) | (0x01 << 5)
-    }
-
-    c.connHub.conn.Write(&msgNmdcMyInfo{
-        Nick: c.conf.Nick,
-        Description: c.conf.Description,
-        Client: c.conf.ClientString,
-        Version: c.conf.ClientVersion,
-        Mode: modestr,
-        HubUnregisteredCount: c.conf.HubUnregisteredCount,
-        HubRegisteredCount: c.conf.HubRegisteredCount,
-        HubOperatorCount: c.conf.HubOperatorCount,
-        UploadSlots: c.conf.UploadMaxParallel,
-        Connection: c.conf.Connection,
-        StatusByte: statusByte,
-        Email: c.conf.Email,
-        ShareSize: c.shareSize,
-    })
 }
 
 func (c *Client) connectToMe(target string) {
@@ -504,9 +557,27 @@ func (c *Client) Peers() map[string]*Peer {
     return c.peers
 }
 
+func (c *Client) peerBySessionId(sessionId string) *Peer {
+    for _,p := range c.peers {
+        if p.adcSessionId == sessionId {
+            return p
+        }
+    }
+    return nil
+}
+
+func (c *Client) peerByClientId(clientId []byte) *Peer {
+    for _,p := range c.peers {
+        if string(p.adcClientId) == string(clientId) {
+            return p
+        }
+    }
+    return nil
+}
+
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
-    if c.hubIsAdc == true {
+    if c.protoIsAdc == true {
         c.connHub.conn.Write(&msgAdcBMessage{
             msgAdcTypeB{ c.sessionId },
             msgAdcKeyMessage{ Content: content },
@@ -519,9 +590,9 @@ func (c *Client) MessagePublic(content string) {
 
 // MessagePrivate sends a private message to a specific peer connected to the hub.
 func (c *Client) MessagePrivate(dest *Peer, content string) {
-    if c.hubIsAdc == true {
+    if c.protoIsAdc == true {
         c.connHub.conn.Write(&msgAdcDMessage{
-            msgAdcTypeD{ c.sessionId, dest.AdcSessionId },
+            msgAdcTypeD{ c.sessionId, dest.adcSessionId },
             msgAdcKeyMessage{ Content: content },
         })
 

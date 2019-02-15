@@ -11,7 +11,7 @@ func client1() {
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: os.Getenv("HUBURL"),
         Nick: "client1",
-        ModePassive: true,
+        IsPassive: true,
     })
     if err != nil {
         panic(err)
@@ -32,7 +32,7 @@ func client2() {
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: os.Getenv("HUBURL"),
         Nick: "client2",
-        ModePassive: true,
+        IsPassive: true,
     })
     if err != nil {
         panic(err)

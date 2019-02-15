@@ -12,15 +12,15 @@ import (
 )
 
 type listenerTcp struct {
-    client      *Client
-    isEncryted       bool
-    state       string
-    listener    net.Listener
+    client          *Client
+    isEncrypted     bool
+    state           string
+    listener        net.Listener
 }
 
-func newListenerTcp(client *Client, isEncryted bool) error {
+func newListenerTcp(client *Client, isEncrypted bool) error {
     var listener net.Listener
-    if isEncryted == true {
+    if isEncrypted == true {
         var err error
         priv,err := rsa.GenerateKey(crand.Reader, 1024)
         if err != nil {
@@ -64,11 +64,11 @@ func newListenerTcp(client *Client, isEncryted bool) error {
 
     l := &listenerTcp{
         client: client,
-        isEncryted: isEncryted,
+        isEncrypted: isEncrypted,
         state: "running",
         listener: listener,
     }
-    if isEncryted == true {
+    if isEncrypted == true {
         client.tcpTlsListener = l
     } else {
         client.listenerTcp = l
@@ -106,7 +106,7 @@ func (t *listenerTcp) do() {
             }
 
             t.client.Safe(func() {
-                newConnPeer(t.client, t.isEncryted, true, rawconn, "", 0)
+                newConnPeer(t.client, t.isEncrypted, true, rawconn, "", 0)
             })
         }
     }()

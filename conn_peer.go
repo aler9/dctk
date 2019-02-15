@@ -52,7 +52,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
     if isActive == true {
         dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
         p.state = "connected"
-        if client.hubIsAdc == true {
+        if client.protoIsAdc == true {
             p.conn = newProtocolAdc("p", rawconn, true, true)
         } else {
             p.conn = newProtocolNmdc("p", rawconn, true, true)
@@ -136,7 +136,7 @@ func (p *connPeer) do() {
                 if p.isEncrypted == true {
                     rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
                 }
-                if p.client.hubIsAdc == true {
+                if p.client.protoIsAdc == true {
                     p.conn = newProtocolAdc("p", rawconn, true, true)
                 } else {
                     p.conn = newProtocolNmdc("p", rawconn, true, true)
@@ -304,7 +304,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
                 }()
                 if isPendingDownload {
                     // request another peer connection
-                    if p.client.conf.ModePassive == false {
+                    if p.client.conf.IsPassive == false {
                         p.client.connectToMe(p.remoteNick)
                     } else {
                         p.client.revConnectToMe(p.remoteNick)

@@ -22,7 +22,6 @@ func newListenerUdp(client *Client) error {
         state: "running",
         listener: listener,
     }
-
     return nil
 }
 
@@ -57,42 +56,71 @@ func (u *listenerUdp) do() {
             }
             msgStr := string(buf[:n])
 
-            if msgStr[len(msgStr)-1] != '|' {
-                dolog(LevelDebug, "unable to parse incoming UDP (1): %s", msgStr)
-                continue
-            }
+            sr,err := func() (*SearchResult,error) {
+                if u.client.protoIsAdc == true {
+                    if msgStr[len(msgStr)-1] != '\n' {
+                        return nil, fmt.Errorf("wrong terminator")
+                    }
+                    msgStr = msgStr[:len(msgStr)-1]
 
-            matches := reNmdcCommand.FindStringSubmatch(msgStr[:len(msgStr)-1])
-            if matches == nil {
-                dolog(LevelDebug, "unable to parse incoming UDP (2): %s", msgStr)
-                continue
-            }
+                    if msgStr[:5] != "URES " {
+                        return nil, fmt.Errorf("wrong command")
+                    }
 
-            // udp is used only for search results
-            if matches[1] != "SR" {
-                dolog(LevelDebug, "unable to parse incoming UDP (3): %s", msgStr)
-                continue
-            }
+                    msg := &msgAdcUSearchResult{}
+                    n,err := msg.AdcTypeDecode(msgStr[5:])
+                    if err != nil {
+                        return nil, fmt.Errorf("unable to decode command type")
+                    }
 
-            msg := &msgNmdcSearchResult{}
-            err = msg.NmdcDecode(matches[3])
+                    err = msg.AdcKeyDecode(msgStr[5+n:])
+                    if err != nil {
+                        return nil, fmt.Errorf("unable to decode command key")
+                    }
+
+                    p := u.client.peerByClientId(msg.ClientId)
+                    if p == nil {
+                        return nil, fmt.Errorf("unknown author")
+                    }
+
+                    return adcMsgToSearchResult(true, p, &msg.msgAdcKeySearchResult), nil
+
+                } else {
+                    if msgStr[len(msgStr)-1] != '|' {
+                        return nil, fmt.Errorf("wrong terminator")
+                    }
+                    msgStr = msgStr[:len(msgStr)-1]
+
+                    matches := reNmdcCommand.FindStringSubmatch(msgStr)
+                    if matches == nil {
+                        return nil, fmt.Errorf("wrong syntax")
+                    }
+
+                    // udp is used only for search results
+                    if matches[1] != "SR" {
+                        return nil, fmt.Errorf("wrong command")
+                    }
+
+                    msg := &msgNmdcSearchResult{}
+                    err = msg.NmdcDecode(matches[3])
+                    if err != nil {
+                        return nil, fmt.Errorf("wrong search result")
+                    }
+
+                    p,ok := u.client.peers[msg.Nick]
+                    if ok == false {
+                        return nil, fmt.Errorf("unknown author")
+                    }
+
+                    return nmdcMsgToSearchResult(true, p, msg), nil
+                }
+            }()
             if err != nil {
-                dolog(LevelInfo, "unable to parse incoming search result: %s", msgStr)
+                dolog(LevelDebug, "[udp] unable to parse: %s", err)
+                continue
             }
 
-            sr := &SearchResult{
-                IsActive: true,
-                Nick: msg.Nick,
-                Path: msg.Path,
-                SlotAvail: msg.SlotAvail,
-                SlotCount: msg.SlotCount,
-                TTH: msg.TTH,
-                IsDir: msg.IsDir,
-                HubIp: msg.HubIp,
-                HubPort: msg.HubPort,
-            }
             dolog(LevelInfo, "[search res] %+v", sr)
-
             u.client.Safe(func() {
                 if u.client.OnSearchResult != nil {
                     u.client.OnSearchResult(sr)

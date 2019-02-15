@@ -2,15 +2,14 @@ package dctoolkit
 
 import (
     "fmt"
-    "strings"
     "net"
-    "path/filepath"
+    "strings"
 )
 
 type SearchType int
 const (
-    // search for a file by name
-    SearchFile      SearchType = iota
+    // search for a file or directory by name
+    SearchAny      SearchType = iota
     // search for a directory by name
     SearchDirectory
     // search for a file by TTH
@@ -19,16 +18,16 @@ const (
 
 type nmdcSearchType int
 const (
-    nsTypeInvalid     nmdcSearchType = 0
-    nsTypeAny         nmdcSearchType = 1
-    nsTypeAudio       nmdcSearchType = 2
-    nsTypeCompressed  nmdcSearchType = 3
-    nsTypeDocument    nmdcSearchType = 4
-    nsTypeExe         nmdcSearchType = 5
-    nsTypePicture     nmdcSearchType = 6
-    nsTypeVideo       nmdcSearchType = 7
-    nsTypeDirectory   nmdcSearchType = 8
-    nsTypeTTH         nmdcSearchType = 9
+    nmdcSearchTypeInvalid     nmdcSearchType = 0
+    nmdcSearchTypeAny         nmdcSearchType = 1
+    nmdcSearchTypeAudio       nmdcSearchType = 2
+    nmdcSearchTypeCompressed  nmdcSearchType = 3
+    nmdcSearchTypeDocument    nmdcSearchType = 4
+    nmdcSearchTypeExe         nmdcSearchType = 5
+    nmdcSearchTypePicture     nmdcSearchType = 6
+    nmdcSearchTypeVideo       nmdcSearchType = 7
+    nmdcSearchTypeDirectory   nmdcSearchType = 8
+    nmdcSearchTypeTTH         nmdcSearchType = 9
 )
 
 func nmdcSearchEscape(in string) string {
@@ -40,35 +39,31 @@ func nmdcSearchUnescape(in string) string {
 }
 
 type SearchResult struct {
-    // whether the result is a directory
-    IsDir       bool
-    // path of a file or directory matching a search request
-    Path        string
-    // file TTH
-    TTH         string
     // whether the search result was received in passive or active mode
     IsActive    bool
-    // the nickname of the peer sending the result
-    Nick        string
-    // the currently available upload slots of the peer
-    SlotAvail   uint
-    // the total number of the upload slots of the peer
+    // the peer sending the result
+    Peer        *Peer
+    // path of a file or directory matching a search request
+    Path        string
+    // whether the result is a directory
+    IsDir       bool
+    // size (file only)
+    Size        uint64
+    // TTH (file only)
+    TTH         string
+    // the total number of upload slots of the peer
     SlotCount   uint
-    // the hub ip
-    HubIp       string
-    // the hub port
-    HubPort     uint
 }
 
 type SearchConf struct {
-    // the search type, defaults to SearchFile. See SearchType for all the available options
+    // the search type, defaults to SearchAny. See SearchType for all the available options
     Type        SearchType
     // the minimum size of the searched file
-    MinSize     uint
+    MinSize     uint64
     // the maximum size of the searched fil
-    MaxSize     uint
-    // part of a file name (if type is SearchFile), part of a directory name
-    // (if type is SearchFolder) or a TTH (if type is SearchTTH)
+    MaxSize     uint64
+    // part of a file name (if type is SearchAny), part of a directory name
+    // (if type is SearchAny or SearchFolder) or a TTH (if type is SearchTTH)
     Query       string
 }
 
@@ -78,26 +73,46 @@ func (c *Client) Search(conf SearchConf) error {
         return fmt.Errorf("invalid TTH")
     }
 
-    if c.hubIsAdc == true {
-        fields := map[string]string{
-            "AN": conf.Query,
-        }
+    if c.protoIsAdc == true {
+        fields := map[string]string{}
+
         if conf.MaxSize != 0 {
-            fields["LE"] = fmt.Sprintf("%d", conf.MaxSize)
+            fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
         }
         if conf.MinSize != 0 {
-            fields["GE"] = fmt.Sprintf("%d", conf.MinSize)
-        }
-        if conf.Type == SearchDirectory {
-            fields["TY"] = "2"
-        } else {
-            fields["TY"] = "1"
+            fields[adcFieldMinSize] = numtoa(conf.MinSize)
         }
 
-        c.connHub.conn.Write(&msgAdcBSearchRequest{
-            msgAdcTypeB{ c.sessionId },
-            msgAdcKeySearchRequest{ Fields: fields },
-        })
+        switch conf.Type {
+        case SearchAny:
+            fields[adcFieldQuery] = conf.Query
+
+        case SearchDirectory:
+            fields[adcFieldIsFileOrFolder] = "2"
+            fields[adcFieldQuery] = conf.Query
+
+        case SearchTTH:
+            fields[adcFieldFileTTH] = conf.Query
+        }
+
+        requiredFeatures := make(map[string]struct{})
+
+        if c.conf.IsPassive == false {
+            requiredFeatures["TCP4"] = struct{}{}
+        }
+
+        if len(requiredFeatures) > 0 {
+            c.connHub.conn.Write(&msgAdcFSearchRequest{
+                msgAdcTypeF{ SessionId: c.sessionId, RequiredFeatures: requiredFeatures },
+                msgAdcKeySearchRequest{ Fields: fields },
+            })
+
+        } else {
+            c.connHub.conn.Write(&msgAdcBSearchRequest{
+                msgAdcTypeB{ c.sessionId },
+                msgAdcKeySearchRequest{ Fields: fields },
+            })
+        }
 
     } else {
         if conf.MaxSize != 0 && conf.MinSize != 0 {
@@ -107,28 +122,28 @@ func (c *Client) Search(conf SearchConf) error {
         c.connHub.conn.Write(&msgNmdcSearchRequest{
             Type: func() nmdcSearchType {
                 switch conf.Type {
-                case SearchFile: return nsTypeAny
-                case SearchDirectory: return nsTypeDirectory
+                case SearchAny: return nmdcSearchTypeAny
+                case SearchDirectory: return nmdcSearchTypeDirectory
                 }
-                return nsTypeTTH
+                return nmdcSearchTypeTTH
             }(),
             MaxSize: conf.MaxSize,
             MinSize: conf.MinSize,
             Query: conf.Query,
             Ip: func() string {
-                if c.conf.ModePassive == false {
+                if c.conf.IsPassive == false {
                     return c.ip
                 }
                 return ""
             }(),
             UdpPort: func() uint {
-                if c.conf.ModePassive == false {
+                if c.conf.IsPassive == false {
                     return c.conf.UdpPort
                 }
                 return 0
             }(),
             Nick: func() string {
-                if c.conf.ModePassive == true {
+                if c.conf.IsPassive == true {
                     return c.conf.Nick
                 }
                 return ""
@@ -138,137 +153,304 @@ func (c *Client) Search(conf SearchConf) error {
     return nil
 }
 
-func (c *Client) onSearchRequest(req *msgNmdcSearchRequest) {
-    if len(req.Query) < 3 {
+type searchRequest struct {
+    stype       SearchType
+    query       string
+    minSize     uint64
+    maxSize     uint64
+    isActive    bool
+}
+
+func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
+    var peer *Peer
+    results,err := func() ([]interface{}, error) {
+        peer = c.peerBySessionId(authorSessionId)
+        if peer == nil {
+            return nil, fmt.Errorf("search author not found")
+        }
+
+        if _,ok := req.Fields[adcFieldFileGroup]; ok {
+            return nil, fmt.Errorf("search by type is not supported")
+        }
+        if _,ok := req.Fields[adcFieldFileExcludeExtens]; ok {
+            return nil, fmt.Errorf("search by type is not supported")
+        }
+        if _,ok := req.Fields[adcFieldFileExtension]; ok {
+            return nil, fmt.Errorf("search by extension is not supported")
+        }
+        if _,ok := req.Fields[adcFieldIsFileOrFolder]; ok {
+            if req.Fields[adcFieldIsFileOrFolder] != "2" {
+                return nil, fmt.Errorf("search file only is not supported")
+            }
+        }
+        if _,ok := req.Fields[adcFieldQuery]; !ok {
+            if _,ok := req.Fields[adcFieldFileTTH]; !ok {
+                return nil, fmt.Errorf("AN or TR is required")
+            }
+        }
+
+        return c.onSearchRequest(&searchRequest{
+            stype: func() SearchType {
+                if _,ok := req.Fields[adcFieldFileTTH]; ok {
+                    return SearchTTH
+                }
+                if _,ok := req.Fields[adcFieldIsFileOrFolder]; ok {
+                    return SearchDirectory
+                }
+                return SearchAny
+            }(),
+            query: func() string {
+                if _,ok := req.Fields[adcFieldFileTTH]; ok {
+                    return req.Fields[adcFieldFileTTH]
+                }
+                return req.Fields[adcFieldQuery]
+            }(),
+            minSize: func() uint64 {
+                if val,ok := req.Fields[adcFieldMinSize]; ok {
+                    return atoui64(val)
+                }
+                return 0
+            }(),
+            maxSize: func() uint64 {
+                if val,ok := req.Fields[adcFieldMaxSize]; ok {
+                    return atoui64(val)
+                }
+                return 0
+            }(),
+            isActive: (peer.IsPassive == false),
+        })
+    }()
+    if err != nil {
+        dolog(LevelDebug, "[search error] %s", err)
         return
     }
-    // we support only these nmdc types
-    if _,ok := map[nmdcSearchType]struct{}{
-        nsTypeAny: struct{}{},
-        nsTypeDirectory: struct{}{},
-        nsTypeTTH: struct{}{},
-    }[req.Type]; !ok {
+
+    var msgs []*msgAdcKeySearchResult
+    for _,res := range results {
+        fields := map[string]string{
+            adcFieldUploadSlotCount: numtoa(c.conf.UploadMaxParallel),
+        }
+
+        switch o := res.(type) {
+        case *shareFile:
+            fields[adcFieldFilePath] = o.aliasPath
+            fields[adcFieldFileTTH] = o.tth
+            fields[adcFieldFileSize] = numtoa(o.size)
+
+        case *shareDirectory:
+            fields[adcFieldFilePath] = o.aliasPath
+            fields[adcFieldFileTTH] = dirTTH
+            fields[adcFieldFileSize] = "0" // TODO: add directory file size
+        }
+
+        // add search id if sent by author
+        if val,ok := req.Fields[adcFieldSearchId]; ok {
+            fields[adcFieldSearchId] = val
+        }
+
+        msgs = append(msgs, &msgAdcKeySearchResult{ Fields: fields })
+    }
+
+    // send to peer
+    if peer.IsPassive == false {
+        go func() {
+            conn,err := net.Dial("udp", fmt.Sprintf("%s:%d", peer.Ip, peer.adcUdpPort))
+            if err != nil {
+                return
+            }
+            defer conn.Close()
+
+            for _,msg := range msgs {
+                encmsg := &msgAdcUSearchResult{
+                    msgAdcTypeU{ peer.adcClientId },
+                    *msg,
+                }
+                conn.Write([]byte(encmsg.AdcTypeEncode(encmsg.AdcKeyEncode())))
+            }
+        }()
+
+    // send to hub
+    } else {
+        for _,msg := range msgs {
+            c.connHub.conn.Write(&msgAdcDSearchResult{
+                msgAdcTypeD{ c.sessionId, peer.adcSessionId },
+                *msg,
+            })
+        }
+    }
+}
+
+func (c *Client) onNmdcSearchRequest(req *msgNmdcSearchRequest) {
+    results,err := func() ([]interface{}, error) {
+        // we do not support search by type
+        if _,ok := map[nmdcSearchType]struct{}{
+            nmdcSearchTypeAny: struct{}{},
+            nmdcSearchTypeDirectory: struct{}{},
+            nmdcSearchTypeTTH: struct{}{},
+        }[req.Type]; !ok {
+            return nil, fmt.Errorf("unsupported search type: %v", req.Type)
+        }
+        if req.Type == nmdcSearchTypeTTH && strings.HasPrefix(req.Query, "TTH:") == false {
+            return nil, fmt.Errorf("invalid TTH: %v", req.Query)
+        }
+
+        return c.onSearchRequest(&searchRequest{
+            stype: func() SearchType {
+                switch req.Type {
+                case nmdcSearchTypeAny: return SearchAny
+                case nmdcSearchTypeDirectory: return SearchDirectory
+                }
+                return SearchTTH
+            }(),
+            query: func() string {
+                if req.Type == nmdcSearchTypeTTH {
+                    return req.Query[4:]
+                }
+                return req.Query
+            }(),
+            minSize: req.MinSize,
+            maxSize: req.MaxSize,
+            isActive: req.IsActive,
+        })
+    }()
+    if err != nil {
+        dolog(LevelDebug, "[search error] %s", err)
         return
     }
-    if req.Type == nsTypeTTH &&
-        (!strings.HasPrefix(req.Query, "TTH:") || !TTHIsValid(req.Query[4:])) {
-        return
+
+    var msgs []*msgNmdcSearchResult
+    for _,res := range results {
+        msgs = append(msgs, &msgNmdcSearchResult{
+            Path: func() string {
+                if f,ok := res.(*shareFile); ok {
+                    return f.aliasPath
+                }
+                return res.(*shareDirectory).aliasPath
+            }(),
+            IsDir: func() bool {
+                _,ok := res.(*shareDirectory)
+                return ok
+            }(),
+            Size: func() uint64 {
+                if f,ok := res.(*shareFile); ok {
+                    return f.size
+                }
+                return 0
+            }(),
+            TTH: func() string {
+                if f,ok := res.(*shareFile); ok {
+                    return f.tth
+                }
+                return ""
+            }(),
+            Nick: c.conf.Nick,
+            SlotAvail: c.uploadSlotAvail,
+            SlotCount: c.conf.UploadMaxParallel,
+            HubIp: c.hubSolvedIp,
+            HubPort: c.hubPort,
+        })
+    }
+
+    // send to peer
+    if req.IsActive == true {
+        go func() {
+            conn,err := net.Dial("udp", fmt.Sprintf("%s:%d", req.Ip, req.UdpPort))
+            if err != nil {
+                return
+            }
+            defer conn.Close()
+
+            for _,msg := range msgs {
+                conn.Write([]byte(msg.NmdcEncode()))
+            }
+        }()
+
+    // send to hub
+    } else {
+        for _,msg := range msgs {
+            msg.TargetNick = req.Nick
+            c.connHub.conn.Write(msg)
+        }
+    }
+}
+
+func (c *Client) onSearchRequest(req *searchRequest) ([]interface{},error) {
+    if len(req.query) < 3 {
+        return nil, fmt.Errorf("query too short: %s", req.query)
+    }
+    if req.stype == SearchTTH && TTHIsValid(req.query) == false {
+        return nil, fmt.Errorf("invalid TTH: %s", req.query)
     }
 
     // normalize query
-    if req.Type != nsTypeTTH {
-        req.Query = strings.ToLower(req.Query)
+    if req.stype != SearchTTH {
+        req.query = strings.ToLower(req.query)
     }
 
-    var replies []*msgNmdcSearchResult
-    var scanDir func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool)
+    var results []interface{}
+    var scanDir func(dname string, dir *shareDirectory, dirAddToResults bool)
 
     // search file or directory by name
-    if req.Type != nsTypeTTH {
-        scanDir = func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool) {
+    if req.stype == SearchAny || req.stype == SearchDirectory {
+        scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
             // always add directories
             if dirAddToResults == false {
-                dirAddToResults = strings.Contains(strings.ToLower(dname), req.Query)
+                dirAddToResults = strings.Contains(strings.ToLower(dname), req.query)
             }
             if dirAddToResults {
-                replies = append(replies, &msgNmdcSearchResult{
-                    Path: filepath.Join(dpath, dname),
-                    IsDir: true,
-                })
+                results = append(results, dir)
             }
 
-            // add files only if nsTypeAny
-            if req.Type == nsTypeAny {
+            if req.stype != SearchDirectory {
                 for fname,file := range dir.files {
                     fileAddToResults := dirAddToResults
                     if fileAddToResults == false {
-                        fileAddToResults = strings.Contains(strings.ToLower(fname), req.Query)
+                        fileAddToResults = strings.Contains(strings.ToLower(fname), req.query) &&
+                            (req.minSize == 0 || file.size > req.minSize) &&
+                            (req.maxSize == 0 || file.size < req.maxSize)
                     }
                     if fileAddToResults {
-                        replies = append(replies, &msgNmdcSearchResult{
-                            Path: filepath.Join(dpath, dname, fname),
-                            IsDir: false,
-                            TTH: file.tth,
-                        })
+                        results = append(results, file)
                     }
                 }
             }
 
             for sname,sdir := range dir.dirs {
-                scanDir(filepath.Join(dpath, dname), sname, sdir, dirAddToResults)
+                scanDir(sname, sdir, dirAddToResults)
             }
         }
 
     // search file by TTH
     } else {
-        reqTTH := req.Query[4:]
-        scanDir = func(dpath string, dname string, dir *shareDirectory, dirAddToResults bool) {
-            for fname,file := range dir.files {
-                if file.tth == reqTTH {
-                    replies = append(replies, &msgNmdcSearchResult{
-                        Path: filepath.Join(dpath, dname, fname),
-                        IsDir: false,
-                        TTH: file.tth,
-                    })
+        scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
+            for _,file := range dir.files {
+                if file.tth == req.query {
+                    results = append(results, file)
                 }
             }
             for sname,sdir := range dir.dirs {
-                scanDir(filepath.Join(dpath, dname), sname, sdir, false)
+                scanDir(sname, sdir, false)
             }
         }
     }
 
     // start searching
     for alias,dir := range c.shareTree {
-        scanDir("", alias, dir.shareDirectory, false)
+        scanDir(alias, dir, false)
     }
 
     // Implementations should send a maximum of 5 search results to passive users
     // and 10 search results to active users
-    if req.IsActive == true {
-        if len(replies) > 10 {
-            replies = replies[:10]
+    if req.isActive == true {
+        if len(results) > 10 {
+            results = results[:10]
         }
     } else {
-        if len(replies) > 5 {
-            replies = replies[:5]
+        if len(results) > 5 {
+            results = results[:5]
         }
     }
 
-    if c.hubIsAdc == true {
-
-    } else {
-        // fill additional data
-        for _,msg := range replies {
-            msg.Nick = c.conf.Nick
-            msg.SlotAvail = c.uploadSlotAvail
-            msg.SlotCount = c.conf.UploadMaxParallel
-            msg.HubIp = c.hubSolvedIp
-            msg.HubPort = c.hubPort
-        }
-
-        if req.IsActive == true {
-            // send to peer
-            go func() {
-                conn,err := net.Dial("udp", fmt.Sprintf("%s:%d", req.Ip, req.UdpPort))
-                if err != nil {
-                    return
-                }
-                defer conn.Close()
-
-                for _,msg := range replies {
-                    conn.Write(msg.NmdcEncode())
-                }
-            }()
-
-        } else {
-            // send to hub
-            for _,msg := range replies {
-                msg.TargetNick = req.Nick
-                c.connHub.conn.Write(msg)
-            }
-        }
-    }
-
-    dolog(LevelInfo, "[search req] %+v | sent %d results", req, len(replies))
+    dolog(LevelInfo, "[search req] %+v | sent %d results", req, len(results))
+    return results, nil
 }
