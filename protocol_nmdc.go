@@ -15,6 +15,7 @@ var reNmdcCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file 
 var reNmdcCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
 var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
 var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
+var reNmdcCmdForceMove = regexp.MustCompile("^("+reStrAddress+")(:("+reStrPort+"))?$")
 var reNmdcCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?)(<(.*?) V:(.+?),M:(A|P),H:([0-9]+)/([0-9]+)/([0-9]+),S:([0-9]+)>)?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
 var reNmdcCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+")$")
 var reNmdcCmdSearchReqActive = regexp.MustCompile("^("+reStrIp+"):("+reStrPort+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
@@ -319,9 +320,17 @@ func (m *msgNmdcError) NmdcEncode() string {
     return nmdcCommandEncode("Error", m.Error)
 }
 
-type msgNmdcForceMove struct {}
+type msgNmdcForceMove struct {
+    Address string
+    Port uint
+}
 
 func (m *msgNmdcForceMove) NmdcDecode(args string) error {
+    matches := reNmdcCmdForceMove.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Address, m.Port = matches[1], atoui(matches[3])
     return nil
 }
 

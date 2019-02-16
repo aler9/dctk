@@ -548,7 +548,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
     case *msgNmdcForceMove:
         // means disconnect and reconnect to provided address
         // we just disconnect
-        return fmt.Errorf("received force move")
+        return fmt.Errorf("received force move (%+v)", msg)
 
     case *msgNmdcSearchRequest:
         // searches can be received even before initialization; ignore them
