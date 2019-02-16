@@ -107,6 +107,7 @@ func (p *protocolNmdc) Read() (msgDecodable,error) {
                         switch key {
                         case "ADCGET": return &msgNmdcAdcGet{}
                         case "ADCSND": return &msgNmdcAdcSnd{}
+                        case "BadPass": return &msgNmdcBadPassword{}
                         case "BotList": return &msgNmdcBotList{}
                         case "ConnectToMe": return &msgNmdcConnectToMe{}
                         case "Direction": return &msgNmdcDirection{}
@@ -115,6 +116,7 @@ func (p *protocolNmdc) Read() (msgDecodable,error) {
                         case "GetPass": return &msgNmdcGetPass{}
                         case "Hello": return &msgNmdcHello{}
                         case "HubName": return &msgNmdcHubName{}
+                        case "HubIsFull": return &msgNmdcHubIsFull{}
                         case "HubTopic": return &msgNmdcHubTopic{}
                         case "Key": return &msgNmdcKey{}
                         case "Lock": return &msgNmdcLock{}
@@ -130,6 +132,7 @@ func (p *protocolNmdc) Read() (msgDecodable,error) {
                         case "Supports": return &msgNmdcSupports{}
                         case "UserCommand": return &msgNmdcUserCommand{}
                         case "UserIP": return &msgNmdcUserIp{}
+                        case "ValidateDenide": return &msgNmdcValidateDenide{}
                         case "ZOn": return &msgNmdcZon{}
                         }
                         return nil
@@ -243,6 +246,12 @@ func (m *msgNmdcAdcSnd) NmdcEncode() string {
         }()))
 }
 
+type msgNmdcBadPassword struct {}
+
+func (m *msgNmdcBadPassword) NmdcDecode(args string) error {
+    return nil
+}
+
 type msgNmdcBinary struct {
     Content []byte
 }
@@ -342,6 +351,12 @@ func (m *msgNmdcGetPass) NmdcDecode(args string) error {
 type msgNmdcHello struct {}
 
 func (m *msgNmdcHello) NmdcDecode(args string) error {
+    return nil
+}
+
+type msgNmdcHubIsFull struct {}
+
+func (m *msgNmdcHubIsFull) NmdcDecode(args string) error {
     return nil
 }
 
@@ -721,6 +736,12 @@ type msgNmdcVersion struct {}
 
 func (m *msgNmdcVersion) NmdcEncode() string {
     return nmdcCommandEncode("Version", "1,0091")
+}
+
+type msgNmdcValidateDenide struct {}
+
+func (m *msgNmdcValidateDenide) NmdcDecode(args string) error {
+    return nil
 }
 
 type msgNmdcZon struct {}

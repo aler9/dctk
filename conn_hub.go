@@ -383,6 +383,9 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         h.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
         h.conn.Write(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
 
+    case *msgNmdcValidateDenide:
+        return fmt.Errorf("forbidden nickname")
+
     case *msgNmdcSupports:
         if h.state != "lock" {
             return fmt.Errorf("[Supports] invalid state: %s", h.state)
@@ -425,6 +428,12 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("GetPass sent twice")
         }
         h.uniqueCmds["GetPass"] = struct{}{}
+
+    case *msgNmdcBadPassword:
+        return fmt.Errorf("wrong password")
+
+    case *msgNmdcHubIsFull:
+        return fmt.Errorf("hub is full")
 
     case *msgNmdcLoggedIn:
         if h.state != "preinitialized" {
