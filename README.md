@@ -78,10 +78,10 @@ Hubs
 * (NMDC) http://www.ptokax.org
 * (NMDC) https://github.com/Verlihub/verlihub
 * (ADC) http://adchpp.sourceforge.net/
-* (NMDC & ADC) https://sourceforge.net/projects/flexhubdc/
 * (ADC) https://luadch.github.io/
-* (NMDC & ADC) http://rushub.org/
 * (ADC) https://www.uhub.org/
+* (NMDC & ADC) https://sourceforge.net/projects/flexhubdc/
+* (NMDC & ADC) http://rushub.org/
 * (NMDC & ADC) https://github.com/direct-connect/go-dcpp
 
 Clients

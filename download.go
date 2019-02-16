@@ -102,7 +102,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download,error) {
         return "file TTH/" + d.conf.TTH
     }()
 
-    dolog(LevelInfo, "[download request] %s/%s (s=%d l=%d)",
+    dolog(LevelInfo, "[download request] [%s] %s (s=%d l=%d)",
         d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
@@ -262,13 +262,13 @@ func (d *Download) do() {
 
         // call callbacks once the procedure has terminated
         if d.state == "success" {
-            dolog(LevelInfo, "[download finished] %s/%s (s=%d l=%d)",
+            dolog(LevelInfo, "[download finished] [%s] %s (s=%d l=%d)",
                 d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
             if d.client.OnDownloadSuccessful != nil {
                 d.client.OnDownloadSuccessful(d)
             }
         } else {
-            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Peer.Nick, dcReadableQuery(d.query))
+            dolog(LevelInfo, "[download failed] [%s] %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
             if d.client.OnDownloadError != nil {
                 d.client.OnDownloadError(d)
             }

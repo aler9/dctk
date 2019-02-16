@@ -77,82 +77,79 @@ func newProtocolNmdc(remoteLabel string, nconn net.Conn,
 
 func (p *protocolNmdc) Read() (msgDecodable,error) {
     if p.readBinary == false {
-        for {
-            msgStr,err := p.ReadMessage()
-            if err != nil {
-                return nil,err
-            }
-
-            // allow but skip empty messages
-            if len(msgStr) == 0 {
-                continue
-            }
-
-            msg,err := func() (msgDecodable,error) {
-                if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
-                    key, args := matches[1], matches[3]
-
-                    cmd := func() msgNmdcCommandDecodable {
-                        switch key {
-                        case "ADCGET": return &msgNmdcAdcGet{}
-                        case "ADCSND": return &msgNmdcAdcSnd{}
-                        case "BadPass": return &msgNmdcBadPassword{}
-                        case "BotList": return &msgNmdcBotList{}
-                        case "ConnectToMe": return &msgNmdcConnectToMe{}
-                        case "Direction": return &msgNmdcDirection{}
-                        case "Error": return &msgNmdcError{}
-                        case "ForceMove": return &msgNmdcForceMove{}
-                        case "GetPass": return &msgNmdcGetPass{}
-                        case "Hello": return &msgNmdcHello{}
-                        case "HubName": return &msgNmdcHubName{}
-                        case "HubIsFull": return &msgNmdcHubIsFull{}
-                        case "HubTopic": return &msgNmdcHubTopic{}
-                        case "Key": return &msgNmdcKey{}
-                        case "Lock": return &msgNmdcLock{}
-                        case "LogedIn": return &msgNmdcLoggedIn{}
-                        case "MaxedOut": return &msgNmdcMaxedOut{}
-                        case "MyINFO": return &msgNmdcMyInfo{}
-                        case "MyNick": return &msgNmdcMyNick{}
-                        case "OpList": return &msgNmdcOpList{}
-                        case "Quit": return &msgNmdcQuit{}
-                        case "RevConnectToMe": return &msgNmdcRevConnectToMe{}
-                        case "Search": return &msgNmdcSearchRequest{}
-                        case "SR": return &msgNmdcSearchResult{}
-                        case "Supports": return &msgNmdcSupports{}
-                        case "UserCommand": return &msgNmdcUserCommand{}
-                        case "UserIP": return &msgNmdcUserIp{}
-                        case "ValidateDenide": return &msgNmdcValidateDenide{}
-                        case "ZOn": return &msgNmdcZon{}
-                        }
-                        return nil
-                    }()
-                    if cmd == nil {
-                        return nil, fmt.Errorf("unrecognized command")
-                    }
-
-                    err := cmd.NmdcDecode(args)
-                    if err != nil {
-                        return nil, fmt.Errorf("unable to decode arguments")
-                    }
-                    return cmd, nil
-
-                } else if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
-                    return &msgNmdcPublicChat{ Author: matches[1], Content: matches[2] }, nil
-
-                } else if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
-                    return &msgNmdcPrivateChat{ Author: matches[3], Content: matches[4] }, nil
-
-                } else {
-                    return nil, fmt.Errorf("unknown sequence")
-                }
-            }()
-            if err != nil {
-                return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
-            }
-
-            dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
-            return msg, nil
+        msgStr,err := p.ReadMessage()
+        if err != nil {
+            return nil,err
         }
+
+        msg,err := func() (msgDecodable,error) {
+            if len(msgStr) == 0 {
+                return &msgNmdcKeepAlive{}, nil
+
+            } else if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
+                key, args := matches[1], matches[3]
+
+                cmd := func() msgNmdcCommandDecodable {
+                    switch key {
+                    case "ADCGET": return &msgNmdcAdcGet{}
+                    case "ADCSND": return &msgNmdcAdcSnd{}
+                    case "BadPass": return &msgNmdcBadPassword{}
+                    case "BotList": return &msgNmdcBotList{}
+                    case "ConnectToMe": return &msgNmdcConnectToMe{}
+                    case "Direction": return &msgNmdcDirection{}
+                    case "Error": return &msgNmdcError{}
+                    case "ForceMove": return &msgNmdcForceMove{}
+                    case "GetPass": return &msgNmdcGetPass{}
+                    case "Hello": return &msgNmdcHello{}
+                    case "HubName": return &msgNmdcHubName{}
+                    case "HubIsFull": return &msgNmdcHubIsFull{}
+                    case "HubTopic": return &msgNmdcHubTopic{}
+                    case "Key": return &msgNmdcKey{}
+                    case "Lock": return &msgNmdcLock{}
+                    case "LogedIn": return &msgNmdcLoggedIn{}
+                    case "MaxedOut": return &msgNmdcMaxedOut{}
+                    case "MyINFO": return &msgNmdcMyInfo{}
+                    case "MyNick": return &msgNmdcMyNick{}
+                    case "OpList": return &msgNmdcOpList{}
+                    case "Quit": return &msgNmdcQuit{}
+                    case "RevConnectToMe": return &msgNmdcRevConnectToMe{}
+                    case "Search": return &msgNmdcSearchRequest{}
+                    case "SR": return &msgNmdcSearchResult{}
+                    case "Supports": return &msgNmdcSupports{}
+                    case "UserCommand": return &msgNmdcUserCommand{}
+                    case "UserIP": return &msgNmdcUserIp{}
+                    case "ValidateDenide": return &msgNmdcValidateDenide{}
+                    case "ZOn": return &msgNmdcZon{}
+                    }
+                    return nil
+                }()
+                if cmd == nil {
+                    return nil, fmt.Errorf("unrecognized command")
+                }
+
+                err := cmd.NmdcDecode(args)
+                if err != nil {
+                    return nil, fmt.Errorf("unable to decode arguments")
+                }
+                return cmd, nil
+
+            } else if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
+                return &msgNmdcPublicChat{ Author: matches[1], Content: matches[2] }, nil
+
+            } else if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
+                return &msgNmdcPrivateChat{ Author: matches[3], Content: matches[4] }, nil
+
+            } else {
+                return nil, fmt.Errorf("unknown sequence")
+            }
+        }()
+        if err != nil {
+            return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
+        }
+
+        dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+        return msg, nil
+
     } else {
         buf,err := p.ReadBinary()
         if err != nil {
@@ -344,6 +341,12 @@ type msgNmdcGetPass struct {}
 
 func (m *msgNmdcGetPass) NmdcDecode(args string) error {
     return nil
+}
+
+type msgNmdcKeepAlive struct{}
+
+func (m *msgNmdcKeepAlive) NmdcEncode() string {
+    return "|"
 }
 
 type msgNmdcHello struct {}
@@ -623,7 +626,7 @@ func (m *msgNmdcSearchRequest) NmdcEncode() string {
 type msgNmdcSearchResult struct {
     Path            string
     IsDir           bool
-    Size            uint64 // file only
+    Size            uint64 // file only, also directory in ADC
     TTH             string // file only
     Nick            string
     SlotAvail       uint

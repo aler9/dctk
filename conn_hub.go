@@ -53,6 +53,10 @@ func (h *connHub) terminate() {
 func (h *connHub) do() {
     defer h.client.wg.Done()
 
+    keepaliveCreated := false
+    keepaliveTerminate := make(chan struct{}, 1)
+    keepaliveJoined := make(chan struct{}, 1)
+
     err := func() error {
         var rawconn net.Conn
         var err error
@@ -78,14 +82,6 @@ func (h *connHub) do() {
             return err
         }
 
-        // activate TCP keepalive
-        if err := rawconn.(*net.TCPConn).SetKeepAlive(true); err != nil {
-            return err
-        }
-        if err := rawconn.(*net.TCPConn).SetKeepAlivePeriod(60 * time.Second); err != nil {
-            return err
-        }
-
         if h.client.hubIsEncrypted == true {
             rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
         }
@@ -96,6 +92,25 @@ func (h *connHub) do() {
         } else {
             h.conn = newProtocolNmdc("h", rawconn, false, true)
         }
+
+        // periodically send keepalives
+        keepaliveCreated = true
+        go func() {
+            defer func() { keepaliveJoined <- struct{}{} }()
+            ticker := time.NewTicker(120 * time.Second)
+            defer ticker.Stop()
+            for {
+                select {
+                case <- ticker.C:
+                    if h.client.protoIsAdc == true {
+                    } else {
+                        h.conn.Write(&msgNmdcKeepAlive{})
+                    }
+                case <- keepaliveTerminate:
+                    break
+                }
+            }
+        }()
 
         exit := false
         h.client.Safe(func() {
@@ -150,6 +165,11 @@ func (h *connHub) do() {
             if h.client.OnHubError != nil {
                 h.client.OnHubError(err)
             }
+        }
+
+        if keepaliveCreated == true {
+            keepaliveTerminate <- struct{}{}
+            <- keepaliveJoined
         }
 
         dolog(LevelInfo, "[hub disconnected]")
@@ -350,6 +370,8 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("revconnecttome with unknown author")
         }
         h.client.handlePeerRevConnectToMe(p)
+
+    case *msgNmdcKeepAlive:
 
     case *msgNmdcLock:
         if h.state != "connected" {
