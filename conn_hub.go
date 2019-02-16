@@ -114,9 +114,14 @@ func (h *connHub) do() {
         if h.client.protoIsAdc == true {
             h.conn.Write(&msgAdcHSupports{
                 msgAdcTypeH{},
-                msgAdcKeySupports{
-                    Features: []string{ "ADBAS0", "ADBASE", "ADTIGR", "ADUCM0", "ADBLO0", "ADZLIF"},
-                },
+                msgAdcKeySupports{ map[string]struct{}{
+                     "ADBAS0": struct{}{},
+                     "ADBASE": struct{}{},
+                     "ADTIGR": struct{}{},
+                     "ADUCM0": struct{}{},
+                     "ADBLO0": struct{}{},
+                     "ADZLIF": struct{}{},
+                } },
             })
         }
 
@@ -163,6 +168,11 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
     }
 
     switch msg := rawmsg.(type) {
+    case *msgAdcIStatus:
+        if msg.Code != 0 {
+            return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
+        }
+
     case *msgAdcISupports:
         if h.state != "connected" {
             return fmt.Errorf("[Supports] invalid state: %s", h.state)
@@ -211,11 +221,6 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             msgAdcKeyPass{ Data: data },
         })
 
-    case *msgAdcIStatus:
-        if msg.Code != 0 {
-            return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
-        }
-
     case *msgAdcBInfos:
         exists := true
         p := h.client.peerBySessionId(msg.SessionId)
@@ -226,7 +231,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             if _,ok := msg.Fields[adcFieldName]; !ok {
                 return fmt.Errorf("adcFieldName not sent")
             }
-            if _,ok := h.client.peers[msg.Fields[adcFieldName]]; ok {
+            if h.client.peerByNick(msg.Fields[adcFieldName]) != nil {
                 return fmt.Errorf("trying to create already-existent peer")
             }
 
@@ -234,7 +239,6 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
                 Nick: msg.Fields[adcFieldName],
                 adcSessionId: msg.SessionId,
             }
-            h.client.peers[p.Nick] = p
         }
 
         for key,val := range msg.Fields {
@@ -270,18 +274,11 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
                 p.IsPassive = false
             }
         }
-        fmt.Println("passive", p.IsPassive)
 
         if exists == false {
-            dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
-            if h.client.OnPeerConnected != nil {
-                h.client.OnPeerConnected(p)
-            }
-
+            h.client.handlePeerConnected(p)
         } else {
-            if h.client.OnPeerUpdated != nil {
-                h.client.OnPeerUpdated(p)
-            }
+            h.client.handlePeerUpdated(p)
         }
 
     case *msgAdcIQuit:
@@ -291,21 +288,9 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
 
         // peer quit
         } else {
-            // solve session id
-            p := func() *Peer {
-                for _,p := range h.client.peers {
-                    if p.adcSessionId == msg.SessionId {
-                        return p
-                    }
-                }
-                return nil
-            }()
+            p := h.client.peerBySessionId(msg.SessionId)
             if p != nil {
-                delete(h.client.peers, p.Nick)
-                dolog(LevelInfo, "[peer off] %s", p.Nick)
-                if h.client.OnPeerDisconnected != nil {
-                    h.client.OnPeerDisconnected(p)
-                }
+                h.client.handlePeerDisconnected(p)
             }
         }
 
@@ -324,23 +309,17 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         if p == nil {
             return fmt.Errorf("private message with unknown author")
         }
-        dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnMessagePublic != nil {
-            h.client.OnMessagePublic(p, msg.Content)
-        }
+        h.client.handlePublicMessage(p, msg.Content)
 
     case *msgAdcDMessage:
         p := h.client.peerBySessionId(msg.AuthorId)
         if p == nil {
             return fmt.Errorf("private message with unknown author")
         }
-        dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnMessagePrivate != nil {
-            h.client.OnMessagePrivate(p, msg.Content)
-        }
+        h.client.handlePrivateMessage(p, msg.Content)
 
     case *msgAdcBSearchRequest:
-        h.client.onAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+        h.client.handleAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
 
     case *msgAdcFSearchRequest:
         if _,ok := msg.RequiredFeatures["TCP4"]; ok {
@@ -349,18 +328,28 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
                 return nil
             }
         }
-        h.client.onAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+        h.client.handleAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
 
     case *msgAdcDSearchResult:
         p := h.client.peerBySessionId(msg.AuthorId)
         if p == nil {
             return fmt.Errorf("search result with unknown author")
         }
-        sr := adcMsgToSearchResult(false, p, &msg.msgAdcKeySearchResult)
-        dolog(LevelInfo, "[search res] %+v", sr)
-        if h.client.OnSearchResult != nil {
-            h.client.OnSearchResult(sr)
+        h.client.handleSearchResult(adcMsgToSearchResult(false, p, &msg.msgAdcKeySearchResult))
+
+    case *msgAdcDConnectToMe:
+        p := h.client.peerBySessionId(msg.AuthorId)
+        if p == nil {
+            return fmt.Errorf("connecttome with unknown author")
         }
+        newConnPeer(h.client, false, false, nil, p.Ip, msg.TcpPort, msg.Token)
+
+    case *msgAdcDRevConnectToMe:
+        p := h.client.peerBySessionId(msg.AuthorId)
+        if p == nil {
+            return fmt.Errorf("revconnecttome with unknown author")
+        }
+        h.client.handlePeerRevConnectToMe(p)
 
     case *msgNmdcLock:
         if h.state != "connected" {
@@ -374,7 +363,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         if h.client.conf.HubDisableCompression == false {
             hubSupports = append(hubSupports, "ZPipe0")
         }
-        // this must be provided, otherwise the final S is stripped from connectToMe
+        // this must be provided, otherwise the final S is stripped from ConnectToMe
         if h.client.conf.PeerEncryptionMode != DisableEncryption {
             hubSupports = append(hubSupports, "TLS")
         }
@@ -463,10 +452,11 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         if h.state != "preinitialized" && h.state != "initialized" {
             return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
         }
-        p,exists := h.client.peers[msg.Nick]
-        if exists == false {
+        exists := true
+        p := h.client.peerByNick(msg.Nick)
+        if p == nil {
+            exists = false
             p = &Peer{ Nick: msg.Nick }
-            h.client.peers[p.Nick] = p
         }
 
         p.Description = msg.Description
@@ -485,15 +475,9 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         }
 
         if exists == false {
-            dolog(LevelInfo, "[peer on] %s (%v)", p.Nick, p.ShareSize)
-            if h.client.OnPeerConnected != nil {
-                h.client.OnPeerConnected(p)
-            }
-
+            h.client.handlePeerConnected(p)
         } else {
-            if h.client.OnPeerUpdated != nil {
-                h.client.OnPeerUpdated(p)
-            }
+            h.client.handlePeerUpdated(p)
         }
 
     case *msgNmdcUserIp:
@@ -505,11 +489,10 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         // ips of other peers
         for peer,ip := range msg.Ips {
             // update peer
-            if p,ok := h.client.peers[peer]; ok {
+            p := h.client.peerByNick(peer)
+            if p != nil {
                 p.Ip = ip
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
+                h.client.handlePeerUpdated(p)
             }
         }
 
@@ -518,23 +501,11 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("[OpList] invalid state: %s", h.state)
         }
 
-        // reset operators
         for _,p := range h.client.peers {
-            if p.IsOperator == true {
-                p.IsOperator = false
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
-            }
-        }
-
-        // import new operators
-        for _,op := range msg.Ops {
-            if p,ok := h.client.peers[op]; ok {
-                p.IsOperator = true
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
+            _,isOp := msg.Ops[p.Nick]
+            if isOp != p.IsOperator {
+                p.IsOperator = isOp
+                h.client.handlePeerUpdated(p)
             }
         }
 
@@ -547,47 +518,31 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
             }
         }
 
-    case *msgNmdcUserCommand:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
-        }
-
     case *msgNmdcBotList:
         if h.state != "initialized" {
             return fmt.Errorf("[BotList] invalid state: %s", h.state)
         }
 
-        // reset bots
         for _,p := range h.client.peers {
-            if p.IsBot == true {
-                p.IsBot = false
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
+            _,isBot := msg.Bots[p.Nick]
+            if isBot != p.IsBot {
+                p.IsBot = isBot
+                h.client.handlePeerUpdated(p)
             }
         }
 
-        // import new bots
-        for _,bot := range msg.Bots {
-            if p,ok := h.client.peers[bot]; ok {
-                p.IsBot = true
-                if h.client.OnPeerUpdated != nil {
-                    h.client.OnPeerUpdated(p)
-                }
-            }
+    case *msgNmdcUserCommand:
+        if h.state != "preinitialized" && h.state != "initialized" {
+            return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
         }
 
     case *msgNmdcQuit:
         if h.state != "initialized" {
             return fmt.Errorf("[Quit] invalid state: %s", h.state)
         }
-        p,ok := h.client.peers[msg.Nick]
-        if ok {
-            delete(h.client.peers, p.Nick)
-            dolog(LevelInfo, "[peer off] %s", p.Nick)
-            if h.client.OnPeerDisconnected != nil {
-                h.client.OnPeerDisconnected(p)
-            }
+        p := h.client.peerByNick(msg.Nick)
+        if p != nil {
+            h.client.handlePeerDisconnected(p)
         }
 
     case *msgNmdcForceMove:
@@ -598,21 +553,16 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
     case *msgNmdcSearchRequest:
         // searches can be received even before initialization; ignore them
         if h.state == "initialized" {
-            h.client.onNmdcSearchRequest(msg)
+            h.client.handleNmdcSearchRequest(msg)
         }
 
     case *msgNmdcSearchResult:
         if h.state != "initialized" {
             return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
         }
-        p,ok := h.client.peers[msg.Nick]
-        if ok == false {
-            return nil
-        }
-        sr := nmdcMsgToSearchResult(false, p, msg)
-        dolog(LevelInfo, "[search res] %+v", sr)
-        if h.client.OnSearchResult != nil {
-            h.client.OnSearchResult(sr)
+        p := h.client.peerByNick(msg.Nick)
+        if p != nil {
+            h.client.handleSearchResult(nmdcMsgToSearchResult(false, p, msg))
         }
 
     case *msgNmdcConnectToMe:
@@ -624,37 +574,31 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         } else if msg.Encrypted == false && h.client.conf.PeerEncryptionMode == ForceEncryption {
             dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
         } else {
-            newConnPeer(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port)
+            newConnPeer(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port, "")
         }
 
     case *msgNmdcRevConnectToMe:
         if h.state != "initialized" && h.state != "preinitialized" {
             return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
         }
-        // we can process RevConnectToMe only in active mode
-        if h.client.conf.IsPassive == false {
-            h.client.connectToMe(msg.Author)
+        p := h.client.peerByNick(msg.Author)
+        if p != nil {
+            h.client.handlePeerRevConnectToMe(p)
         }
 
     case *msgNmdcPublicChat:
-        p := h.client.peers[msg.Author]
+        p := h.client.peerByNick(msg.Author)
         if p == nil { // create a dummy peer if not found
             p = &Peer{ Nick: msg.Author }
         }
-        dolog(LevelInfo, "[PUB] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnMessagePublic != nil {
-            h.client.OnMessagePublic(p, msg.Content)
-        }
+        h.client.handlePublicMessage(p, msg.Content)
 
     case *msgNmdcPrivateChat:
-        p := h.client.peers[msg.Author]
+        p := h.client.peerByNick(msg.Author)
         if p == nil { // create a dummy peer if not found
             p = &Peer{ Nick: msg.Author }
         }
-        dolog(LevelInfo, "[PRIV] <%s> %s", p.Nick, msg.Content)
-        if h.client.OnMessagePrivate != nil {
-            h.client.OnMessagePrivate(p, msg.Content)
-        }
+        h.client.handlePrivateMessage(p, msg.Content)
 
     default:
         return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)

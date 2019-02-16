@@ -4,6 +4,7 @@ import (
     "fmt"
     "net"
     "strings"
+    "math/rand"
 )
 
 type SearchType int
@@ -14,6 +15,11 @@ const (
     SearchDirectory
     // search for a file by TTH
     SearchTTH
+)
+
+const (
+    adcSearchFile       = "1"
+    adcSearchDirectory  = "2"
 )
 
 type nmdcSearchType int
@@ -29,6 +35,51 @@ const (
     nmdcSearchTypeDirectory   nmdcSearchType = 8
     nmdcSearchTypeTTH         nmdcSearchType = 9
 )
+
+func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult) *SearchResult {
+    sr := &SearchResult{
+        IsActive: isActive,
+        Peer: peer,
+    }
+    for key,val := range msg.Fields {
+        switch key {
+        case adcFieldFilePath: sr.Path = val
+        case adcFieldFileSize: sr.Size = atoui64(val)
+        case adcFieldFileTTH:
+            if val == dirTTH {
+                sr.IsDir = true
+            } else {
+                sr.TTH = val
+            }
+        case adcFieldUploadSlotCount: sr.SlotAvail = atoui(val)
+        }
+    }
+    if sr.IsDir == true {
+        sr.Path = strings.TrimSuffix(sr.Path, "/")
+    }
+    return sr
+}
+
+func adcRandomSearchToken() string {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    buf := make([]byte, 10)
+    for i,_ := range buf {
+        buf[i] = chars[rand.Intn(len(chars))]
+    }
+    return string(buf)
+}
+
+func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) *SearchResult {
+    return &SearchResult{
+        IsActive: isActive,
+        Peer: peer,
+        Path: msg.Path,
+        SlotAvail: msg.SlotAvail,
+        Size: msg.Size,
+        TTH: msg.TTH,
+        IsDir: msg.IsDir,
+    }
+}
 
 func nmdcSearchEscape(in string) string {
     return strings.Replace(in, " ", "$", -1)
@@ -67,6 +118,14 @@ type SearchConf struct {
     Query       string
 }
 
+type searchRequest struct {
+    stype       SearchType
+    query       string
+    minSize     uint64
+    maxSize     uint64
+    isActive    bool
+}
+
 // Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
     if conf.Type == SearchTTH && TTHIsValid(conf.Query) == false {
@@ -74,7 +133,22 @@ func (c *Client) Search(conf SearchConf) error {
     }
 
     if c.protoIsAdc == true {
-        fields := map[string]string{}
+        fields := make(map[string]string)
+
+        // always add token even if we're not using it
+        fields[adcFieldToken] = adcRandomSearchToken()
+
+        switch conf.Type {
+        case SearchAny:
+            fields[adcFieldQueryAnd] = conf.Query
+
+        case SearchDirectory:
+            fields[adcFieldIsFileOrFolder] = adcSearchDirectory
+            fields[adcFieldQueryAnd] = conf.Query
+
+        case SearchTTH:
+            fields[adcFieldFileTTH] = conf.Query
+        }
 
         if conf.MaxSize != 0 {
             fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
@@ -83,40 +157,29 @@ func (c *Client) Search(conf SearchConf) error {
             fields[adcFieldMinSize] = numtoa(conf.MinSize)
         }
 
-        switch conf.Type {
-        case SearchAny:
-            fields[adcFieldQuery] = conf.Query
-
-        case SearchDirectory:
-            fields[adcFieldIsFileOrFolder] = "2"
-            fields[adcFieldQuery] = conf.Query
-
-        case SearchTTH:
-            fields[adcFieldFileTTH] = conf.Query
-        }
-
         requiredFeatures := make(map[string]struct{})
 
-        if c.conf.IsPassive == false {
+        // if we're passive, require that the recipient is active
+        if c.conf.IsPassive == true {
             requiredFeatures["TCP4"] = struct{}{}
         }
 
         if len(requiredFeatures) > 0 {
             c.connHub.conn.Write(&msgAdcFSearchRequest{
                 msgAdcTypeF{ SessionId: c.sessionId, RequiredFeatures: requiredFeatures },
-                msgAdcKeySearchRequest{ Fields: fields },
+                msgAdcKeySearchRequest{ fields },
             })
 
         } else {
             c.connHub.conn.Write(&msgAdcBSearchRequest{
                 msgAdcTypeB{ c.sessionId },
-                msgAdcKeySearchRequest{ Fields: fields },
+                msgAdcKeySearchRequest{ fields },
             })
         }
 
     } else {
         if conf.MaxSize != 0 && conf.MinSize != 0 {
-            return fmt.Errorf("max size and min size cannot be used together")
+            return fmt.Errorf("max size and min size cannot be used together in NMDC")
         }
 
         c.connHub.conn.Write(&msgNmdcSearchRequest{
@@ -153,15 +216,7 @@ func (c *Client) Search(conf SearchConf) error {
     return nil
 }
 
-type searchRequest struct {
-    stype       SearchType
-    query       string
-    minSize     uint64
-    maxSize     uint64
-    isActive    bool
-}
-
-func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
+func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
     var peer *Peer
     results,err := func() ([]interface{}, error) {
         peer = c.peerBySessionId(authorSessionId)
@@ -175,27 +230,35 @@ func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearch
         if _,ok := req.Fields[adcFieldFileExcludeExtens]; ok {
             return nil, fmt.Errorf("search by type is not supported")
         }
+        if _,ok := req.Fields[adcFieldFileQueryOr]; ok {
+            return nil, fmt.Errorf("search by query OR is not supported")
+        }
+        if _,ok := req.Fields[adcFieldFileExactSize]; ok {
+            return nil, fmt.Errorf("search by exact size is not supported")
+        }
         if _,ok := req.Fields[adcFieldFileExtension]; ok {
             return nil, fmt.Errorf("search by extension is not supported")
         }
         if _,ok := req.Fields[adcFieldIsFileOrFolder]; ok {
-            if req.Fields[adcFieldIsFileOrFolder] != "2" {
+            if req.Fields[adcFieldIsFileOrFolder] != adcSearchDirectory {
                 return nil, fmt.Errorf("search file only is not supported")
             }
         }
-        if _,ok := req.Fields[adcFieldQuery]; !ok {
+        if _,ok := req.Fields[adcFieldQueryAnd]; !ok {
             if _,ok := req.Fields[adcFieldFileTTH]; !ok {
                 return nil, fmt.Errorf("AN or TR is required")
             }
         }
 
-        return c.onSearchRequest(&searchRequest{
+        return c.handleSearchRequest(&searchRequest{
             stype: func() SearchType {
                 if _,ok := req.Fields[adcFieldFileTTH]; ok {
                     return SearchTTH
                 }
                 if _,ok := req.Fields[adcFieldIsFileOrFolder]; ok {
-                    return SearchDirectory
+                    if req.Fields[adcFieldIsFileOrFolder] == adcSearchDirectory {
+                        return SearchDirectory
+                    }
                 }
                 return SearchAny
             }(),
@@ -203,7 +266,7 @@ func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearch
                 if _,ok := req.Fields[adcFieldFileTTH]; ok {
                     return req.Fields[adcFieldFileTTH]
                 }
-                return req.Fields[adcFieldQuery]
+                return req.Fields[adcFieldQueryAnd]
             }(),
             minSize: func() uint64 {
                 if val,ok := req.Fields[adcFieldMinSize]; ok {
@@ -238,14 +301,15 @@ func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearch
             fields[adcFieldFileSize] = numtoa(o.size)
 
         case *shareDirectory:
+            // if directory, add a trailing slash
             fields[adcFieldFilePath] = o.aliasPath + "/"
             fields[adcFieldFileTTH] = dirTTH
             fields[adcFieldFileSize] = numtoa(o.size)
         }
 
-        // add search id if sent by author
-        if val,ok := req.Fields[adcFieldSearchId]; ok {
-            fields[adcFieldSearchId] = val
+        // add token if sent by author
+        if val,ok := req.Fields[adcFieldToken]; ok {
+            fields[adcFieldToken] = val
         }
 
         msgs = append(msgs, &msgAdcKeySearchResult{ Fields: fields })
@@ -280,7 +344,7 @@ func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearch
     }
 }
 
-func (c *Client) onNmdcSearchRequest(req *msgNmdcSearchRequest) {
+func (c *Client) handleNmdcSearchRequest(req *msgNmdcSearchRequest) {
     results,err := func() ([]interface{}, error) {
         // we do not support search by type
         if _,ok := map[nmdcSearchType]struct{}{
@@ -294,7 +358,7 @@ func (c *Client) onNmdcSearchRequest(req *msgNmdcSearchRequest) {
             return nil, fmt.Errorf("invalid TTH: %v", req.Query)
         }
 
-        return c.onSearchRequest(&searchRequest{
+        return c.handleSearchRequest(&searchRequest{
             stype: func() SearchType {
                 switch req.Type {
                 case nmdcSearchTypeAny: return SearchAny
@@ -374,7 +438,7 @@ func (c *Client) onNmdcSearchRequest(req *msgNmdcSearchRequest) {
     }
 }
 
-func (c *Client) onSearchRequest(req *searchRequest) ([]interface{},error) {
+func (c *Client) handleSearchRequest(req *searchRequest) ([]interface{},error) {
     if len(req.query) < 3 {
         return nil, fmt.Errorf("query too short: %s", req.query)
     }
@@ -453,4 +517,11 @@ func (c *Client) onSearchRequest(req *searchRequest) ([]interface{},error) {
 
     dolog(LevelInfo, "[search req] %+v | sent %d results", req, len(results))
     return results, nil
+}
+
+func (c *Client) handleSearchResult(sr *SearchResult) {
+    dolog(LevelInfo, "[search res] %+v", sr)
+    if c.OnSearchResult != nil {
+        c.OnSearchResult(sr)
+    }
 }

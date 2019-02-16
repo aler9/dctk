@@ -71,7 +71,7 @@ func client2() {
         switch step {
         case 0:
             if res.IsDir == true && res.Path == "/aliasname/inner folder" &&
-                res.TTH == "" && res.Size == 0 &&
+                res.TTH == "" && // res.Size for folders is provided by ADC, not provided by NMDC
                 res.IsActive == true {
                 step++
                 client.Search(dctk.SearchConf{

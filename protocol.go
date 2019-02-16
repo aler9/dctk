@@ -137,7 +137,7 @@ func (c *protocolBase) Terminate() {
     c.terminated = true
     c.netReadWriter.Close()
 
-    if c.readBinary == false {
+    if c.syncMode == false {
         close(c.sendChan)
         <- c.writerJoined
     }
@@ -150,7 +150,7 @@ func (c *protocolBase) SetSyncMode(val bool) {
     c.syncMode = val
 
     if val == true {
-        close(c.sendChan) // join writer
+        close(c.sendChan)
         <- c.writerJoined
 
     } else {

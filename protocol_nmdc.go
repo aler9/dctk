@@ -23,18 +23,6 @@ var reNmdcCmdSearchResult = regexp.MustCompile("^("+reStrNick+") ([^\x05]+?)(\x0
 var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
 var reNmdcCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
 
-func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) *SearchResult {
-    return &SearchResult{
-        IsActive: isActive,
-        Peer: peer,
-        Path: msg.Path,
-        SlotAvail: msg.SlotAvail,
-        Size: msg.Size,
-        TTH: msg.TTH,
-        IsDir: msg.IsDir,
-    }
-}
-
 // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_key
 // https://web.archive.org/web/20150529002427/http://wiki.gusari.org/index.php?title=LockToKey%28%29
 func nmdcComputeKey(lock []byte) []byte {
@@ -261,12 +249,13 @@ func (c *msgNmdcBinary) NmdcEncode() string {
 }
 
 type msgNmdcBotList struct {
-    Bots []string
+    Bots map[string]struct{}
 }
 
 func (m *msgNmdcBotList) NmdcDecode(args string) error {
+    m.Bots = make(map[string]struct{})
     for _,bot := range strings.Split(strings.TrimSuffix(args, "$$"), "$$") {
-        m.Bots = append(m.Bots, bot)
+        m.Bots[bot] = struct{}{}
     }
     return nil
 }
@@ -475,12 +464,13 @@ func (m *msgNmdcMyPass) NmdcEncode() string {
 }
 
 type msgNmdcOpList struct {
-    Ops []string
+    Ops map[string]struct{}
 }
 
 func (m *msgNmdcOpList) NmdcDecode(args string) error {
+    m.Ops = make(map[string]struct{})
     for _,op := range strings.Split(strings.TrimSuffix(args, "$$"), "$$") {
-        m.Ops = append(m.Ops, op)
+        m.Ops[op] = struct{}{}
     }
     return nil
 }

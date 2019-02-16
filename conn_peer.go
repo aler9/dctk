@@ -20,6 +20,7 @@ type connPeer struct {
     wakeUp              chan struct{}
     state               string
     conn                protocol
+    adcToken            string
     passiveIp           string
     passivePort         uint
     remoteNick          string
@@ -33,12 +34,13 @@ type connPeer struct {
 }
 
 func newConnPeer(client *Client, isEncrypted bool, isActive bool,
-    rawconn net.Conn, ip string, port uint) *connPeer {
+    rawconn net.Conn, ip string, port uint, adcToken string) *connPeer {
     p := &connPeer{
         client: client,
         isEncrypted: isEncrypted,
         isActive: isActive,
         wakeUp: make(chan struct{}, 1),
+        adcToken: adcToken,
     }
     p.client.connPeers[p] = struct{}{}
 
@@ -146,11 +148,26 @@ func (p *connPeer) do() {
                 return err
             }
 
-            // if transfer is passive, we are the first to send MyNick and Lock
-            p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.Write(&msgNmdcLock{ Values: []string{fmt.Sprintf(
-                "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
-                p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
+            // if transfer is passive, we are the first to talk
+            if p.client.protoIsAdc == true {
+                p.conn.Write(&msgAdcCSupports{
+                    msgAdcTypeC{},
+                    msgAdcKeySupports{ map[string]struct{}{
+                        "CSUP": struct{}{},
+                        "ADBAS0": struct{}{},
+                        "ADBASE": struct{}{},
+                        "ADTIGR": struct{}{},
+                        "ADBZIP": struct{}{},
+                        "ADZLIG": struct{}{},
+                    } },
+                })
+
+            } else {
+                p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
+                p.conn.Write(&msgNmdcLock{ Values: []string{fmt.Sprintf(
+                    "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
+                    p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
+            }
         }
 
         for {
@@ -202,6 +219,50 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
     }
 
     switch msg := rawmsg.(type) {
+    case *msgAdcCStatus:
+        if msg.Code != 0 {
+            return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
+        }
+
+    case *msgAdcCSupports:
+        if p.state != "connected" {
+            return fmt.Errorf("[Supports] invalid state: %s", p.state)
+        }
+        p.state = "supports"
+        if p.isActive == true {
+            p.conn.Write(&msgAdcCSupports{
+                msgAdcTypeC{},
+                msgAdcKeySupports{ map[string]struct{}{
+                    "CSUP": struct{}{},
+                    "ADBAS0": struct{}{},
+                    "ADBASE": struct{}{},
+                    "ADTIGR": struct{}{},
+                    "ADBZIP": struct{}{},
+                    "ADZLIG": struct{}{},
+                } },
+            })
+        } else {
+            p.conn.Write(&msgAdcCInfos{
+                msgAdcTypeC{},
+                msgAdcKeyInfos{ map[string]string{
+                    adcFieldClientId: dcBase32Encode(p.client.clientId),
+                    adcFieldToken: p.adcToken,
+                } },
+            })
+        }
+
+    case *msgAdcCInfos:
+        if p.state != "supports" {
+            return fmt.Errorf("[Infos] invalid state: %s", p.state)
+        }
+        p.state = "infos"
+        if p.isActive == true {
+            p.conn.Write(&msgAdcCInfos{
+                msgAdcTypeC{},
+                msgAdcKeyInfos{ map[string]string{ adcFieldClientId: dcBase32Encode(p.client.clientId) } },
+            })
+        }
+
     case *msgNmdcMyNick:
         if p.state != "connected" {
             return fmt.Errorf("[MyNick] invalid state: %s", p.state)
@@ -302,12 +363,11 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
                     }
                     return false
                 }()
-                if isPendingDownload {
+                if isPendingDownload == true {
                     // request another peer connection
-                    if p.client.conf.IsPassive == false {
-                        p.client.connectToMe(p.remoteNick)
-                    } else {
-                        p.client.revConnectToMe(p.remoteNick)
+                    peer := p.client.peerByNick(p.remoteNick)
+                    if peer != nil {
+                        p.client.peerRequestConnection(peer)
                     }
                 }
 
