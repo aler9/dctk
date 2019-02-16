@@ -13,6 +13,7 @@ import (
 )
 
 const reStrNick = "[^\\$ \\|\n]+"
+const reStrAddress = "[a-z0-9\\.-_]+"
 const reStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 const reStrPort = "[0-9]{1,5}"
 const reStrTTH = "[A-Z0-9]{39}"
