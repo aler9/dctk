@@ -23,7 +23,7 @@ type connPeer struct {
     adcToken            string
     passiveIp           string
     passivePort         uint
-    remoteNick          string
+    peer                *Peer
     remoteLock          []byte
     localDirection      string
     localBet            uint
@@ -85,8 +85,8 @@ func (p *connPeer) terminate() {
     default:
         panic(fmt.Errorf("terminate() unsupported in state '%s'", p.state))
     }
-    if p.remoteNick != "" && p.direction != "" {
-        delete(p.client.connPeersByKey, nickDirectionPair{ p.remoteNick, p.direction })
+    if p.peer != nil && p.direction != "" {
+        delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
     }
     delete(p.client.connPeers, p)
     p.state = "terminated"
@@ -197,8 +197,8 @@ func (p *connPeer) do() {
 
         default:
             dolog(LevelInfo, "ERR (connPeer): %s", err)
-            if p.remoteNick != "" && p.direction != "" {
-                delete(p.client.connPeersByKey, nickDirectionPair{ p.remoteNick, p.direction })
+            if p.peer != nil && p.direction != "" {
+                delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
             }
             delete(p.client.connPeers, p)
         }
@@ -268,7 +268,10 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("[MyNick] invalid state: %s", p.state)
         }
         p.state = "mynick"
-        p.remoteNick = msg.Nick
+        p.peer = p.client.peerByNick(msg.Nick)
+        if p.peer == nil {
+            return fmt.Errorf("peer not connected to hub (%s)", msg.Nick)
+        }
 
     case *msgNmdcLock:
         if p.state != "mynick" {
@@ -292,7 +295,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
 
         // check if there's a pending download
         isPendingDownload := func() bool {
-            dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
+            dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
             if ok && dl.state == "waiting_peer" {
                 return true
             }
@@ -357,7 +360,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
 
                 // check if there's a pending download
                 isPendingDownload := func() bool {
-                    dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
+                    dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
                     if ok && dl.state == "waiting_peer" {
                         return true
                     }
@@ -365,7 +368,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
                 }()
                 if isPendingDownload == true {
                     // request another peer connection
-                    peer := p.client.peerByNick(p.remoteNick)
+                    peer := p.client.peerByNick(p.peer.Nick)
                     if peer != nil {
                         p.client.peerRequestConnection(peer)
                     }
@@ -379,7 +382,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
             return fmt.Errorf("double upload request")
         }
 
-        key := nickDirectionPair{ p.remoteNick, direction }
+        key := nickDirectionPair{ p.peer.Nick, direction }
 
         if _,ok := p.client.connPeersByKey[key]; ok {
             return fmt.Errorf("a connection with this peer and direction already exists")
@@ -397,7 +400,7 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
             p.state = "wait_download"
 
             dl := func() *Download {
-                dl,ok := p.client.activeDownloadsByPeer[p.remoteNick]
+                dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
                 if ok && dl.state == "waiting_peer" {
                     return dl
                 }

@@ -40,7 +40,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
         msg.Compress == true)
 
     dolog(LevelInfo, "[upload request] %s/%s (s=%d l=%d)",
-        pconn.remoteNick, dcReadableQuery(u.query), u.start, msg.Length)
+        pconn.peer.Nick, dcReadableQuery(u.query), u.start, msg.Length)
 
     // check available slots
     if u.client.uploadSlotAvail <= 0 {
@@ -212,7 +212,7 @@ func (u *upload) do() {
             u.pconn.state = "wait_upload"
 
         default:
-            dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.remoteNick, err)
+            dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
             delete(u.client.transfers, u)
             u.pconn.state = "wait_upload"
         }
@@ -225,10 +225,10 @@ func (u *upload) do() {
 
         if u.state == "success" {
             dolog(LevelInfo, "[upload finished] %s/%s (s=%d l=%d)",
-                u.pconn.remoteNick, dcReadableQuery(u.query), u.start, u.length)
+                u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
         } else {
             dolog(LevelInfo, "[upload failed] %s/%s",
-                u.pconn.remoteNick, dcReadableQuery(u.query))
+                u.pconn.peer.Nick, dcReadableQuery(u.query))
         }
     })
 }
