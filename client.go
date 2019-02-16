@@ -20,42 +20,6 @@ import (
 const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
 var rePublicIp = regexp.MustCompile("("+reStrIp+")")
 
-// Peer represents a client connected to a Hub.
-type Peer struct {
-    // peer nickname
-    Nick            string
-    // peer description, if provided
-    Description     string
-    // peer email, if provided
-    Email           string
-    // whether peer is a bot
-    IsBot           bool
-    // whether peer is a operator
-    IsOperator      bool
-    // client used by peer (in NMDC this could be hidden)
-    Client          string
-    // version of client (in NMDC this could be hidden)
-    Version         string
-    // overall size of files shared by peer
-    ShareSize       uint64
-    // whether peer is in passive mode (in NMDC this could be hidden)
-    IsPassive       bool
-    // peer ip, if sent by hub
-    Ip              string
-
-    adcSessionId    string
-    adcClientId     []byte
-    adcSupports     map[string]struct{}
-    adcUdpPort      uint
-    nmdcConnection  string
-    nmdcStatusByte  byte
-}
-
-func (p *Peer) supportTls() bool {
-    // we check only for bit 4
-    return (p.nmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
-}
-
 type transfer interface {
     isTransfer()
     terminate()
@@ -501,32 +465,6 @@ func (c *Client) sendInfos(firstTime bool) {
     }
 }
 
-func (c *Client) connectToMe(target string) {
-    p,ok := c.peers[target]
-    if !ok {
-        return
-    }
-
-    c.connHub.conn.Write(&msgNmdcConnectToMe{
-        Target: target,
-        Ip: c.ip,
-        Port: func() uint {
-            if c.conf.PeerEncryptionMode != DisableEncryption && p.supportTls() {
-                return c.conf.TcpTlsPort
-            }
-            return c.conf.TcpPort
-        }(),
-        Encrypted: (c.conf.PeerEncryptionMode != DisableEncryption && p.supportTls()),
-    })
-}
-
-func (c *Client) revConnectToMe(target string) {
-    c.connHub.conn.Write(&msgNmdcRevConnectToMe{
-        Author: c.conf.Nick,
-        Target: target,
-    })
-}
-
 // Safe is used to safely execute code outside the client context. It must be
 // used when interacting with the client outside the callbacks (i.e. inside a
 // parallel goroutine).
@@ -550,53 +488,4 @@ func (c *Client) DownloadCount() int {
         }
     }
     return count
-}
-
-// Peers returns a map containing all the peers connected to current hub.
-func (c *Client) Peers() map[string]*Peer {
-    return c.peers
-}
-
-func (c *Client) peerBySessionId(sessionId string) *Peer {
-    for _,p := range c.peers {
-        if p.adcSessionId == sessionId {
-            return p
-        }
-    }
-    return nil
-}
-
-func (c *Client) peerByClientId(clientId []byte) *Peer {
-    for _,p := range c.peers {
-        if string(p.adcClientId) == string(clientId) {
-            return p
-        }
-    }
-    return nil
-}
-
-// MessagePublic publishes a message in the hub public chat.
-func (c *Client) MessagePublic(content string) {
-    if c.protoIsAdc == true {
-        c.connHub.conn.Write(&msgAdcBMessage{
-            msgAdcTypeB{ c.sessionId },
-            msgAdcKeyMessage{ Content: content },
-        })
-
-    } else {
-        c.connHub.conn.Write(&msgNmdcPublicChat{ c.conf.Nick, content })
-    }
-}
-
-// MessagePrivate sends a private message to a specific peer connected to the hub.
-func (c *Client) MessagePrivate(dest *Peer, content string) {
-    if c.protoIsAdc == true {
-        c.connHub.conn.Write(&msgAdcDMessage{
-            msgAdcTypeD{ c.sessionId, dest.adcSessionId },
-            msgAdcKeyMessage{ Content: content },
-        })
-
-    } else {
-        c.connHub.conn.Write(&msgNmdcPrivateChat{ c.conf.Nick, dest.Nick, content })
-    }
 }

@@ -173,10 +173,9 @@ func (d *Download) do() {
 
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
                             // request peer connection
-                            if d.client.conf.IsPassive == false {
-                                d.client.connectToMe(d.conf.Nick)
-                            } else {
-                                d.client.revConnectToMe(d.conf.Nick)
+                            peer := d.client.peerByNick(d.conf.Nick)
+                            if peer != nil {
+                                d.client.peerRequestConnection(peer)
                             }
                             return "wait_timed"
                         } else {

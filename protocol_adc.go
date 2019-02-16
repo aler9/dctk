@@ -13,12 +13,10 @@ const (
     adcFieldDescription          = "DE"
     adcFieldEmail                = "EM"
     adcFieldClientId             = "ID"
-    adcFieldIp                   = "I4"
     adcFieldName                 = "NI"
-    adcFieldPrivateId            = "PD"
-    adcFieldUdpPort              = "U4"
     adcFieldUploadSpeed          = "US"
     adcFieldUploadSlotCount      = "SL"
+    adcFieldToken                = "TO"
     // client info
     adcFieldSoftware             = "AP"
     adcFieldVersion              = "VE"
@@ -28,55 +26,38 @@ const (
     adcFieldSupports             = "SU"
     adcFieldShareSize            = "SS"
     adcFieldShareCount           = "SF"
+    adcFieldIp                   = "I4"
+    adcFieldUdpPort              = "U4"
+    adcFieldPrivateId            = "PD"
     // search requests & results
     adcFieldMinSize              = "GE"
     adcFieldMaxSize              = "LE"
     adcFieldIsFileOrFolder       = "TY"
     adcFieldFileExtension        = "EX"
-    adcFieldQuery                = "AN"
+    adcFieldQueryAnd             = "AN"
+    adcFieldFileQueryOr          = "NO"
     adcFieldFilePath             = "FN"
     adcFieldFileSize             = "SI"
+    adcFieldFileExactSize        = "EQ"
     adcFieldFileTTH              = "TR"
     adcFieldFileGroup            = "GR"
     adcFieldFileExcludeExtens    = "RX"
-    adcFieldSearchId             = "TO"
 )
 
-const reStrSessionId = "[A-Z0-9]{4}"
+const reStrAdcSessionId = "[A-Z0-9]{4}"
+const reStrAdcClientId = "[A-Z0-9]+"
 
-var reAdcTypeB = regexp.MustCompile("^("+reStrSessionId+") ")
-var reAdcTypeD = regexp.MustCompile("^("+reStrSessionId+") ("+reStrSessionId+") ")
-var reAdcTypeF = regexp.MustCompile("^("+reStrSessionId+") (((\\+|-)[A-Za-z0-9]+)+) ")
-var reAdcTypeU = regexp.MustCompile("^([A-Z0-9]+) ")
+var reAdcTypeB = regexp.MustCompile("^("+reStrAdcSessionId+") ")
+var reAdcTypeD = regexp.MustCompile("^("+reStrAdcSessionId+") ("+reStrAdcSessionId+") ")
+var reAdcTypeF = regexp.MustCompile("^("+reStrAdcSessionId+") (((\\+|-)[A-Za-z0-9]+)+) ")
+var reAdcTypeU = regexp.MustCompile("^("+reStrAdcClientId+") ")
 
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
-var reAdcQuit = regexp.MustCompile("^("+reStrSessionId+")( (.+))?$")
-var readcSessionId = regexp.MustCompile("^"+reStrSessionId+"$")
+var reAdcQuit = regexp.MustCompile("^("+reStrAdcSessionId+")( (.+))?$")
+var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ([0-9]+)$")
+var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ([0-9]+)$")
+var readcSessionId = regexp.MustCompile("^"+reStrAdcSessionId+"$")
 var reAdcStatus = regexp.MustCompile("^([0-9]+) (.+)$")
-
-func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult) *SearchResult {
-    sr := &SearchResult{
-        IsActive: isActive,
-        Peer: peer,
-    }
-    for key,val := range msg.Fields {
-        switch key {
-        case adcFieldFilePath: sr.Path = val
-        case adcFieldFileSize: sr.Size = atoui64(val)
-        case adcFieldFileTTH:
-            if val == dirTTH {
-                sr.IsDir = true
-            } else {
-                sr.TTH = val
-            }
-        case adcFieldUploadSlotCount: sr.SlotAvail = atoui(val)
-        }
-    }
-    if sr.IsDir == true {
-        sr.Path = strings.TrimSuffix(sr.Path, "/")
-    }
-    return sr
-}
 
 func adcUnescape(in string) string {
     in = strings.Replace(in, "\\s", " ", -1)
@@ -145,7 +126,12 @@ func (p *protocolAdc) Read() (msgDecodable,error) {
                 case "BINF": return &msgAdcBInfos{}
                 case "BMSG": return &msgAdcBMessage{}
                 case "BSCH": return &msgAdcBSearchRequest{}
+                case "CINF": return &msgAdcCInfos{}
+                case "CSUP": return &msgAdcCSupports{}
+                case "CSTA": return &msgAdcCStatus{}
+                case "DCTM": return &msgAdcDConnectToMe{}
                 case "DMSG": return &msgAdcDMessage{}
+                case "DRCM": return &msgAdcDRevConnectToMe{}
                 case "DRES": return &msgAdcDSearchResult{}
                 case "FSCH": return &msgAdcFSearchRequest{}
                 case "ICMD": return &msgAdcICommand{}
@@ -239,6 +225,14 @@ func (t *msgAdcTypeB) AdcTypeEncode(keyEncoded string) string {
 }
 
 type msgAdcTypeC struct {}
+
+func (t *msgAdcTypeC) AdcTypeDecode(msg string) (int,error) {
+    return 0, nil
+}
+
+func (t *msgAdcTypeC) AdcTypeEncode(keyEncoded string) string {
+    return "C" + keyEncoded[:3] + " " + keyEncoded[3:] + "\n"
+}
 
 type msgAdcTypeD struct {
     AuthorId string
@@ -335,16 +329,22 @@ func (t *msgAdcTypeU) AdcTypeDecode(msg string) (int,error) {
     return len(matches[0]), nil
 }
 
-type msgAdcKeyGetPass struct {
-    Data []byte
+type msgAdcKeyConnectToMe struct {
+    Protocol string
+    TcpPort uint
+    Token string
 }
 
-func (m *msgAdcKeyGetPass) AdcKeyDecode(args string) error {
-    matches := reAdcGetPass.FindStringSubmatch(args)
+func (m *msgAdcKeyConnectToMe) AdcKeyEncode() string {
+    return "CTM" + " " + m.Protocol + " " + numtoa(m.TcpPort) + " " + m.Token
+}
+
+func (m *msgAdcKeyConnectToMe) AdcKeyDecode(args string) error {
+    matches := reAdcConnectToMe.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
-    m.Data = dcBase32Decode(args)
+    m.Protocol, m.TcpPort, m.Token = matches[1], atoui(matches[2]), matches[3]
     return nil
 }
 
@@ -356,6 +356,19 @@ func (m *msgAdcKeyCommand) AdcKeyDecode(args string) error {
     for _,cmd := range strings.Split(args, " ") {
         m.Cmds = append(m.Cmds, adcUnescape(cmd))
     }
+    return nil
+}
+
+type msgAdcKeyGetPass struct {
+    Data []byte
+}
+
+func (m *msgAdcKeyGetPass) AdcKeyDecode(args string) error {
+    matches := reAdcGetPass.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Data = dcBase32Decode(args)
     return nil
 }
 
@@ -416,6 +429,24 @@ func (m *msgAdcKeyQuit) AdcKeyDecode(args string) error {
     return nil
 }
 
+type msgAdcKeyRevConnectToMe struct {
+    Protocol string
+    Token string
+}
+
+func (m *msgAdcKeyRevConnectToMe) AdcKeyEncode() string {
+    return "RCM" + " " + m.Protocol + " " + m.Token
+}
+
+func (m *msgAdcKeyRevConnectToMe) AdcKeyDecode(args string) error {
+    matches := reAdcRevConnectToMe.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Protocol, m.Token = matches[1], matches[2]
+    return nil
+}
+
 type msgAdcKeySearchRequest struct {
     Fields map[string]string
 }
@@ -470,11 +501,14 @@ func (m *msgAdcKeyStatus) AdcKeyDecode(args string) error {
 }
 
 type msgAdcKeySupports struct {
-    Features []string
+    Features map[string]struct{}
 }
 
 func (m *msgAdcKeySupports) AdcKeyDecode(args string) error {
-    m.Features = strings.Split(args, " ")
+    m.Features = make(map[string]struct{})
+    for _,feat := range strings.Split(args, " ") {
+        m.Features[feat] = struct{}{}
+    }
     if len(m.Features) == 0 {
         return errorArgsFormat
     }
@@ -482,7 +516,11 @@ func (m *msgAdcKeySupports) AdcKeyDecode(args string) error {
 }
 
 func (m *msgAdcKeySupports) AdcKeyEncode() string {
-    return "SUP" + strings.Join(m.Features, " ")
+    var out []string
+    for feat,_ := range m.Features {
+        out = append(out, feat)
+    }
+    return "SUP" + strings.Join(out, " ")
 }
 
 type msgAdcBInfos struct {
@@ -500,9 +538,34 @@ type msgAdcBSearchRequest struct {
     msgAdcKeySearchRequest
 }
 
+type msgAdcCInfos struct {
+    msgAdcTypeC
+    msgAdcKeyInfos
+}
+
+type msgAdcCSupports struct {
+    msgAdcTypeC
+    msgAdcKeySupports
+}
+
+type msgAdcCStatus struct {
+    msgAdcTypeC
+    msgAdcKeyStatus
+}
+
+type msgAdcDConnectToMe struct {
+    msgAdcTypeD
+    msgAdcKeyConnectToMe
+}
+
 type msgAdcDMessage struct {
     msgAdcTypeD
     msgAdcKeyMessage
+}
+
+type msgAdcDRevConnectToMe struct {
+    msgAdcTypeD
+    msgAdcKeyRevConnectToMe
 }
 
 type msgAdcDSearchResult struct {
