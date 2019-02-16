@@ -67,7 +67,7 @@ type ClientConf struct {
     Nick                        string
     // the password associated with the nick, if requested by the hub
     Password                    string
-    // an email, optionall
+    // an email, optional
     Email                       string
     // a description, optional
     Description                 string
