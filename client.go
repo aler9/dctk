@@ -82,8 +82,10 @@ type ClientConf struct {
     HubUnregisteredCount        uint
     HubRegisteredCount          uint
     HubOperatorCount            uint
+
     // options useful only for debugging purposes
     PeerDisableCompression      bool
+    HubDisableKeepAlive         bool
 }
 
 type Client struct {
