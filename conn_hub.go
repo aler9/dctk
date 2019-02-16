@@ -94,23 +94,25 @@ func (h *connHub) do() {
         }
 
         // periodically send keepalives
-        keepaliveCreated = true
-        go func() {
-            defer func() { keepaliveJoined <- struct{}{} }()
-            ticker := time.NewTicker(120 * time.Second)
-            defer ticker.Stop()
-            for {
-                select {
-                case <- ticker.C:
-                    if h.client.protoIsAdc == true {
-                    } else {
-                        h.conn.Write(&msgNmdcKeepAlive{})
+        if h.client.conf.HubDisableKeepAlive == false {
+            keepaliveCreated = true
+            go func() {
+                defer func() { keepaliveJoined <- struct{}{} }()
+                ticker := time.NewTicker(120 * time.Second)
+                defer ticker.Stop()
+                for {
+                    select {
+                    case <- ticker.C:
+                        if h.client.protoIsAdc == true {
+                        } else {
+                            h.conn.Write(&msgNmdcKeepAlive{})
+                        }
+                    case <- keepaliveTerminate:
+                        return
                     }
-                case <- keepaliveTerminate:
-                    break
                 }
-            }
-        }()
+            }()
+        }
 
         exit := false
         h.client.Safe(func() {
@@ -179,7 +181,7 @@ func (h *connHub) do() {
     })
 }
 
-func (h *connHub) handleMessage(rawmsg msgDecodable) error {
+func (h *connHub) handleMessage(msgi msgDecodable) error {
     h.client.mutex.Lock()
     defer h.client.mutex.Unlock()
 
@@ -187,7 +189,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         return errorTerminated
     }
 
-    switch msg := rawmsg.(type) {
+    switch msg := msgi.(type) {
     case *msgAdcIStatus:
         if msg.Code != 0 {
             return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
@@ -623,7 +625,7 @@ func (h *connHub) handleMessage(rawmsg msgDecodable) error {
         h.client.handlePrivateMessage(p, msg.Content)
 
     default:
-        return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
+        return fmt.Errorf("unhandled: %T %+v", msgi, msgi)
     }
     return nil
 }
