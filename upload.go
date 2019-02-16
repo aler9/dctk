@@ -39,7 +39,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
     u.compressed = (client.conf.PeerDisableCompression == false &&
         msg.Compress == true)
 
-    dolog(LevelInfo, "[upload request] %s/%s (s=%d l=%d)",
+    dolog(LevelInfo, "[upload request] [%s] %s (s=%d l=%d)",
         pconn.peer.Nick, dcReadableQuery(u.query), u.start, msg.Length)
 
     // check available slots
@@ -224,10 +224,10 @@ func (u *upload) do() {
         u.client.uploadSlotAvail += 1
 
         if u.state == "success" {
-            dolog(LevelInfo, "[upload finished] %s/%s (s=%d l=%d)",
+            dolog(LevelInfo, "[upload finished] [%s] %s (s=%d l=%d)",
                 u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
         } else {
-            dolog(LevelInfo, "[upload failed] %s/%s",
+            dolog(LevelInfo, "[upload failed] [%s] %s",
                 u.pconn.peer.Nick, dcReadableQuery(u.query))
         }
     })
