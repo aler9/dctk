@@ -19,11 +19,13 @@ func main() {
     }
 
     // download a file by tth
-    client.OnHubConnected = func() {
-        client.Download(dctk.DownloadConf{
-            Nick: "othernick",
-            TTH: "AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y",
-        })
+    client.OnPeerConnected = func(p *dctk.Peer) {
+        if p.Nick == "nickname" {
+            client.DownloadFile(dctk.DownloadConf{
+                Peer: p,
+                TTH: "AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y",
+            })
+        }
     }
 
     // download has finished: save the file on disk

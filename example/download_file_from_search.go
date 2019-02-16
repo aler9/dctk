@@ -30,8 +30,8 @@ func main() {
     client.OnSearchResult = func(res *dctk.SearchResult) {
         if downloadStarted == false {
             downloadStarted = true
-            client.Download(dctk.DownloadConf{
-                Nick: res.Peer.Nick,
+            client.DownloadFile(dctk.DownloadConf{
+                Peer: res.Peer,
                 TTH: res.TTH,
             })
         }
