@@ -24,6 +24,7 @@ type shareDirectory struct {
     dirs        map[string]*shareDirectory
     files       map[string]*shareFile
     aliasPath   string
+    size        uint64
 }
 
 type shareIndexer struct {
@@ -133,6 +134,7 @@ func (sm *shareIndexer) index() {
                         aliasPath: aliasPath,
                         realPath: realPath,
                     }
+                    dir.size += fileSize
                     count += 1
                     size += fileSize
                 }

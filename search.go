@@ -51,8 +51,8 @@ type SearchResult struct {
     Size        uint64
     // TTH (file only)
     TTH         string
-    // the total number of upload slots of the peer
-    SlotCount   uint
+    // the available upload slots of the peer
+    SlotAvail   uint
 }
 
 type SearchConf struct {
@@ -238,9 +238,9 @@ func (c *Client) onAdcSearchRequest(authorSessionId string, req *msgAdcKeySearch
             fields[adcFieldFileSize] = numtoa(o.size)
 
         case *shareDirectory:
-            fields[adcFieldFilePath] = o.aliasPath
+            fields[adcFieldFilePath] = o.aliasPath + "/"
             fields[adcFieldFileTTH] = dirTTH
-            fields[adcFieldFileSize] = "0" // TODO: add directory file size
+            fields[adcFieldFileSize] = numtoa(o.size)
         }
 
         // add search id if sent by author

@@ -28,7 +28,7 @@ func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) 
         IsActive: isActive,
         Peer: peer,
         Path: msg.Path,
-        SlotCount: msg.SlotCount,
+        SlotAvail: msg.SlotAvail,
         Size: msg.Size,
         TTH: msg.TTH,
         IsDir: msg.IsDir,

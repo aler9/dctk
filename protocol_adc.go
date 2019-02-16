@@ -69,8 +69,11 @@ func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult)
             } else {
                 sr.TTH = val
             }
-        case adcFieldUploadSlotCount: sr.SlotCount = atoui(val)
+        case adcFieldUploadSlotCount: sr.SlotAvail = atoui(val)
         }
+    }
+    if sr.IsDir == true {
+        sr.Path = strings.TrimSuffix(sr.Path, "/")
     }
     return sr
 }
