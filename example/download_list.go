@@ -19,8 +19,10 @@ func main() {
     }
 
     // download file list of a certain user
-    client.OnHubConnected = func() {
-        client.DownloadFileList("othernick")
+    client.OnPeerConnected = func(p *dctk.Peer) {
+        if p.Nick == "nickname" {
+            client.DownloadFileList(p)
+        }
     }
 
     // download has finished

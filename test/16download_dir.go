@@ -85,7 +85,7 @@ func client2() {
                 panic(err)
             }
 
-            client.DownloadFLDirectory(d.Conf().Nick, dir)
+            client.DownloadFLDirectory(d.Conf().Peer, dir)
 
         } else {
             if _,ok := tthMap[d.Conf().TTH]; !ok {

@@ -9,8 +9,8 @@ import (
 )
 
 type DownloadConf struct {
-    // the nickname of the peer you want to download from
-    Nick            string
+    // the peer you want to download from
+    Peer            *Peer
     // the TTH of the file you want to download
     TTH             string
     // the starting point of the file part you want to download, in bytes
@@ -39,28 +39,28 @@ type Download struct {
 func (*Download) isTransfer() {}
 
 // DownloadFileList starts downloading the file list of a given peer.
-func (c *Client) DownloadFileList(nick string) (*Download,error) {
-    return c.Download(DownloadConf{
-        Nick: nick,
+func (c *Client) DownloadFileList(peer *Peer) (*Download,error) {
+    return c.DownloadFile(DownloadConf{
+        Peer: peer,
         filelist: true,
     })
 }
 
 // DownloadFLFile starts downloading a file given a file list entry.
-func (c *Client) DownloadFLFile(nick string, file *FileListFile) (*Download,error) {
-    return c.Download(DownloadConf{
-        Nick: nick,
+func (c *Client) DownloadFLFile(peer *Peer, file *FileListFile) (*Download,error) {
+    return c.DownloadFile(DownloadConf{
+        Peer: peer,
         TTH: file.TTH,
     })
 }
 
 // DownloadFLDirectory starts downloading recursively all the files
 // inside a file list directory.
-func (c *Client) DownloadFLDirectory(nick string, dir *FileListDirectory) error {
+func (c *Client) DownloadFLDirectory(peer *Peer, dir *FileListDirectory) error {
     var dlDir func(sdir *FileListDirectory) error
     dlDir = func(sdir *FileListDirectory) error {
         for _,file := range sdir.Files {
-            _,err := c.DownloadFLFile(nick, file)
+            _,err := c.DownloadFLFile(peer, file)
             if err != nil {
                 return err
             }
@@ -77,7 +77,7 @@ func (c *Client) DownloadFLDirectory(nick string, dir *FileListDirectory) error 
 }
 
 // Download starts downloading a file by its Tiger Tree Hash (TTH). See DownloadConf for the options.
-func (c *Client) Download(conf DownloadConf) (*Download,error) {
+func (c *Client) DownloadFile(conf DownloadConf) (*Download,error) {
     if conf.Length <= 0 {
         conf.Length = -1
     }
@@ -103,7 +103,7 @@ func (c *Client) Download(conf DownloadConf) (*Download,error) {
     }()
 
     dolog(LevelInfo, "[download request] %s/%s (s=%d l=%d)",
-        d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
+        d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
     go d.do()
@@ -156,7 +156,7 @@ func (d *Download) do() {
                     switch d.state {
                     case "uninitialized":
                         d.state = "waiting_activedl"
-                        if _,ok := d.client.activeDownloadsByPeer[d.conf.Nick]; ok {
+                        if _,ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
                             return "wait"
                         }
 
@@ -168,15 +168,12 @@ func (d *Download) do() {
 
                     case "waiting_slot":
                         d.state = "waiting_peer"
-                        d.client.activeDownloadsByPeer[d.conf.Nick] = d
+                        d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
                         d.client.downloadSlotAvail -= 1
 
-                        if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Nick, "download" }]; !ok {
+                        if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
                             // request peer connection
-                            peer := d.client.peerByNick(d.conf.Nick)
-                            if peer != nil {
-                                d.client.peerRequestConnection(peer)
-                            }
+                            d.client.peerRequestConnection(d.conf.Peer)
                             return "wait_timed"
                         } else {
                             d.pconn = pconn
@@ -222,12 +219,12 @@ func (d *Download) do() {
             delete(d.client.transfers, d)
 
         default:
-            dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Nick, err)
+            dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
             delete(d.client.transfers, d)
         }
 
-        if d.client.activeDownloadsByPeer[d.conf.Nick] == d {
-            delete(d.client.activeDownloadsByPeer, d.conf.Nick)
+        if d.client.activeDownloadsByPeer[d.conf.Peer.Nick] == d {
+            delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
         }
 
         if d.state != "waiting_slot" {
@@ -248,7 +245,7 @@ func (d *Download) do() {
         }
         for rot,_ := range d.client.transfers {
             if od,ok := rot.(*Download); ok {
-                if (od.state == "waiting_activedl" && d.conf.Nick == od.conf.Nick) {
+                if (od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer) {
                     toWakeUp2 = od
                     break
                 }
@@ -266,12 +263,12 @@ func (d *Download) do() {
         // call callbacks once the procedure has terminated
         if d.state == "success" {
             dolog(LevelInfo, "[download finished] %s/%s (s=%d l=%d)",
-                d.conf.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
+                d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
             if d.client.OnDownloadSuccessful != nil {
                 d.client.OnDownloadSuccessful(d)
             }
         } else {
-            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Nick, dcReadableQuery(d.query))
+            dolog(LevelInfo, "[download failed] %s/%s", d.conf.Peer.Nick, dcReadableQuery(d.query))
             if d.client.OnDownloadError != nil {
                 d.client.OnDownloadError(d)
             }

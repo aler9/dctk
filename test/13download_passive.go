@@ -51,8 +51,8 @@ func client2() {
 
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "client1" {
-            client.Download(dctk.DownloadConf{
-                Nick: "client1",
+            client.DownloadFile(dctk.DownloadConf{
+                Peer: p,
                 TTH: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
             })
         }

@@ -72,7 +72,7 @@ func client2() {
                 panic(err)
             }
 
-            client.DownloadFLFile(d.Conf().Nick, file)
+            client.DownloadFLFile(d.Conf().Peer, file)
 
         } else {
             ok = true
