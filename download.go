@@ -23,16 +23,16 @@ type DownloadConf struct {
 }
 
 type Download struct {
-    conf                    DownloadConf
-    client                  *Client
-    state                   string
-    wakeUp                  chan struct{}
-    pconn                   *connPeer
-    query                   string
-    content                 []byte
-    length                  uint64
-    offset                  uint64
-    lastPrintTime           time.Time
+    conf                DownloadConf
+    client              *Client
+    state               string
+    wakeUp              chan struct{}
+    pconn               *connPeer
+    query               string
+    content             []byte
+    length              uint64
+    offset              uint64
+    lastPrintTime       time.Time
 }
 
 func (*Download) isTransfer() {}
@@ -171,12 +171,12 @@ func (d *Download) do() {
                     case "waited_slot":
                         d.client.downloadSlotAvail -= 1
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
-                            dolog(LevelDebug, "[download] requesting new connection")
+                            dolog(LevelInfo, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
                             d.client.peerRequestConnection(d.conf.Peer)
                             d.state = "waiting_peer"
 
                         } else {
-                            dolog(LevelDebug, "[download] using existing connection")
+                            dolog(LevelInfo, "[download] [%s] using existing connection", d.conf.Peer.Nick)
                             pconn.state = "delegated_download"
                             pconn.transfer = d
                             d.pconn = pconn
@@ -185,6 +185,7 @@ func (d *Download) do() {
                         }
 
                     case "waited_peer":
+                        dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
                         d.state = "processing"
                     }
                     break
