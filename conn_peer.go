@@ -232,6 +232,12 @@ func (p *connPeer) do() {
 
         switch p.state {
         case "terminated":
+        case "connected":
+            // do not mark as errors normal timeouts
+            if p.protoState != "wait_upload" && p.protoState != "wait_download" {
+                fallthrough
+            }
+
         default:
             dolog(LevelInfo, "ERR (connPeer): %s", err)
         }
