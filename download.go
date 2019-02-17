@@ -100,7 +100,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download,error) {
         return "file TTH/" + d.conf.TTH
     }()
 
-    dolog(LevelInfo, "[download request] [%s] %s (s=%d l=%d)",
+    dolog(LevelInfo, "[download] [%s] request %s (s=%d l=%d)",
         d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
     d.client.wg.Add(1)
@@ -171,12 +171,12 @@ func (d *Download) do() {
                     case "waited_slot":
                         d.client.downloadSlotAvail -= 1
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
-                            dolog(LevelInfo, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
+                            dolog(LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
                             d.client.peerRequestConnection(d.conf.Peer)
                             d.state = "waiting_peer"
 
                         } else {
-                            dolog(LevelInfo, "[download] [%s] using existing connection", d.conf.Peer.Nick)
+                            dolog(LevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
                             pconn.state = "delegated_download"
                             pconn.transfer = d
                             d.pconn = pconn
@@ -297,7 +297,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
             // normal file
             } else {
                 if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
-                    dolog(LevelInfo, "[download validating]")
+                    dolog(LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
                     contentTTH := TTHFromBytes(d.content)
                     if contentTTH != d.conf.TTH {
                         return fmt.Errorf("validation failed")
@@ -350,13 +350,13 @@ func (d *Download) handleExit(err error) {
 
     // call callbacks
     if d.state == "success" {
-        dolog(LevelInfo, "[download finished] [%s] %s (s=%d l=%d)",
+        dolog(LevelInfo, "[download] [%s] finished %s (s=%d l=%d)",
             d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
         if d.client.OnDownloadSuccessful != nil {
             d.client.OnDownloadSuccessful(d)
         }
     } else {
-        dolog(LevelInfo, "[download failed] [%s] %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
+        dolog(LevelInfo, "[download] [%s] failed %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
         if d.client.OnDownloadError != nil {
             d.client.OnDownloadError(d)
         }

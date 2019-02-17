@@ -284,7 +284,7 @@ func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySe
         })
     }()
     if err != nil {
-        dolog(LevelDebug, "[search error] %s", err)
+        dolog(LevelDebug, "[search] error: %s", err)
         return
     }
 
@@ -378,7 +378,7 @@ func (c *Client) handleNmdcSearchRequest(req *msgNmdcSearchRequest) {
         })
     }()
     if err != nil {
-        dolog(LevelDebug, "[search error] %s", err)
+        dolog(LevelDebug, "[search] error: %s", err)
         return
     }
 
@@ -515,12 +515,12 @@ func (c *Client) handleSearchRequest(req *searchRequest) ([]interface{},error) {
         }
     }
 
-    dolog(LevelInfo, "[search req] %+v | sent %d results", req, len(results))
+    dolog(LevelInfo, "[search] req: %+v | sent %d results", req, len(results))
     return results, nil
 }
 
 func (c *Client) handleSearchResult(sr *SearchResult) {
-    dolog(LevelInfo, "[search res] %+v", sr)
+    dolog(LevelInfo, "[search] res: %+v", sr)
     if c.OnSearchResult != nil {
         c.OnSearchResult(sr)
     }
