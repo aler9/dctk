@@ -46,15 +46,13 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
     }
     p.client.connPeers[p] = struct{}{}
 
-    securestr := func() string {
-        if p.isEncrypted == true {
-            return " (secure)"
-        }
-        return ""
-    }()
-
     if isActive == true {
-        dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), securestr)
+        dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), func() string {
+            if p.isEncrypted == true {
+                return " (secure)"
+            }
+            return ""
+        }())
         p.state = "connected"
         if client.protoIsAdc == true {
             p.conn = newProtocolAdc("p", rawconn, true, true)
@@ -62,7 +60,12 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
             p.conn = newProtocolNmdc("p", rawconn, true, true)
         }
     } else {
-        dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, securestr)
+        dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, func() string {
+            if p.isEncrypted == true {
+                return " (secure)"
+            }
+            return ""
+        }())
         p.state = "connecting"
         p.passiveIp = ip
         p.passivePort = port
@@ -99,57 +102,38 @@ func (p *connPeer) do() {
 
     err := func() error {
         if p.state == "connecting" {
-            var rawconn net.Conn
-            connected := make(chan error, 1)
-            go func() {
-                var err error
-                for i := 0; i < 3; i++ {
-                    rawconn,err = net.DialTimeout("tcp",
-                        fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort), 5 * time.Second)
-                    if err == nil {
-                        break
-                    }
-                }
-                connected <- err
-            }()
+            ce := newConnEstablisher(
+                fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort),
+                10 * time.Second, 3)
 
             select {
             case <- p.wakeUp:
                 return errorTerminated
 
-            case err := <- connected:
-                if err != nil {
-                    return err
+            case <- ce.Wait:
+                if ce.Error != nil {
+                    return ce.Error
                 }
             }
 
-            var err error
-            p.client.Safe(func() {
-                if p.state == "terminated" {
-                    err = errorTerminated
-                    return
-                }
+            rawconn := ce.Conn
+            if p.isEncrypted == true {
+                rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
+            }
 
-                securestr := func() string {
+            if p.client.protoIsAdc == true {
+                p.conn = newProtocolAdc("p", rawconn, true, true)
+            } else {
+                p.conn = newProtocolNmdc("p", rawconn, true, true)
+            }
+
+            dolog(LevelInfo, "[peer connected] %s%s", connRemoteAddr(rawconn),
+                func() string {
                     if p.isEncrypted == true {
                         return " (secure)"
                     }
                     return ""
-                }()
-                dolog(LevelInfo, "[peer connected] %s%s", connRemoteAddr(rawconn), securestr)
-                p.state = "connected"
-                if p.isEncrypted == true {
-                    rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
-                }
-                if p.client.protoIsAdc == true {
-                    p.conn = newProtocolAdc("p", rawconn, true, true)
-                } else {
-                    p.conn = newProtocolNmdc("p", rawconn, true, true)
-                }
-            })
-            if err != nil {
-                return err
-            }
+                }())
 
             // if transfer is passive, we are the first to talk
             if p.client.protoIsAdc == true {
@@ -170,6 +154,20 @@ func (p *connPeer) do() {
                 p.conn.Write(&msgNmdcLock{ Values: []string{fmt.Sprintf(
                     "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
                     p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
+            }
+
+            // check for state before start reading
+            exit := false
+            p.client.Safe(func() {
+                if p.state == "terminated" {
+                    exit = true
+                    return
+                }
+                p.state = "connected"
+            })
+            if exit == true {
+                p.conn.Terminate()
+                return errorTerminated
             }
         }
 

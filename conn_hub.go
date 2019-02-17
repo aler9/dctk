@@ -8,9 +8,41 @@ import (
     "crypto/tls"
 )
 
+type hubKeepAliver struct {
+    terminate   chan struct{}
+}
+
+func newHubKeepAliver(h *connHub) *hubKeepAliver {
+    ka := &hubKeepAliver{
+        terminate: make(chan struct{}),
+    }
+
+    go func() {
+        ticker := time.NewTicker(120 * time.Second)
+        defer ticker.Stop()
+        for {
+            select {
+            case <- ticker.C:
+                if h.client.protoIsAdc == true {
+                } else {
+                    h.conn.Write(&msgNmdcKeepAlive{})
+                }
+            case <- ka.terminate:
+                return
+            }
+        }
+    }()
+    return ka
+}
+
+func (ka *hubKeepAliver) Terminate() {
+    ka.terminate <- struct{}{}
+}
+
 type connHub struct {
     client          *Client
     state           string
+    wakeUp          chan struct{}
     conn            protocol
     uniqueCmds      map[string]struct{}
 }
@@ -19,6 +51,7 @@ func newConnHub(client *Client) error {
     client.connHub = &connHub{
         client: client,
         state: "uninitialized",
+        wakeUp: make(chan struct{}, 1),
         uniqueCmds: make(map[string]struct{}),
     }
     return nil
@@ -41,6 +74,9 @@ func (h *connHub) terminate() {
     case "terminated":
         return
 
+    case "connecting":
+        h.wakeUp <- struct{}{}
+
     case "initialized":
         h.conn.Terminate()
 
@@ -53,35 +89,30 @@ func (h *connHub) terminate() {
 func (h *connHub) do() {
     defer h.client.wg.Done()
 
-    keepaliveCreated := false
-    keepaliveTerminate := make(chan struct{}, 1)
-    keepaliveJoined := make(chan struct{}, 1)
+    var keepaliver *hubKeepAliver
 
     err := func() error {
-        var rawconn net.Conn
-        var err error
-        for i := uint(0); i < h.client.conf.HubConnTries; i++ {
-            if i > 0 {
-                dolog(LevelInfo, "retrying... (%s)", err)
-            }
-
-            var ips []net.IP
-            ips,err = net.LookupIP(h.client.hubHostname)
-            if err != nil {
-                break
-            }
-
-            h.client.hubSolvedIp = ips[0].String()
-            rawconn,err = net.DialTimeout("tcp",
-                fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort), 10 * time.Second)
-            if err == nil {
-                break
-            }
-        }
+        ips,err := net.LookupIP(h.client.hubHostname)
         if err != nil {
             return err
         }
+        h.client.hubSolvedIp = ips[0].String()
 
+        ce := newConnEstablisher(
+            fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort),
+            10 * time.Second, h.client.conf.HubConnTries)
+
+        select {
+        case <- h.wakeUp:
+            return errorTerminated
+
+        case <- ce.Wait:
+            if ce.Error != nil {
+                return ce.Error
+            }
+        }
+
+        rawconn := ce.Conn
         if h.client.hubIsEncrypted == true {
             rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
         }
@@ -93,40 +124,11 @@ func (h *connHub) do() {
             h.conn = newProtocolNmdc("h", rawconn, false, true)
         }
 
-        // periodically send keepalives
         if h.client.conf.HubDisableKeepAlive == false {
-            keepaliveCreated = true
-            go func() {
-                defer func() { keepaliveJoined <- struct{}{} }()
-                ticker := time.NewTicker(120 * time.Second)
-                defer ticker.Stop()
-                for {
-                    select {
-                    case <- ticker.C:
-                        if h.client.protoIsAdc == true {
-                        } else {
-                            h.conn.Write(&msgNmdcKeepAlive{})
-                        }
-                    case <- keepaliveTerminate:
-                        return
-                    }
-                }
-            }()
+            keepaliver = newHubKeepAliver(h)
         }
 
-        exit := false
-        h.client.Safe(func() {
-            if h.state == "terminated" {
-                h.conn.Terminate()
-                exit = true
-                return
-            }
-            dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
-            h.state = "connected"
-        })
-        if exit == true {
-            return errorTerminated
-        }
+        dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
 
         if h.client.protoIsAdc == true {
             h.conn.Write(&msgAdcHSupports{
@@ -140,6 +142,20 @@ func (h *connHub) do() {
                      "ADZLIF": struct{}{},
                 } },
             })
+        }
+
+        // check for state before start reading
+        exit := false
+        h.client.Safe(func() {
+            if h.state == "terminated" {
+                exit = true
+                return
+            }
+            h.state = "connected"
+        })
+        if exit == true {
+            h.conn.Terminate()
+            return errorTerminated
         }
 
         for {
@@ -169,9 +185,8 @@ func (h *connHub) do() {
             }
         }
 
-        if keepaliveCreated == true {
-            keepaliveTerminate <- struct{}{}
-            <- keepaliveJoined
+        if keepaliver != nil {
+            keepaliver.Terminate()
         }
 
         dolog(LevelInfo, "[hub disconnected]")
