@@ -89,8 +89,6 @@ func (h *connHub) terminate() {
 func (h *connHub) do() {
     defer h.client.wg.Done()
 
-    var keepaliver *hubKeepAliver
-
     err := func() error {
         ips,err := net.LookupIP(h.client.hubHostname)
         if err != nil {
@@ -125,7 +123,8 @@ func (h *connHub) do() {
         }
 
         if h.client.conf.HubDisableKeepAlive == false {
-            keepaliver = newHubKeepAliver(h)
+            keepaliver := newHubKeepAliver(h)
+            defer keepaliver.Terminate()
         }
 
         dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
@@ -144,6 +143,8 @@ func (h *connHub) do() {
             })
         }
 
+        defer h.conn.Terminate()
+
         // check for state before starting read
         exit := false
         h.client.Safe(func() {
@@ -154,20 +155,17 @@ func (h *connHub) do() {
             h.state = "connected"
         })
         if exit == true {
-            h.conn.Terminate()
             return errorTerminated
         }
 
         for {
             msg,err := h.conn.Read()
             if err != nil {
-                h.conn.Terminate()
                 return err
             }
 
             err = h.handleMessage(msg)
             if err != nil {
-                h.conn.Terminate()
                 return err
             }
         }
@@ -183,10 +181,6 @@ func (h *connHub) do() {
             if h.client.OnHubError != nil {
                 h.client.OnHubError(err)
             }
-        }
-
-        if keepaliver != nil {
-            keepaliver.Terminate()
         }
 
         dolog(LevelInfo, "[hub disconnected]")
