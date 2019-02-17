@@ -156,7 +156,7 @@ func (p *connPeer) do() {
                     p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
             }
 
-            // check for state before start reading
+            // check for state before starting read
             exit := false
             p.client.Safe(func() {
                 if p.state == "terminated" {
