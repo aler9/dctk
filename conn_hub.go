@@ -42,6 +42,7 @@ func (ka *hubKeepAliver) Terminate() {
 type connHub struct {
     client          *Client
     state           string
+    protoState      string
     wakeUp          chan struct{}
     conn            protocol
     uniqueCmds      map[string]struct{}
@@ -63,8 +64,7 @@ func (c *Client) HubConnect() {
     if c.connHub.state != "uninitialized" {
         return
     }
-
-    c.connHub.state = "connecting"
+    c.connHub.state = "pre_connecting"
     c.wg.Add(1)
     go c.connHub.do()
 }
@@ -74,10 +74,12 @@ func (h *connHub) terminate() {
     case "terminated":
         return
 
+    case "pre_connecting":
+
     case "connecting":
         h.wakeUp <- struct{}{}
 
-    case "initialized":
+    case "connected":
         h.conn.Terminate()
 
     default:
@@ -90,83 +92,97 @@ func (h *connHub) do() {
     defer h.client.wg.Done()
 
     err := func() error {
-        ips,err := net.LookupIP(h.client.hubHostname)
-        if err != nil {
-            return err
-        }
-        h.client.hubSolvedIp = ips[0].String()
-
-        ce := newConnEstablisher(
-            fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort),
-            10 * time.Second, h.client.conf.HubConnTries)
-
-        select {
-        case <- h.wakeUp:
-            return errorTerminated
-
-        case <- ce.Wait:
-            if ce.Error != nil {
-                return ce.Error
-            }
-        }
-
-        rawconn := ce.Conn
-        if h.client.hubIsEncrypted == true {
-            rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
-        }
-
-        // do not use read timeout since hub does not send data continuously
-        if h.client.protoIsAdc == true {
-            h.conn = newProtocolAdc("h", rawconn, false, true)
-        } else {
-            h.conn = newProtocolNmdc("h", rawconn, false, true)
-        }
-
-        if h.client.conf.HubDisableKeepAlive == false {
-            keepaliver := newHubKeepAliver(h)
-            defer keepaliver.Terminate()
-        }
-
-        dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
-
-        if h.client.protoIsAdc == true {
-            h.conn.Write(&msgAdcHSupports{
-                msgAdcTypeH{},
-                msgAdcKeySupports{ map[string]struct{}{
-                     "ADBAS0": struct{}{},
-                     "ADBASE": struct{}{},
-                     "ADTIGR": struct{}{},
-                     "ADUCM0": struct{}{},
-                     "ADBLO0": struct{}{},
-                     "ADZLIF": struct{}{},
-                } },
-            })
-        }
-
-        defer h.conn.Terminate()
-
-        // check for state before starting read
-        exit := false
-        h.client.Safe(func() {
-            if h.state == "terminated" {
-                exit = true
-                return
-            }
-            h.state = "connected"
-        })
-        if exit == true {
-            return errorTerminated
-        }
+        var msg msgDecodable
 
         for {
-            msg,err := h.conn.Read()
-            if err != nil {
-                return err
-            }
+            safeState,err := func() (string,error) {
+                h.client.mutex.Lock()
+                defer h.client.mutex.Unlock()
 
-            err = h.handleMessage(msg)
-            if err != nil {
+                switch h.state {
+                case "terminated":
+                    return "", errorTerminated
+
+                case "pre_connecting":
+                    h.state = "connecting"
+
+                case "connecting":
+                    h.state = "connected"
+                    h.protoState = "connected"
+
+                case "connected":
+                    err := h.handleMessage(msg)
+                    if err != nil {
+                        return "", err
+                    }
+                }
+                return h.state, nil
+            }()
+
+            switch safeState {
+            case "":
                 return err
+
+            case "connecting":
+                ips,err := net.LookupIP(h.client.hubHostname)
+                if err != nil {
+                    return err
+                }
+                h.client.hubSolvedIp = ips[0].String()
+
+                ce := newConnEstablisher(
+                    fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort),
+                    10 * time.Second, h.client.conf.HubConnTries)
+
+                select {
+                case <- h.wakeUp:
+                    return errorTerminated
+
+                case <- ce.Wait:
+                    if ce.Error != nil {
+                        return ce.Error
+                    }
+                }
+
+                rawconn := ce.Conn
+                if h.client.hubIsEncrypted == true {
+                    rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
+                }
+
+                // do not use read timeout since hub does not send data continuously
+                if h.client.protoIsAdc == true {
+                    h.conn = newProtocolAdc("h", rawconn, false, true)
+                } else {
+                    h.conn = newProtocolNmdc("h", rawconn, false, true)
+                }
+
+                if h.client.conf.HubDisableKeepAlive == false {
+                    keepaliver := newHubKeepAliver(h)
+                    defer keepaliver.Terminate()
+                }
+
+                dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
+
+                if h.client.protoIsAdc == true {
+                    h.conn.Write(&msgAdcHSupports{
+                        msgAdcTypeH{},
+                        msgAdcKeySupports{ map[string]struct{}{
+                             "ADBAS0": struct{}{},
+                             "ADBASE": struct{}{},
+                             "ADTIGR": struct{}{},
+                             "ADUCM0": struct{}{},
+                             "ADBLO0": struct{}{},
+                             "ADZLIF": struct{}{},
+                        } },
+                    })
+                }
+
+            case "connected":
+                var err error
+                msg,err = h.conn.Read()
+                if err != nil {
+                    return err
+                }
             }
         }
     }()
@@ -181,6 +197,10 @@ func (h *connHub) do() {
             }
         }
 
+        if h.conn != nil {
+            h.conn.Terminate()
+        }
+
         dolog(LevelInfo, "[hub disconnected]")
 
         // close client too
@@ -189,13 +209,6 @@ func (h *connHub) do() {
 }
 
 func (h *connHub) handleMessage(msgi msgDecodable) error {
-    h.client.mutex.Lock()
-    defer h.client.mutex.Unlock()
-
-    if h.state == "terminated" {
-        return errorTerminated
-    }
-
     switch msg := msgi.(type) {
     case *msgAdcIStatus:
         if msg.Code != 0 {
@@ -203,23 +216,23 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgAdcISupports:
-        if h.state != "connected" {
-            return fmt.Errorf("[Supports] invalid state: %s", h.state)
+        if h.protoState != "connected" {
+            return fmt.Errorf("[Supports] invalid state: %s", h.protoState)
         }
-        h.state = "supports"
+        h.protoState = "supports"
 
     case *msgAdcISessionId:
-        if h.state != "supports" {
-            return fmt.Errorf("[SessionId] invalid state: %s", h.state)
+        if h.protoState != "supports" {
+            return fmt.Errorf("[SessionId] invalid state: %s", h.protoState)
         }
-        h.state = "sessionid"
+        h.protoState = "sessionid"
         h.client.sessionId = msg.Sid
 
     case *msgAdcIInfos:
-        if h.state != "sessionid" {
-            return fmt.Errorf("[Infos] invalid state: %s", h.state)
+        if h.protoState != "sessionid" {
+            return fmt.Errorf("[Infos] invalid state: %s", h.protoState)
         }
-        h.state = "hubinfos"
+        h.protoState = "hubinfos"
 
         for key,desc := range map[string]string{
             adcFieldName: "name",
@@ -235,10 +248,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         h.client.sendInfos(true)
 
     case *msgAdcIGetPass:
-        if h.state != "hubinfos" {
-            return fmt.Errorf("[Sup] invalid state: %s", h.state)
+        if h.protoState != "hubinfos" {
+            return fmt.Errorf("[Sup] invalid state: %s", h.protoState)
         }
-        h.state = "getpass"
+        h.protoState = "getpass"
 
         hasher := tigerNew()
         hasher.Write([]byte(h.client.conf.Password))
@@ -325,8 +338,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
     case *msgAdcICommand:
         // switch to initialized
-        if h.state != "initialized" {
-            h.state = "initialized"
+        if h.protoState != "initialized" {
+            h.protoState = "initialized"
             dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
             if h.client.OnHubConnected != nil {
                 h.client.OnHubConnected()
@@ -383,10 +396,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
     case *msgNmdcKeepAlive:
 
     case *msgNmdcLock:
-        if h.state != "connected" {
-            return fmt.Errorf("[Lock] invalid state: %s", h.state)
+        if h.protoState != "connected" {
+            return fmt.Errorf("[Lock] invalid state: %s", h.protoState)
         }
-        h.state = "lock"
+        h.protoState = "lock"
 
         // https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
         // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
@@ -413,21 +426,21 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         return fmt.Errorf("forbidden nickname")
 
     case *msgNmdcSupports:
-        if h.state != "lock" {
-            return fmt.Errorf("[Supports] invalid state: %s", h.state)
+        if h.protoState != "lock" {
+            return fmt.Errorf("[Supports] invalid state: %s", h.protoState)
         }
-        h.state = "preinitialized"
+        h.protoState = "preinitialized"
 
     // flexhub send HubName just after lock
     // HubName can also be sent twice
     case *msgNmdcHubName:
-        if h.state != "preinitialized" && h.state != "lock" {
-            return fmt.Errorf("[HubName] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "lock" {
+            return fmt.Errorf("[HubName] invalid state: %s", h.protoState)
         }
 
     case *msgNmdcZon:
-        if h.state != "initialized" && h.state != "preinitialized" {
-            return fmt.Errorf("[ZOn] invalid state: %s", h.state)
+        if h.protoState != "initialized" && h.protoState != "preinitialized" {
+            return fmt.Errorf("[ZOn] invalid state: %s", h.protoState)
         }
         if h.client.conf.HubDisableCompression == true {
             return fmt.Errorf("zlib requested but zlib is disabled")
@@ -437,8 +450,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcHubTopic:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "initialized" {
+            return fmt.Errorf("[HubTopic] invalid state: %s", h.protoState)
         }
         if _,ok := h.uniqueCmds["HubTopic"]; ok {
             return fmt.Errorf("HubTopic sent twice")
@@ -446,8 +459,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         h.uniqueCmds["HubTopic"] = struct{}{}
 
     case *msgNmdcGetPass:
-        if h.state != "preinitialized" {
-            return fmt.Errorf("[GetPass] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" {
+            return fmt.Errorf("[GetPass] invalid state: %s", h.protoState)
         }
         h.conn.Write(&msgNmdcMyPass{ Pass: h.client.conf.Password })
         if _,ok := h.uniqueCmds["GetPass"]; ok {
@@ -462,8 +475,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         return fmt.Errorf("hub is full")
 
     case *msgNmdcLoggedIn:
-        if h.state != "preinitialized" {
-            return fmt.Errorf("[LoggedIn] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" {
+            return fmt.Errorf("[LoggedIn] invalid state: %s", h.protoState)
         }
         if _,ok := h.uniqueCmds["LoggedIn"]; ok {
             return fmt.Errorf("LoggedIn sent twice")
@@ -471,8 +484,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         h.uniqueCmds["LoggedIn"] = struct{}{}
 
     case *msgNmdcHello:
-        if h.state != "preinitialized" {
-            return fmt.Errorf("[Hello] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" {
+            return fmt.Errorf("[Hello] invalid state: %s", h.protoState)
         }
         if _,ok := h.uniqueCmds["Hello"]; ok {
             return fmt.Errorf("Hello sent twice")
@@ -486,8 +499,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         h.conn.Write(&msgNmdcGetNickList{})
 
     case *msgNmdcMyInfo:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "initialized" {
+            return fmt.Errorf("[MyInfo] invalid state: %s", h.protoState)
         }
         exists := true
         p := h.client.peerByNick(msg.Nick)
@@ -518,8 +531,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcUserIp:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[UserIp] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "initialized" {
+            return fmt.Errorf("[UserIp] invalid state: %s", h.protoState)
         }
 
         // we do not use UserIp to get our own ip, but only to get other
@@ -534,8 +547,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcOpList:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[OpList] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "initialized" {
+            return fmt.Errorf("[OpList] invalid state: %s", h.protoState)
         }
 
         for _,p := range h.client.peers {
@@ -547,8 +560,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
         // switch to initialized
-        if h.state != "initialized" {
-            h.state = "initialized"
+        if h.protoState != "initialized" {
+            h.protoState = "initialized"
             dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
             if h.client.OnHubConnected != nil {
                 h.client.OnHubConnected()
@@ -556,8 +569,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcBotList:
-        if h.state != "initialized" {
-            return fmt.Errorf("[BotList] invalid state: %s", h.state)
+        if h.protoState != "initialized" {
+            return fmt.Errorf("[BotList] invalid state: %s", h.protoState)
         }
 
         for _,p := range h.client.peers {
@@ -569,13 +582,13 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcUserCommand:
-        if h.state != "preinitialized" && h.state != "initialized" {
-            return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
+        if h.protoState != "preinitialized" && h.protoState != "initialized" {
+            return fmt.Errorf("[UserCommand] invalid state: %s", h.protoState)
         }
 
     case *msgNmdcQuit:
-        if h.state != "initialized" {
-            return fmt.Errorf("[Quit] invalid state: %s", h.state)
+        if h.protoState != "initialized" {
+            return fmt.Errorf("[Quit] invalid state: %s", h.protoState)
         }
         p := h.client.peerByNick(msg.Nick)
         if p != nil {
@@ -589,13 +602,13 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
     case *msgNmdcSearchRequest:
         // searches can be received even before initialization; ignore them
-        if h.state == "initialized" {
+        if h.protoState == "initialized" {
             h.client.handleNmdcSearchRequest(msg)
         }
 
     case *msgNmdcSearchResult:
-        if h.state != "initialized" {
-            return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
+        if h.protoState != "initialized" {
+            return fmt.Errorf("[SearchResult] invalid state: %s", h.protoState)
         }
         p := h.client.peerByNick(msg.Nick)
         if p != nil {
@@ -603,8 +616,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcConnectToMe:
-        if h.state != "initialized" && h.state != "preinitialized" {
-            return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
+        if h.protoState != "initialized" && h.protoState != "preinitialized" {
+            return fmt.Errorf("[ConnectToMe] invalid state: %s", h.protoState)
         }
         if msg.Encrypted == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
             dolog(LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
@@ -615,8 +628,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
     case *msgNmdcRevConnectToMe:
-        if h.state != "initialized" && h.state != "preinitialized" {
-            return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
+        if h.protoState != "initialized" && h.protoState != "preinitialized" {
+            return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.protoState)
         }
         p := h.client.peerByNick(msg.Author)
         if p != nil {
