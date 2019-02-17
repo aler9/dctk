@@ -85,6 +85,36 @@ func atoi64(s string) int64 {
     return ret
 }
 
+type connEstablisher struct {
+    Wait    chan struct{}
+    Conn    net.Conn
+    Error   error
+}
+
+func newConnEstablisher(address string, timeout time.Duration, retries uint) *connEstablisher {
+    ce := &connEstablisher{
+        Wait: make(chan struct{}, 1),
+    }
+
+    go func() {
+        ce.Conn,ce.Error = connWithTimeoutAndRetries(address, timeout, retries)
+        ce.Wait <- struct{}{}
+    }()
+    return ce
+}
+
+func connWithTimeoutAndRetries(address string, timeout time.Duration, retries uint) (net.Conn, error) {
+    var err error
+    for i := uint(0); i < retries; i++ {
+        var conn net.Conn
+        conn,err = net.DialTimeout("tcp", address, timeout)
+        if err == nil {
+            return conn, nil
+        }
+    }
+    return nil, err
+}
+
 func connRemoteAddr(conn net.Conn) string {
     return conn.RemoteAddr().(*net.TCPAddr).String()
 }
