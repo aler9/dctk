@@ -146,12 +146,11 @@ func (d *Download) do() {
                 d.client.mutex.Lock()
                 defer d.client.mutex.Unlock()
 
-                if d.state == "terminated" {
-                    return errorTerminated
-                }
-
                 for {
                     switch d.state {
+                    case "terminated":
+                        return errorTerminated
+
                     case "uninitialized":
                         d.state = "waiting_activedl"
                         if _,ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
@@ -181,7 +180,7 @@ func (d *Download) do() {
                             pconn.transfer = d
                         }
 
-                    default: // waiting_peer"
+                    case "waiting_peer":
                         d.state = "connected"
                         return nil
                     }
