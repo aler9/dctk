@@ -114,7 +114,6 @@ func (t *listenerTcp) do() {
     t.client.Safe(func() {
         switch t.state {
         case "terminated":
-
         default:
             dolog(LevelInfo, "ERR: %s", err)
         }

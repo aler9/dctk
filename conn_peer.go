@@ -90,10 +90,6 @@ func (p *connPeer) terminate() {
     default:
         panic(fmt.Errorf("terminate() unsupported in state '%s'", p.state))
     }
-    if p.peer != nil && p.direction != "" {
-        delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
-    }
-    delete(p.client.connPeers, p)
     p.state = "terminated"
 }
 
@@ -191,19 +187,22 @@ func (p *connPeer) do() {
     p.client.Safe(func() {
         switch p.state {
         case "terminated":
-
         default:
-            // connection error while downloading
-            if p.state == "delegated" && p.direction == "download" {
-                p.transfer.(*Download).delegationError <- err
-            }
-
             dolog(LevelInfo, "ERR (connPeer): %s", err)
-            if p.peer != nil && p.direction != "" {
-                delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
-            }
-            delete(p.client.connPeers, p)
         }
+
+        delete(p.client.connPeers, p)
+
+        if p.peer != nil && p.direction != "" {
+            delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
+        }
+
+        // connection error while downloading
+        if p.state == "delegated" && p.direction == "download" {
+            p.transfer.(*Download).delegationError <- err
+        }
+
+        dolog(LevelInfo, "[peer disconnected]")
     })
 }
 

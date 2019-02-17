@@ -174,9 +174,7 @@ func (h *connHub) do() {
     h.client.Safe(func() {
         switch h.state {
         case "terminated":
-
         default:
-            h.state = "terminated"
             dolog(LevelInfo, "ERR: %s", err)
             if h.client.OnHubError != nil {
                 h.client.OnHubError(err)
