@@ -8,9 +8,11 @@ import (
     "crypto/tls"
 )
 
+var errorUploadDelegated = fmt.Errorf("delegated")
+
 type nickDirectionPair struct {
-    nick string
-    direction string
+    nick        string
+    direction   string
 }
 
 type connPeer struct {
@@ -30,7 +32,7 @@ type connPeer struct {
     remoteDirection     string
     remoteBet           uint
     direction           string
-    download            *Download
+    transfer            transfer
 }
 
 func newConnPeer(client *Client, isEncrypted bool, isActive bool,
@@ -102,7 +104,8 @@ func (p *connPeer) do() {
             go func() {
                 var err error
                 for i := 0; i < 3; i++ {
-                    rawconn,err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort), 5 * time.Second)
+                    rawconn,err = net.DialTimeout("tcp",
+                        fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort), 5 * time.Second)
                     if err == nil {
                         break
                     }
@@ -178,7 +181,10 @@ func (p *connPeer) do() {
             }
 
             err = p.handleMessage(msg)
-            if err != nil {
+            if err == errorUploadDelegated {
+                p.transfer.(*upload).onDelegated()
+
+            } else if err != nil {
                 p.conn.Terminate()
                 return err
             }
@@ -186,16 +192,15 @@ func (p *connPeer) do() {
     }()
 
     p.client.Safe(func() {
-        // connection error while downloading
-        if p.state == "delegated" && p.direction == "download" {
-            p.download.state = "terminated"
-            p.download.delegatedError <- errorTerminated
-        }
-
         switch p.state {
         case "terminated":
 
         default:
+            // connection error while downloading
+            if p.state == "delegated" && p.direction == "download" {
+                p.transfer.(*Download).delegationError <- err
+            }
+
             dolog(LevelInfo, "ERR (connPeer): %s", err)
             if p.peer != nil && p.direction != "" {
                 delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
@@ -205,20 +210,28 @@ func (p *connPeer) do() {
     })
 }
 
-func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
+func (p *connPeer) getPendingDownload() *Download {
+    dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
+    if ok && dl.state == "waiting_peer" {
+        return dl
+    }
+    return nil
+}
+
+func (p *connPeer) handleMessage(msgi msgDecodable) error {
     p.client.mutex.Lock()
     defer p.client.mutex.Unlock()
+
+    if p.state == "delegated" && p.direction == "download" {
+        p.transfer.(*Download).onDelegatedMessage(msgi)
+        return nil
+    }
 
     if p.state == "terminated" {
         return errorTerminated
     }
 
-    if p.state == "delegated" && p.direction == "download" {
-        p.download.onDelegatedMessage(rawmsg)
-        return nil
-    }
-
-    switch msg := rawmsg.(type) {
+    switch msg := msgi.(type) {
     case *msgAdcCStatus:
         if msg.Code != 0 {
             return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
@@ -287,25 +300,22 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
                 "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue) } })
         }
 
-        clientSupports := []string{ "MiniSlots", "XmlBZList", "ADCGet", "TTHL", "TTHF" }
-        if p.client.conf.PeerDisableCompression == false {
-            clientSupports = append(clientSupports, "ZLIG")
+        features := map[string]struct{}{
+            "MiniSlots": struct{}{},
+            "XmlBZList": struct{}{},
+            "ADCGet": struct{}{},
+            "TTHL": struct{}{},
+            "TTHF": struct{}{},
         }
-        p.conn.Write(&msgNmdcSupports{ Features: clientSupports })
-
-        // check if there's a pending download
-        isPendingDownload := func() bool {
-            dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
-            if ok && dl.state == "waiting_peer" {
-                return true
-            }
-            return false
-        }()
+        if p.client.conf.PeerDisableCompression == false {
+            features["ZLIG"] = struct{}{}
+        }
+        p.conn.Write(&msgNmdcSupports{ features })
 
         p.localBet = uint(randomInt(1, 0x7FFF))
 
         // try download
-        if isPendingDownload {
+        if p.getPendingDownload() != nil {
             p.localDirection = "download"
             p.conn.Write(&msgNmdcDirection{
                 Direction: "Download",
@@ -358,20 +368,9 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
             } else if p.localBet < p.remoteBet {
                 direction = "upload"
 
-                // check if there's a pending download
-                isPendingDownload := func() bool {
-                    dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
-                    if ok && dl.state == "waiting_peer" {
-                        return true
-                    }
-                    return false
-                }()
-                if isPendingDownload == true {
-                    // request another peer connection
-                    peer := p.client.peerByNick(p.peer.Nick)
-                    if peer != nil {
-                        p.client.peerRequestConnection(peer)
-                    }
+                // if there's a pending download, request another connection
+                if dl := p.getPendingDownload(); dl != nil {
+                    p.client.peerRequestConnection(dl.conf.Peer)
                 }
 
             } else {
@@ -399,17 +398,9 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
         } else {
             p.state = "wait_download"
 
-            dl := func() *Download {
-                dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
-                if ok && dl.state == "waiting_peer" {
-                    return dl
-                }
-                return nil
-            }()
-
-            if dl != nil {
+            if dl := p.getPendingDownload(); dl != nil {
                 p.state = "delegated"
-                p.download = dl
+                p.transfer = dl
                 dl.pconn = p
                 dl.wakeUp <- struct{}{}
             }
@@ -423,19 +414,19 @@ func (p *connPeer) handleMessage(rawmsg msgDecodable) error {
         err := newUpload(p.client, p, msg)
         if err != nil {
             dolog(LevelInfo, "cannot start upload: %s", err)
-
             if err == errorNoSlots {
                 p.conn.Write(&msgNmdcMaxedOut{})
             } else {
                 p.conn.Write(&msgNmdcError{ Error: "File Not Available" })
             }
-
-        } else {
-            p.state = "delegated"
+            return nil
         }
 
+        p.state = "delegated"
+        return errorUploadDelegated
+
     default:
-        return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
+        return fmt.Errorf("unhandled: %T %+v", msgi, msgi)
     }
     return nil
 }

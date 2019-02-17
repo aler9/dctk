@@ -383,16 +383,22 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
         // https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
         // https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
-        hubSupports := []string{ "UserCommand", "NoGetINFO", "NoHello", "UserIP2", "TTHSearch" }
+        features := map[string]struct{}{
+            "UserCommand": struct{}{},
+            "NoGetINFO": struct{}{},
+            "NoHello": struct{}{},
+            "UserIP2": struct{}{},
+            "TTHSearch": struct{}{},
+        }
         if h.client.conf.HubDisableCompression == false {
-            hubSupports = append(hubSupports, "ZPipe0")
+            features["ZPipe0"] = struct{}{}
         }
         // this must be provided, otherwise the final S is stripped from ConnectToMe
         if h.client.conf.PeerEncryptionMode != DisableEncryption {
-            hubSupports = append(hubSupports, "TLS")
+            features["TLS"] = struct{}{}
         }
 
-        h.conn.Write(&msgNmdcSupports{ Features: hubSupports })
+        h.conn.Write(&msgNmdcSupports{ features })
         h.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
         h.conn.Write(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
 
