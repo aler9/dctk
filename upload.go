@@ -13,16 +13,17 @@ import (
 var errorNoSlots = fmt.Errorf("no slots available")
 
 type upload struct {
-    client          *Client
-    state           string
-    pconn           *connPeer
-    reader          io.ReadCloser
-    compressed      bool
-    query           string
-    start           uint64
-    length          uint64
-    offset          uint64
-    lastPrintTime   time.Time
+    client              *Client
+    state               string
+    pconn               *connPeer
+    reader              io.ReadCloser
+    compressed          bool
+    query               string
+    start               uint64
+    length              uint64
+    offset              uint64
+    lastPrintTime       time.Time
+    delegationError     chan error
 }
 
 func (*upload) isTransfer() {}
@@ -32,6 +33,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
         client: client,
         state: "transfering",
         pconn: pconn,
+        delegationError: make(chan error),
     }
 
     u.query = msg.Query
@@ -141,6 +143,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
 
     client.transfers[u] = struct{}{}
     u.client.uploadSlotAvail -= 1
+    u.pconn.transfer = u
 
     u.client.wg.Add(1)
     go u.do()
@@ -157,12 +160,42 @@ func (u *upload) terminate() {
     }
     u.state = "terminated"
     delete(u.client.transfers, u)
-    u.pconn.state = "wait_upload"
 }
 
 func (u *upload) do() {
     defer u.client.wg.Done()
 
+    err := <- u.delegationError
+
+    u.client.Safe(func() {
+        switch u.state {
+        case "terminated":
+
+        case "success":
+            delete(u.client.transfers, u)
+
+        default:
+            dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
+            delete(u.client.transfers, u)
+        }
+
+        if u.reader != nil {
+            u.reader.Close()
+        }
+
+        u.client.uploadSlotAvail += 1
+
+        if u.state == "success" {
+            dolog(LevelInfo, "[upload finished] [%s] %s (s=%d l=%d)",
+                u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
+        } else {
+            dolog(LevelInfo, "[upload failed] [%s] %s",
+                u.pconn.peer.Nick, dcReadableQuery(u.query))
+        }
+    })
+}
+
+func (u *upload) onDelegated() {
     err := func() error {
         u.pconn.conn.SetSyncMode(true)
         if u.compressed == true {
@@ -197,38 +230,15 @@ func (u *upload) do() {
         }
         u.pconn.conn.SetSyncMode(false)
 
-        u.client.Safe(func() {
-            u.state = "success"
-        })
         return nil
     }()
 
     u.client.Safe(func() {
-        switch u.state {
-        case "terminated":
-
-        case "success":
-            delete(u.client.transfers, u)
-            u.pconn.state = "wait_upload"
-
-        default:
-            dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
-            delete(u.client.transfers, u)
-            u.pconn.state = "wait_upload"
+        if err == nil {
+            u.state = "success"
         }
-
-        if u.reader != nil {
-            u.reader.Close()
-        }
-
-        u.client.uploadSlotAvail += 1
-
-        if u.state == "success" {
-            dolog(LevelInfo, "[upload finished] [%s] %s (s=%d l=%d)",
-                u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
-        } else {
-            dolog(LevelInfo, "[upload failed] [%s] %s",
-                u.pconn.peer.Nick, dcReadableQuery(u.query))
-        }
+        u.pconn.state = "wait_upload"
+        u.pconn.transfer = nil
+        u.delegationError <- err
     })
 }

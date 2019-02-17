@@ -23,17 +23,17 @@ type DownloadConf struct {
 }
 
 type Download struct {
-    conf                DownloadConf
-    client              *Client
-    state               string
-    wakeUp              chan struct{}
-    pconn               *connPeer
-    query               string
-    content             []byte
-    length              uint64
-    offset              uint64
-    lastPrintTime       time.Time
-    delegatedError      chan error
+    conf                    DownloadConf
+    client                  *Client
+    state                   string
+    wakeUp                  chan struct{}
+    pconn                   *connPeer
+    query                   string
+    content                 []byte
+    length                  uint64
+    offset                  uint64
+    lastPrintTime           time.Time
+    delegationError         chan error
 }
 
 func (*Download) isTransfer() {}
@@ -90,7 +90,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download,error) {
         client: c,
         wakeUp: make(chan struct{}, 1),
         state: "uninitialized",
-        delegatedError: make(chan error),
+        delegationError: make(chan error),
     }
     d.client.transfers[d] = struct{}{}
 
@@ -133,10 +133,6 @@ func (d *Download) terminate() {
     }
     d.state = "terminated"
     delete(d.client.transfers, d)
-    if d.pconn != nil {
-        d.pconn.state = "wait_download"
-        d.delegatedError <- errorTerminated
-    }
 }
 
 func (d *Download) do() {
@@ -144,7 +140,7 @@ func (d *Download) do() {
 
     err := func() error {
         for {
-            action := func() (string) {
+            action := func() string {
                 d.client.mutex.Lock()
                 defer d.client.mutex.Unlock()
 
@@ -172,13 +168,15 @@ func (d *Download) do() {
                         d.client.downloadSlotAvail -= 1
 
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
-                            // request peer connection
+                            dolog(LevelDebug, "[download] requesting new connection")
                             d.client.peerRequestConnection(d.conf.Peer)
                             return "wait_timed"
+
                         } else {
+                            dolog(LevelDebug, "[download] using existing connection")
                             d.pconn = pconn
                             pconn.state = "delegated"
-                            pconn.download = d
+                            pconn.transfer = d
                         }
 
                     default: // waiting_peer"
@@ -206,9 +204,18 @@ func (d *Download) do() {
             }
         }
 
-        d.requestFile()
+        // request file
+        d.state = "request_file"
+        d.pconn.conn.Write(&msgNmdcAdcGet{
+            Query: d.query,
+            Start: d.conf.Start,
+            Length: d.conf.Length,
+            Compress: (d.client.conf.PeerDisableCompression == false &&
+                (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10))),
+        })
 
-        return <- d.delegatedError
+        // wait for completion and return error
+        return <- d.delegationError
     }()
 
     d.client.Safe(func() {
@@ -276,23 +283,9 @@ func (d *Download) do() {
     })
 }
 
-func (d *Download) requestFile() {
-    // activate compression only if file has a minimum size
-    requestCompressed := (d.client.conf.PeerDisableCompression == false &&
-        (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10)))
-    d.state = "request_file"
-
-    d.pconn.conn.Write(&msgNmdcAdcGet{
-        Query: d.query,
-        Start: d.conf.Start,
-        Length: d.conf.Length,
-        Compress: requestCompressed,
-    })
-}
-
-func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
+func (d *Download) onDelegatedMessage(msgi msgDecodable) {
     err := func() error {
-        switch msg := rawmsg.(type) {
+        switch msg := msgi.(type) {
         case *msgNmdcMaxedOut:
             return fmt.Errorf("maxed out")
 
@@ -372,14 +365,14 @@ func (d *Download) onDelegatedMessage(rawmsg msgDecodable) {
             }
 
         default:
-            return fmt.Errorf("unhandled: %T %+v", rawmsg, rawmsg)
+            return fmt.Errorf("unhandled: %T %+v", msgi, msgi)
         }
         return nil
     }()
 
     if err != nil {
         d.pconn.state = "wait_download"
-        d.pconn.download = nil
-        d.delegatedError <- err
+        d.pconn.transfer = nil
+        d.delegationError <- err
     }
 }

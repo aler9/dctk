@@ -688,16 +688,23 @@ func (m *msgNmdcSearchResult) NmdcEncode() string {
 }
 
 type msgNmdcSupports struct {
-    Features []string
+    Features map[string]struct{}
 }
 
 func (m *msgNmdcSupports) NmdcDecode(args string) error {
-    m.Features = strings.Split(args, " ")
+    m.Features = make(map[string]struct{})
+    for _,feat := range strings.Split(args, " ") {
+        m.Features[feat] = struct{}{}
+    }
     return nil
 }
 
 func (m *msgNmdcSupports) NmdcEncode() string {
-    return nmdcCommandEncode("Supports", strings.Join(m.Features, " "))
+    var ret []string
+    for feat,_ := range m.Features {
+        ret = append(ret, feat)
+    }
+    return nmdcCommandEncode("Supports", strings.Join(ret, " "))
 }
 
 type msgNmdcUserCommand struct {}
