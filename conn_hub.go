@@ -144,7 +144,7 @@ func (h *connHub) do() {
             })
         }
 
-        // check for state before start reading
+        // check for state before starting read
         exit := false
         h.client.Safe(func() {
             if h.state == "terminated" {
