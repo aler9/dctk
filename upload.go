@@ -23,7 +23,6 @@ type upload struct {
     length              uint64
     offset              uint64
     lastPrintTime       time.Time
-    delegationError     chan error
 }
 
 func (*upload) isTransfer() {}
@@ -31,9 +30,8 @@ func (*upload) isTransfer() {}
 func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
     u := &upload{
         client: client,
-        state: "transfering",
+        state: "processing",
         pconn: pconn,
-        delegationError: make(chan error),
     }
 
     u.query = msg.Query
@@ -145,8 +143,6 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
     u.client.uploadSlotAvail -= 1
     u.pconn.transfer = u
 
-    u.client.wg.Add(1)
-    go u.do()
     return nil
 }
 
@@ -155,85 +151,71 @@ func (u *upload) terminate() {
     case "terminated":
         return
 
+    case "processing":
+        u.pconn.terminate()
+
     default:
         panic(fmt.Errorf("terminate() unsupported in state '%s'", u.state))
     }
     u.state = "terminated"
 }
 
-func (u *upload) do() {
-    defer u.client.wg.Done()
+func (u *upload) handleUpload() error {
+    u.pconn.conn.SetSyncMode(true)
+    if u.compressed == true {
+        u.pconn.conn.SetWriteCompression(true)
+    }
 
-    err := <- u.delegationError
-
-    u.client.Safe(func() {
-        switch u.state {
-        case "terminated":
-        case "success":
-        default:
-            dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
+    var buf [1024 * 1024]byte
+    for {
+        n,err := u.reader.Read(buf[:])
+        if err != nil && err != io.EOF {
+            return err
+        }
+        if n == 0 {
+            break
         }
 
-        delete(u.client.transfers, u)
+        u.offset += uint64(n)
 
-        u.reader.Close()
-
-        u.client.uploadSlotAvail += 1
-
-        if u.state == "success" {
-            dolog(LevelInfo, "[upload finished] [%s] %s (s=%d l=%d)",
-                u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
-        } else {
-            dolog(LevelInfo, "[upload failed] [%s] %s",
-                u.pconn.peer.Nick, dcReadableQuery(u.query))
+        err = u.pconn.conn.WriteSync(buf[:n])
+        if err != nil {
+            return err
         }
-    })
+
+        if time.Since(u.lastPrintTime) >= (1 * time.Second) {
+            u.lastPrintTime = time.Now()
+            dolog(LevelInfo, "[sent] %d/%d", u.offset, u.length)
+        }
+    }
+
+    if u.compressed == true {
+        u.pconn.conn.SetWriteCompression(false)
+    }
+    u.pconn.conn.SetSyncMode(false)
+
+    return nil
 }
 
-func (u *upload) onDelegated() {
-    err := func() error {
-        u.pconn.conn.SetSyncMode(true)
-        if u.compressed == true {
-            u.pconn.conn.SetWriteCompression(true)
-        }
+func (u *upload) handleExit(err error) {
+    switch u.state {
+    case "terminated":
+    case "success":
+    default:
+        dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
+    }
 
-        var buf [1024 * 1024]byte
-        for {
-            n,err := u.reader.Read(buf[:])
-            if err != nil && err != io.EOF {
-                return err
-            }
-            if n == 0 {
-                break
-            }
+    delete(u.client.transfers, u)
 
-            u.offset += uint64(n)
+    u.reader.Close()
 
-            err = u.pconn.conn.WriteSync(buf[:n])
-            if err != nil {
-                return err
-            }
+    u.client.uploadSlotAvail += 1
 
-            if time.Since(u.lastPrintTime) >= (1 * time.Second) {
-                u.lastPrintTime = time.Now()
-                dolog(LevelInfo, "[sent] %d/%d", u.offset, u.length)
-            }
-        }
-
-        if u.compressed == true {
-            u.pconn.conn.SetWriteCompression(false)
-        }
-        u.pconn.conn.SetSyncMode(false)
-
-        return nil
-    }()
-
-    u.client.Safe(func() {
-        if err == nil {
-            u.state = "success"
-        }
-        u.pconn.state = "wait_upload"
-        u.pconn.transfer = nil
-        u.delegationError <- err
-    })
+    if u.state == "success" {
+        dolog(LevelInfo, "[upload finished] [%s] %s (s=%d l=%d)",
+            u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
+    } else {
+        dolog(LevelInfo, "[upload failed] [%s] %s",
+            u.pconn.peer.Nick, dcReadableQuery(u.query))
+    }
 }
