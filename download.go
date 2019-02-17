@@ -128,8 +128,10 @@ func (d *Download) terminate() {
     case "terminated":
         return
 
-    case "waiting_activedl":
+    case "waiting_activedl","waiting_slot":
         d.wakeUp <- struct{}{}
+
+    case "waited_activedl","waited_slot":
 
     default:
         panic(fmt.Errorf("Terminate() unsupported in state '%s'", d.state))
@@ -141,7 +143,7 @@ func (d *Download) do() {
     defer d.client.wg.Done()
 
     err := func() error {
-        outer: for {
+        for {
             err := func() error {
                 d.client.mutex.Lock()
                 defer d.client.mutex.Unlock()
@@ -152,37 +154,42 @@ func (d *Download) do() {
                         return errorTerminated
 
                     case "uninitialized":
-                        d.state = "waiting_activedl"
                         if _,ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
+                            d.state = "waiting_activedl"
                             return errorWait
                         }
+                        d.state = "waited_activedl"
 
-                    case "waiting_activedl":
-                        d.state = "waiting_slot"
-                        if d.client.downloadSlotAvail <= 0 {
-                            return errorWait
-                        }
-
-                    case "waiting_slot":
-                        d.state = "waiting_peer"
+                    case "waited_activedl":
                         d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
-                        d.client.downloadSlotAvail -= 1
+                        if d.client.downloadSlotAvail <= 0 {
+                            d.state = "waiting_slot"
+                            return errorWait
+                        }
+                        d.state = "waited_slot"
 
+                    case "waited_slot":
+                        d.client.downloadSlotAvail -= 1
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
                             dolog(LevelDebug, "[download] requesting new connection")
                             d.client.peerRequestConnection(d.conf.Peer)
+                            d.state = "waiting_peer"
                             return errorWaitTimed
 
                         } else {
                             dolog(LevelDebug, "[download] using existing connection")
-                            d.pconn = pconn
                             pconn.state = "delegated"
                             pconn.transfer = d
+                            d.pconn = pconn
+                            d.state = "waited_peer"
                         }
 
-                    case "waiting_peer":
-                        d.state = "connected"
+                    case "waited_peer":
+                        d.state = "processing"
                         return nil
+
+                    default:
+                        return fmt.Errorf("unknown state: %s", d.state)
                     }
                 }
             }()
@@ -203,21 +210,19 @@ func (d *Download) do() {
                 <- d.wakeUp
 
             case nil:
-                break outer
+                // request file
+                d.pconn.conn.Write(&msgNmdcAdcGet{
+                    Query: d.query,
+                    Start: d.conf.Start,
+                    Length: d.conf.Length,
+                    Compress: (d.client.conf.PeerDisableCompression == false &&
+                        (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10))),
+                })
+
+                // wait for completion and return error
+                return <- d.delegationError
             }
         }
-
-        // request file
-        d.pconn.conn.Write(&msgNmdcAdcGet{
-            Query: d.query,
-            Start: d.conf.Start,
-            Length: d.conf.Length,
-            Compress: (d.client.conf.PeerDisableCompression == false &&
-                (d.conf.Length <= 0 || d.conf.Length >= (1024 * 10))),
-        })
-
-        // wait for completion and return error
-        return <- d.delegationError
     }()
 
     d.client.Safe(func() {
@@ -230,44 +235,31 @@ func (d *Download) do() {
 
         delete(d.client.transfers, d)
 
-        if d.client.activeDownloadsByPeer[d.conf.Peer.Nick] == d {
-            delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
+        // free activedl and unlock next download
+        delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
+        for rot,_ := range d.client.transfers {
+            if od,ok := rot.(*Download); ok {
+                if od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
+                    od.state = "waited_activedl"
+                    od.wakeUp <- struct{}{}
+                    break
+                }
+            }
         }
 
-        if d.state != "waiting_slot" {
-            d.client.downloadSlotAvail += 1
-        }
-
-        var toWakeUp1 *Download
-        var toWakeUp2 *Download
-
-        // unlock another download from the same peer
+        // free slot and unlock next download
+        d.client.downloadSlotAvail += 1
         for rot,_ := range d.client.transfers {
             if od,ok := rot.(*Download); ok {
                 if od.state == "waiting_slot" {
-                    toWakeUp1 = od
-                    break
-                }
-            }
-        }
-        for rot,_ := range d.client.transfers {
-            if od,ok := rot.(*Download); ok {
-                if (od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer) {
-                    toWakeUp2 = od
+                    od.state = "waited_slot"
+                    od.wakeUp <- struct{}{}
                     break
                 }
             }
         }
 
-        // send wakeUp once
-        if toWakeUp1 != nil {
-            toWakeUp1.wakeUp <- struct{}{}
-        }
-        if toWakeUp2 != nil && toWakeUp1 != toWakeUp2 {
-            toWakeUp2.wakeUp <- struct{}{}
-        }
-
-        // call callbacks once the procedure has terminated
+        // call callbacks
         if d.state == "success" {
             dolog(LevelInfo, "[download finished] [%s] %s (s=%d l=%d)",
                 d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))

@@ -176,9 +176,7 @@ func (u *upload) do() {
 
         delete(u.client.transfers, u)
 
-        if u.reader != nil {
-            u.reader.Close()
-        }
+        u.reader.Close()
 
         u.client.uploadSlotAvail += 1
 
