@@ -116,7 +116,7 @@ func (c *Client) peerRevConnectToMe(peer *Peer) {
 
 func (c *Client) handlePeerConnected(peer *Peer) {
     c.peers[peer.Nick] = peer
-    dolog(LevelInfo, "[peer on] %s (%v)", peer.Nick, peer.ShareSize)
+    dolog(LevelInfo, "[hub] [peer on] %s (%v)", peer.Nick, peer.ShareSize)
     if c.OnPeerConnected != nil {
         c.OnPeerConnected(peer)
     }
@@ -130,7 +130,7 @@ func (c *Client) handlePeerUpdated(peer *Peer) {
 
 func (c *Client) handlePeerDisconnected(peer *Peer) {
     delete(c.peers, peer.Nick)
-    dolog(LevelInfo, "[peer off] %s", peer.Nick)
+    dolog(LevelInfo, "[hub] [peer off] %s", peer.Nick)
     if c.OnPeerDisconnected != nil {
         c.OnPeerDisconnected(peer)
     }

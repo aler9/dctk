@@ -46,7 +46,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
     p.client.connPeers[p] = struct{}{}
 
     if isActive == true {
-        dolog(LevelInfo, "[peer incoming] %s%s", connRemoteAddr(rawconn), func() string {
+        dolog(LevelInfo, "[peer] incoming %s%s", connRemoteAddr(rawconn), func() string {
             if p.isEncrypted == true {
                 return " (secure)"
             }
@@ -59,7 +59,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
             p.conn = newProtocolNmdc("p", rawconn, true, true)
         }
     } else {
-        dolog(LevelInfo, "[peer outgoing] %s:%d%s", ip, port, func() string {
+        dolog(LevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
             if p.isEncrypted == true {
                 return " (secure)"
             }
@@ -175,7 +175,7 @@ func (p *connPeer) do() {
                     p.conn = newProtocolNmdc("p", rawconn, true, true)
                 }
 
-                dolog(LevelInfo, "[peer connected] %s%s", connRemoteAddr(rawconn),
+                dolog(LevelInfo, "[peer] connected %s%s", connRemoteAddr(rawconn),
                     func() string {
                         if p.isEncrypted == true {
                             return " (secure)"
@@ -249,7 +249,7 @@ func (p *connPeer) do() {
             delete(p.client.connPeersByKey, nickDirectionPair{ p.peer.Nick, p.direction })
         }
 
-        dolog(LevelInfo, "[peer disconnected]")
+        dolog(LevelInfo, "[peer] disconnected")
     })
 }
 
@@ -445,7 +445,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 
         err := newUpload(p.client, p, msg)
         if err != nil {
-            dolog(LevelInfo, "cannot start upload: %s", err)
+            dolog(LevelInfo, "[peer] cannot start upload: %s", err)
             if err == errorNoSlots {
                 p.conn.Write(&msgNmdcMaxedOut{})
             } else {

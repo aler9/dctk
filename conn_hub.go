@@ -161,7 +161,7 @@ func (h *connHub) do() {
                     defer keepaliver.Terminate()
                 }
 
-                dolog(LevelInfo, "[hub connected] %s", connRemoteAddr(rawconn))
+                dolog(LevelInfo, "[hub] connected (%s)", connRemoteAddr(rawconn))
 
                 if h.client.protoIsAdc == true {
                     h.conn.Write(&msgAdcHSupports{
@@ -201,7 +201,7 @@ func (h *connHub) do() {
             h.conn.Terminate()
         }
 
-        dolog(LevelInfo, "[hub disconnected]")
+        dolog(LevelInfo, "[hub] disconnected")
 
         // close client too
         h.client.Terminate()
@@ -241,7 +241,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             adcFieldDescription: "description",
         } {
             if val,ok := msg.Fields[key]; ok {
-                dolog(LevelInfo, "[hub info] [%s] %s", desc, val)
+                dolog(LevelInfo, "[hub] [%s] %s", desc, val)
             }
         }
 
@@ -340,10 +340,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         // switch to initialized
         if h.protoState != "initialized" {
             h.protoState = "initialized"
-            dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
-            if h.client.OnHubConnected != nil {
-                h.client.OnHubConnected()
-            }
+            h.handleHubInitialized()
         }
 
     case *msgAdcBMessage:
@@ -562,10 +559,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         // switch to initialized
         if h.protoState != "initialized" {
             h.protoState = "initialized"
-            dolog(LevelInfo, "[initialized] %d peers", len(h.client.peers))
-            if h.client.OnHubConnected != nil {
-                h.client.OnHubConnected()
-            }
+            h.handleHubInitialized()
         }
 
     case *msgNmdcBotList:
@@ -654,4 +648,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         return fmt.Errorf("unhandled: %T %+v", msgi, msgi)
     }
     return nil
+}
+
+func (h *connHub) handleHubInitialized() {
+    dolog(LevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
+    if h.client.OnHubConnected != nil {
+        h.client.OnHubConnected()
+    }
 }
