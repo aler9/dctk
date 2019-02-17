@@ -279,11 +279,12 @@ func NewClient(conf ClientConf) (*Client,error) {
 func (c *Client) Terminate() {
     switch c.state {
     case "terminated":
-        return
+
+    default:
+        dolog(LevelInfo, "[terminating]")
+        c.wakeUp <- struct{}{}
     }
     c.state = "terminated"
-    dolog(LevelInfo, "[terminating]")
-    c.wakeUp <- struct{}{}
 }
 
 // Run starts the client and waits until the client has been terminated.

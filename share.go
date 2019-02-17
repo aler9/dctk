@@ -229,6 +229,20 @@ func (sm *shareIndexer) index() {
     })
 }
 
+func (sm *shareIndexer) terminate() {
+    switch sm.state {
+    case "terminated":
+        return
+
+    case "running":
+        sm.wakeUp <- struct{}{}
+
+    default:
+        panic(fmt.Errorf("Terminate() unsupported in state '%s'", sm.state))
+    }
+    sm.state = "terminated"
+}
+
 func (sm *shareIndexer) do() {
     defer sm.client.wg.Done()
 
@@ -249,20 +263,6 @@ func (sm *shareIndexer) do() {
 
         sm.index()
     }
-}
-
-func (sm *shareIndexer) terminate() {
-    switch sm.state {
-    case "terminated":
-        return
-
-    case "running":
-        sm.wakeUp <- struct{}{}
-
-    default:
-        panic(fmt.Errorf("Terminate() unsupported in state '%s'", sm.state))
-    }
-    sm.state = "terminated"
 }
 
 // ShareAdd adds a given directory (dpath) to the client share, with the given

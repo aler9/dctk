@@ -129,7 +129,6 @@ func (u *listenerUdp) do() {
     u.client.Safe(func() {
         switch u.state {
         case "terminated":
-
         default:
             dolog(LevelInfo, "ERR: %s", err)
         }

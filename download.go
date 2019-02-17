@@ -8,6 +8,9 @@ import (
     "compress/bzip2"
 )
 
+var errorWait = fmt.Errorf("wait")
+var errorWaitTimed = fmt.Errorf("wait timed")
+
 type DownloadConf struct {
     // the peer you want to download from
     Peer            *Peer
@@ -132,20 +135,19 @@ func (d *Download) terminate() {
         panic(fmt.Errorf("Terminate() unsupported in state '%s'", d.state))
     }
     d.state = "terminated"
-    delete(d.client.transfers, d)
 }
 
 func (d *Download) do() {
     defer d.client.wg.Done()
 
     err := func() error {
-        for {
-            action := func() string {
+        outer: for {
+            err := func() error {
                 d.client.mutex.Lock()
                 defer d.client.mutex.Unlock()
 
                 if d.state == "terminated" {
-                    return "exit"
+                    return errorTerminated
                 }
 
                 for {
@@ -153,13 +155,13 @@ func (d *Download) do() {
                     case "uninitialized":
                         d.state = "waiting_activedl"
                         if _,ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
-                            return "wait"
+                            return errorWait
                         }
 
                     case "waiting_activedl":
                         d.state = "waiting_slot"
                         if d.client.downloadSlotAvail <= 0 {
-                            return "wait"
+                            return errorWait
                         }
 
                     case "waiting_slot":
@@ -170,7 +172,7 @@ func (d *Download) do() {
                         if pconn,ok := d.client.connPeersByKey[nickDirectionPair{ d.conf.Peer.Nick, "download" }]; !ok {
                             dolog(LevelDebug, "[download] requesting new connection")
                             d.client.peerRequestConnection(d.conf.Peer)
-                            return "wait_timed"
+                            return errorWaitTimed
 
                         } else {
                             dolog(LevelDebug, "[download] using existing connection")
@@ -181,31 +183,32 @@ func (d *Download) do() {
 
                     default: // waiting_peer"
                         d.state = "connected"
-                        return "break"
+                        return nil
                     }
                 }
             }()
-            if action == "exit" {
-                return errorTerminated
-            }
-            if action == "break" {
-                break
-            }
 
-            if action == "wait_timed" {
+            switch err {
+            case errorTerminated:
+                return errorTerminated
+
+            case errorWaitTimed:
                 timeout := time.NewTimer(10 * time.Second)
                 select {
                 case <- timeout.C:
                     return fmt.Errorf("download timed out")
                 case <- d.wakeUp:
                 }
-            } else {
+
+            case errorWait:
                 <- d.wakeUp
+
+            case nil:
+                break outer
             }
         }
 
         // request file
-        d.state = "request_file"
         d.pconn.conn.Write(&msgNmdcAdcGet{
             Query: d.query,
             Start: d.conf.Start,
@@ -221,14 +224,12 @@ func (d *Download) do() {
     d.client.Safe(func() {
         switch d.state {
         case "terminated":
-
         case "success":
-            delete(d.client.transfers, d)
-
         default:
             dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
-            delete(d.client.transfers, d)
         }
+
+        delete(d.client.transfers, d)
 
         if d.client.activeDownloadsByPeer[d.conf.Peer.Nick] == d {
             delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)

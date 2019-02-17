@@ -159,7 +159,6 @@ func (u *upload) terminate() {
         panic(fmt.Errorf("terminate() unsupported in state '%s'", u.state))
     }
     u.state = "terminated"
-    delete(u.client.transfers, u)
 }
 
 func (u *upload) do() {
@@ -170,14 +169,12 @@ func (u *upload) do() {
     u.client.Safe(func() {
         switch u.state {
         case "terminated":
-
         case "success":
-            delete(u.client.transfers, u)
-
         default:
             dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
-            delete(u.client.transfers, u)
         }
+
+        delete(u.client.transfers, u)
 
         if u.reader != nil {
             u.reader.Close()
