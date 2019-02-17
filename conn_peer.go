@@ -155,26 +155,26 @@ func (p *connPeer) do() {
                     "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
                     p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
             }
+        }
 
-            // check for state before starting read
-            exit := false
-            p.client.Safe(func() {
-                if p.state == "terminated" {
-                    exit = true
-                    return
-                }
-                p.state = "connected"
-            })
-            if exit == true {
-                p.conn.Terminate()
-                return errorTerminated
+        defer p.conn.Terminate()
+
+        // check for state before starting read
+        exit := false
+        p.client.Safe(func() {
+            if p.state == "terminated" {
+                exit = true
+                return
             }
+            p.state = "connected"
+        })
+        if exit == true {
+            return errorTerminated
         }
 
         for {
             msg,err := p.conn.Read()
             if err != nil {
-                p.conn.Terminate()
                 return err
             }
 
@@ -183,7 +183,6 @@ func (p *connPeer) do() {
                 p.transfer.(*upload).onDelegated()
 
             } else if err != nil {
-                p.conn.Terminate()
                 return err
             }
         }
