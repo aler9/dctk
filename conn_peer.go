@@ -398,6 +398,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
                 p.state = "delegated"
                 p.transfer = dl
                 dl.pconn = p
+                dl.state = "waited_peer"
                 dl.wakeUp <- struct{}{}
             }
         }
