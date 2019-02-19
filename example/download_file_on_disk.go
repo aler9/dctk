@@ -3,7 +3,6 @@
 package main
 
 import (
-    "io/ioutil"
     dctk "github.com/gswly/dctoolkit"
 )
 
