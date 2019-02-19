@@ -35,7 +35,7 @@ go get github.com/gswly/dctoolkit/cmd/...
 ```
 dc-tth [<flags>] <filepath>
 
-Computes the Tiger Tree Hash (TTH) of a given file.
+Compute the Tiger Tree Hash (TTH) of a given file.
 
 Flags:
   --help  Show context-sensitive help (also try --help-long and
