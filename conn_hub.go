@@ -161,7 +161,7 @@ func (h *connHub) do() {
                     defer keepaliver.Terminate()
                 }
 
-                dolog(LevelInfo, "[hub] connected (%s)", connRemoteAddr(rawconn))
+                dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
                 if h.client.protoIsAdc == true {
                     h.conn.Write(&msgAdcHSupports{

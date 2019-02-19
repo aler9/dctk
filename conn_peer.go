@@ -46,7 +46,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
     p.client.connPeers[p] = struct{}{}
 
     if isActive == true {
-        dolog(LevelInfo, "[peer] incoming %s%s", connRemoteAddr(rawconn), func() string {
+        dolog(LevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
             if p.isEncrypted == true {
                 return " (secure)"
             }
@@ -175,7 +175,7 @@ func (p *connPeer) do() {
                     p.conn = newProtocolNmdc("p", rawconn, true, true)
                 }
 
-                dolog(LevelInfo, "[peer] connected %s%s", connRemoteAddr(rawconn),
+                dolog(LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
                     func() string {
                         if p.isEncrypted == true {
                             return " (secure)"

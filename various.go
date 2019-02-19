@@ -118,7 +118,3 @@ func connWithTimeoutAndRetries(address string, timeout time.Duration, retries ui
     }
     return nil, err
 }
-
-func connRemoteAddr(conn net.Conn) string {
-    return conn.RemoteAddr().(*net.TCPAddr).String()
-}
