@@ -27,20 +27,21 @@ type upload struct {
 
 func (*upload) isTransfer() {}
 
-func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
+func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64,
+    reqLength int64, reqCompressed bool) error {
+
     u := &upload{
         client: client,
         state: "processing",
         pconn: pconn,
+        query: reqQuery,
+        start: reqStart,
+        compressed: (client.conf.PeerDisableCompression == false &&
+            reqCompressed == true),
     }
 
-    u.query = msg.Query
-    u.start = msg.Start
-    u.compressed = (client.conf.PeerDisableCompression == false &&
-        msg.Compress == true)
-
     dolog(LevelInfo, "[upload] [%s] request %s (s=%d l=%d)",
-        pconn.peer.Nick, dcReadableQuery(u.query), u.start, msg.Length)
+        pconn.peer.Nick, dcReadableQuery(u.query), u.start, reqLength)
 
     // check available slots
     if u.client.uploadSlotAvail <= 0 {
@@ -50,7 +51,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
     err := func() error {
         // upload is file list
         if u.query == "file files.xml.bz2" {
-            if u.start != 0 || msg.Length != -1 {
+            if u.start != 0 || reqLength != -1 {
                 return fmt.Errorf("filelist seeking is not supported")
             }
 
@@ -90,7 +91,7 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
 
         // upload is file tthl
         if strings.HasPrefix(u.query, "tthl") {
-            if u.start != 0 || msg.Length != -1 {
+            if u.start != 0 || reqLength != -1 {
                 return fmt.Errorf("tthl seeking is not supported")
             }
             u.reader = ioutil.NopCloser(bytes.NewReader(sfile.tthl))
@@ -115,12 +116,12 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
 
         // set real length
         maxLength := sfile.size - u.start
-        if msg.Length != -1 {
-            if uint64(msg.Length) > maxLength {
+        if reqLength != -1 {
+            if uint64(reqLength) > maxLength {
                 f.Close()
                 return fmt.Errorf("length too big")
             }
-            u.length = uint64(msg.Length)
+            u.length = uint64(reqLength)
         } else {
             u.length = maxLength
         }
@@ -132,12 +133,25 @@ func newUpload(client *Client, pconn *connPeer, msg *msgNmdcAdcGet) error {
         return err
     }
 
-    u.pconn.conn.Write(&msgNmdcAdcSnd{
-        Query: u.query,
-        Start: u.start,
-        Length: u.length,
-        Compressed: u.compressed,
-    })
+    if u.client.protoIsAdc == true {
+        u.pconn.conn.Write(&msgAdcCSendFile{
+            msgAdcTypeC{},
+            msgAdcKeySendFile{
+                Query: u.query,
+                Start: u.start,
+                Length: u.length,
+                Compressed: u.compressed,
+            },
+        })
+
+    } else {
+        u.pconn.conn.Write(&msgNmdcSendFile{
+            Query: u.query,
+            Start: u.start,
+            Length: u.length,
+            Compressed: u.compressed,
+        })
+    }
 
     client.transfers[u] = struct{}{}
     u.client.uploadSlotAvail -= 1

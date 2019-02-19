@@ -4,7 +4,6 @@ import (
     "fmt"
     "net"
     "strings"
-    "math/rand"
 )
 
 type SearchType int
@@ -58,15 +57,6 @@ func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult)
         sr.Path = strings.TrimSuffix(sr.Path, "/")
     }
     return sr
-}
-
-func adcRandomSearchToken() string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    buf := make([]byte, 10)
-    for i,_ := range buf {
-        buf[i] = chars[rand.Intn(len(chars))]
-    }
-    return string(buf)
 }
 
 func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) *SearchResult {
@@ -136,7 +126,7 @@ func (c *Client) Search(conf SearchConf) error {
         fields := make(map[string]string)
 
         // always add token even if we're not using it
-        fields[adcFieldToken] = adcRandomSearchToken()
+        fields[adcFieldToken] = adcRandomToken()
 
         switch conf.Type {
         case SearchAny:

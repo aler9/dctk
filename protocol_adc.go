@@ -5,6 +5,7 @@ import (
     "strings"
     "regexp"
     "net"
+    "math/rand"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
     adcFieldUploadSpeed          = "US"
     adcFieldUploadSlotCount      = "SL"
     adcFieldToken                = "TO"
+    adcFieldProtocol             = "PR"
     // client info
     adcFieldSoftware             = "AP"
     adcFieldVersion              = "VE"
@@ -29,6 +31,7 @@ const (
     adcFieldIp                   = "I4"
     adcFieldUdpPort              = "U4"
     adcFieldPrivateId            = "PD"
+    adcFieldTlsFingerprint       = "KP"
     // search requests & results
     adcFieldMinSize              = "GE"
     adcFieldMaxSize              = "LE"
@@ -44,8 +47,21 @@ const (
     adcFieldFileExcludeExtens    = "RX"
 )
 
+const (
+    adcProtocolPlain        = "ADC/1.0"
+    adcProtocolEncrypted    = "ADCS/0.10"
+)
+
+type adcStatusType byte
+const (
+    adcStatusOk         adcStatusType = '0'
+    adcStatusWarning    adcStatusType = '1'
+    adcStatusError      adcStatusType = '2'
+)
+
 const reStrAdcSessionId = "[A-Z0-9]{4}"
 const reStrAdcClientId = "[A-Z0-9]+"
+const reStrAdcToken = "[A-Z0-9]+"
 
 var reAdcTypeB = regexp.MustCompile("^("+reStrAdcSessionId+") ")
 var reAdcTypeD = regexp.MustCompile("^("+reStrAdcSessionId+") ("+reStrAdcSessionId+") ")
@@ -54,10 +70,10 @@ var reAdcTypeU = regexp.MustCompile("^("+reStrAdcClientId+") ")
 
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
 var reAdcQuit = regexp.MustCompile("^("+reStrAdcSessionId+")( (.+))?$")
-var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ([0-9]+)$")
-var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ([0-9]+)$")
+var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ("+reStrAdcToken+")$")
+var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ("+reStrAdcToken+")$")
 var readcSessionId = regexp.MustCompile("^"+reStrAdcSessionId+"$")
-var reAdcStatus = regexp.MustCompile("^([0-9]+) (.+)$")
+var reAdcStatus = regexp.MustCompile("^(0|1|2)([0-9]+) (.+?)( (.+?))?$")
 
 func adcUnescape(in string) string {
     in = strings.Replace(in, "\\s", " ", -1)
@@ -90,6 +106,15 @@ func adcFieldsEncode(fields map[string]string) string {
         out = append(out, key + adcEscape(val))
     }
     return strings.Join(out, " ")
+}
+
+func adcRandomToken() string {
+    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    buf := make([]byte, 10)
+    for i,_ := range buf {
+        buf[i] = chars[rand.Intn(len(chars))]
+    }
+    return string(buf)
 }
 
 type protocolAdc struct {
@@ -126,7 +151,9 @@ func (p *protocolAdc) Read() (msgDecodable,error) {
                 case "BINF": return &msgAdcBInfos{}
                 case "BMSG": return &msgAdcBMessage{}
                 case "BSCH": return &msgAdcBSearchRequest{}
+                case "CGET": return &msgAdcCGetFile{}
                 case "CINF": return &msgAdcCInfos{}
+                case "CSND": return &msgAdcCSendFile{}
                 case "CSUP": return &msgAdcCSupports{}
                 case "CSTA": return &msgAdcCStatus{}
                 case "DCTM": return &msgAdcDConnectToMe{}
@@ -168,14 +195,18 @@ func (p *protocolAdc) Read() (msgDecodable,error) {
         return msg, nil
 
     } else {
-        return nil, fmt.Errorf("unimplemented")
+        buf,err := p.ReadBinary()
+        if err != nil {
+            return nil, err
+        }
+        return &msgBinary{ buf }, nil
     }
 }
 
 func (c *protocolAdc) Write(msg msgEncodable) {
     adc,ok := msg.(msgAdcTypeKeyEncodable)
     if !ok {
-        panic("command not fit for adc")
+        panic(fmt.Errorf("command not fit for adc (%T)", msg))
     }
     dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
     c.sendChan <- []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
@@ -359,6 +390,34 @@ func (m *msgAdcKeyCommand) AdcKeyDecode(args string) error {
     return nil
 }
 
+type msgAdcKeyGetFile struct {
+    Query           string
+    Start           uint64
+    Length          int64
+    Compressed      bool
+}
+
+func (m *msgAdcKeyGetFile) AdcKeyDecode(args string) error {
+    matches := reNmdcCmdAdcGet.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Query, m.Start, m.Length, m.Compressed = matches[1], atoui64(matches[4]),
+        atoi64(matches[5]), (matches[6] != "")
+    return nil
+}
+
+func (m *msgAdcKeyGetFile) AdcKeyEncode() string {
+    return "GET" + fmt.Sprintf("%s %d %d%s",
+        m.Query, m.Start, m.Length,
+        func() string {
+            if m.Compressed == true {
+                return " ZL1"
+            }
+            return ""
+        }())
+}
+
 type msgAdcKeyGetPass struct {
     Data []byte
 }
@@ -473,6 +532,35 @@ func (m *msgAdcKeySearchResult) AdcKeyEncode() string {
     return "RES" + adcFieldsEncode(m.Fields)
 }
 
+
+type msgAdcKeySendFile struct {
+    Query       string
+    Start       uint64
+    Length      uint64
+    Compressed  bool
+}
+
+func (m *msgAdcKeySendFile) AdcKeyDecode(args string) error {
+    matches := reNmdcCmdAdcSnd.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Query, m.Start, m.Length, m.Compressed = matches[1], atoui64(matches[4]),
+        atoui64(matches[5]), (matches[6] != "")
+    return nil
+}
+
+func (m *msgAdcKeySendFile) AdcKeyEncode() string {
+    return "SND" + fmt.Sprintf("%s %d %d%s",
+        m.Query, m.Start, m.Length,
+        func() string {
+            if m.Compressed {
+                return " ZL1"
+            }
+            return ""
+        }())
+}
+
 type msgAdcKeySessionId struct {
     Sid string
 }
@@ -487,8 +575,10 @@ func (m *msgAdcKeySessionId) AdcKeyDecode(args string) error {
 }
 
 type msgAdcKeyStatus struct {
+    Type        adcStatusType
     Code        uint
     Message     string
+    Fields      map[string]string
 }
 
 func (m *msgAdcKeyStatus) AdcKeyDecode(args string) error {
@@ -496,8 +586,17 @@ func (m *msgAdcKeyStatus) AdcKeyDecode(args string) error {
     if matches == nil {
         return errorArgsFormat
     }
-    m.Code, m.Message = atoui(matches[1]), adcUnescape(matches[2])
+    m.Type, m.Code, m.Message, m.Fields = adcStatusType(matches[1][0]),
+        atoui(matches[2]), adcUnescape(matches[3]), adcFieldsDecode(matches[4])
     return nil
+}
+
+func (m *msgAdcKeyStatus) AdcKeyEncode() string {
+    ret := "STA" + string([]byte{byte(m.Type)}) + numtoa(m.Code) + " " + adcEscape(m.Message)
+    if len(m.Fields) > 0 {
+        ret += " " + adcFieldsEncode(m.Fields)
+    }
+    return ret
 }
 
 type msgAdcKeySupports struct {
@@ -538,19 +637,29 @@ type msgAdcBSearchRequest struct {
     msgAdcKeySearchRequest
 }
 
+type msgAdcCGetFile struct {
+    msgAdcTypeC
+    msgAdcKeyGetFile
+}
+
 type msgAdcCInfos struct {
     msgAdcTypeC
     msgAdcKeyInfos
 }
 
-type msgAdcCSupports struct {
+type msgAdcCSendFile struct {
     msgAdcTypeC
-    msgAdcKeySupports
+    msgAdcKeySendFile
 }
 
 type msgAdcCStatus struct {
     msgAdcTypeC
     msgAdcKeyStatus
+}
+
+type msgAdcCSupports struct {
+    msgAdcTypeC
+    msgAdcKeySupports
 }
 
 type msgAdcDConnectToMe struct {
@@ -571,6 +680,11 @@ type msgAdcDRevConnectToMe struct {
 type msgAdcDSearchResult struct {
     msgAdcTypeD
     msgAdcKeySearchResult
+}
+
+type msgAdcDStatus struct {
+    msgAdcTypeD
+    msgAdcKeyStatus
 }
 
 type msgAdcFSearchRequest struct {

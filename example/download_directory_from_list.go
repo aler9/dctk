@@ -4,20 +4,14 @@ import (
     dctk "github.com/gswly/dctoolkit"
 )
 
-// edit with the nick you want to download from and the directory you want to download
-const (
-    PeerName = "othernick"
-    DirPath = "/share/file.txt"
-)
-
 func main() {
     // automatically connect to hub. local ports must be opened and accessible (configure your router)
     client,err := dctk.NewClient(dctk.ClientConf{
         HubUrl: "nmdc://hubip:411",
         Nick: "mynick",
-        TcpPort: 3005,
-        UdpPort: 3005,
-        TcpTlsPort: 3004,
+        TcpPort: 3009,
+        UdpPort: 3009,
+        TcpTlsPort: 3010,
     })
     if err != nil {
         panic(err)
@@ -25,7 +19,7 @@ func main() {
 
     // download peer file list
     client.OnPeerConnected = func(p *dctk.Peer) {
-        if p.Nick == PeerName {
+        if p.Nick == "client" {
             client.DownloadFileList(p)
         }
     }
@@ -43,7 +37,7 @@ func main() {
             }
 
             // find directory
-            dir,err := fl.GetDirectory(DirPath)
+            dir,err := fl.GetDirectory("/path/to/directory")
             if err != nil {
                 panic(err)
             }
@@ -53,8 +47,6 @@ func main() {
 
         // a file has been downloaded
         } else {
-            client.Terminate()
-
             // all files have been downloaded
             if client.DownloadCount() == 0 {
                 client.Terminate()

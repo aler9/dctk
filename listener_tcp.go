@@ -35,21 +35,31 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
         template := x509.Certificate{
             SerialNumber: serialNumber,
         }
-        cbytes,err := x509.CreateCertificate(crand.Reader, &template, &template, &priv.PublicKey, priv)
+        bcert,err := x509.CreateCertificate(crand.Reader, &template, &template, &priv.PublicKey, priv)
         if err != nil {
             return err
         }
 
-        certPEMBlock := pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: cbytes })
+        /*xcert,err := x509.ParseCertificate(bcert)
+        if err != nil {
+            return err
+        }
+        if xcert.SignatureAlgorithm != x509.SHA256WithRSA {
+            return fmt.Errorf("unexpected signature")
+        }
+        ret := "SHA256/" + dcBase32Encode(xcert.Signature)
+        panic("k")*/
+
+        certPEMBlock := pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: bcert })
         keyPEMBlock := pem.EncodeToMemory(&pem.Block{ Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv) })
 
-        cert,err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+        tcert,err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
         if err != nil {
             return err
         }
 
         listener,err = tls.Listen("tcp", fmt.Sprintf(":%d", client.conf.TcpTlsPort),
-            &tls.Config{Certificates: []tls.Certificate{ cert }})
+            &tls.Config{Certificates: []tls.Certificate{ tcert }})
         if err != nil {
             return err
         }

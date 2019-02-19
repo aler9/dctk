@@ -26,17 +26,13 @@ type Peer struct {
     // peer ip, if sent by hub
     Ip              string
 
-    adcSessionId    string
-    adcClientId     []byte
-    adcSupports     map[string]struct{}
-    adcUdpPort      uint
-    nmdcConnection  string
-    nmdcStatusByte  byte
-}
-
-func (p *Peer) nmdcSupportTls() bool {
-    // we check only for bit 4
-    return (p.nmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
+    adcSessionId        string
+    adcClientId         []byte
+    adcTlsFingerprint   string
+    adcSupports         map[string]struct{}
+    adcUdpPort          uint
+    nmdcConnection      string
+    nmdcStatusByte      byte
 }
 
 // Peers returns a map containing all the peers connected to current hub.
@@ -69,19 +65,49 @@ func (c *Client) peerByClientId(clientId []byte) *Peer {
     return nil
 }
 
-func (c *Client) peerRequestConnection(peer *Peer) {
-    if c.conf.IsPassive == false {
-        c.peerConnectToMe(peer)
+func (c *Client) peerSupportsEncryption(p *Peer) bool {
+    if c.protoIsAdc == true {
+        if p.adcTlsFingerprint != "" {
+            return true
+        }
+        if _,ok := p.adcSupports["ADCS"]; ok {
+            return true
+        }
+        return false
+
     } else {
-        c.peerRevConnectToMe(peer)
+        // we check only for bit 4
+        return (p.nmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
     }
 }
 
-func (c *Client) peerConnectToMe(peer *Peer) {
+func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
+    if c.conf.IsPassive == false {
+        c.peerConnectToMe(peer, adcToken)
+    } else {
+        c.peerRevConnectToMe(peer, adcToken)
+    }
+}
+
+func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
     if c.protoIsAdc == true {
         c.connHub.conn.Write(&msgAdcDConnectToMe{
             msgAdcTypeD{ c.sessionId, peer.adcSessionId },
-            msgAdcKeyConnectToMe{ "ADC/1.0", c.conf.TcpPort, "123456789" },
+            msgAdcKeyConnectToMe{
+                func() string {
+                    if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
+                        return adcProtocolEncrypted
+                    }
+                    return adcProtocolPlain
+                }(),
+                func() uint {
+                    if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
+                        return c.conf.TcpTlsPort
+                    }
+                    return c.conf.TcpPort
+                }(),
+                adcToken,
+            },
         })
 
     } else {
@@ -89,21 +115,29 @@ func (c *Client) peerConnectToMe(peer *Peer) {
             Target: peer.Nick,
             Ip: c.ip,
             Port: func() uint {
-                if c.conf.PeerEncryptionMode != DisableEncryption && peer.nmdcSupportTls() {
+                if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
                     return c.conf.TcpTlsPort
                 }
                 return c.conf.TcpPort
             }(),
-            Encrypted: (c.conf.PeerEncryptionMode != DisableEncryption && peer.nmdcSupportTls()),
+            Encrypted: (c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer)),
         })
     }
 }
 
-func (c *Client) peerRevConnectToMe(peer *Peer) {
+func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
     if c.protoIsAdc == true {
         c.connHub.conn.Write(&msgAdcDRevConnectToMe{
             msgAdcTypeD{ c.sessionId, peer.adcSessionId },
-            msgAdcKeyRevConnectToMe{ "ADC/1.0", "123456789" },
+            msgAdcKeyRevConnectToMe{
+                func() string {
+                    if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
+                        return adcProtocolEncrypted
+                    }
+                    return adcProtocolPlain
+                }(),
+                adcToken,
+            },
         })
 
     } else {
@@ -136,9 +170,9 @@ func (c *Client) handlePeerDisconnected(peer *Peer) {
     }
 }
 
-func (c *Client) handlePeerRevConnectToMe(peer *Peer) {
+func (c *Client) handlePeerRevConnectToMe(peer *Peer, adcToken string) {
     // we can process RevConnectToMe only in active mode
     if c.conf.IsPassive == false {
-        c.peerConnectToMe(peer)
+        c.peerConnectToMe(peer, adcToken)
     }
 }
