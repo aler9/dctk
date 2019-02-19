@@ -24,15 +24,14 @@ func main() {
             client.DownloadFile(dctk.DownloadConf{
                 Peer: p,
                 TTH: "AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y",
+                SavePath: "/path/to/outfile",
             })
         }
     }
 
-    // download has finished: save the file on disk
+    // download has finished: close
     client.OnDownloadSuccessful = func(d *dctk.Download) {
-        if err := ioutil.WriteFile("/path/to/outfile", d.Content(), 0655); err != nil {
-            panic(err)
-        }
+        client.Terminate()
     }
 
     client.Run()

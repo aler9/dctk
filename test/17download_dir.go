@@ -61,7 +61,15 @@ func client2() {
         }
     }
 
-    tthMap := map[string]bool {
+    paths := map[string]string {
+        "I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI": "/share/folder/first file.txt",
+        "PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA": "/share/folder/second file.txt",
+        "GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI": "/share/folder/third file.txt",
+        "V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI": "/share/folder/subdir/fourth file.txt",
+        "7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY": "/share/folder/subdir/fifth file.txt",
+    }
+
+    downloaded := map[string]bool {
         "I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI": false,
         "PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA": false,
         "GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI": false,
@@ -85,16 +93,26 @@ func client2() {
                 panic(err)
             }
 
-            client.DownloadFLDirectory(d.Conf().Peer, dir)
+            client.DownloadFLDirectory(d.Conf().Peer, dir, "/tmp/out")
 
         } else {
-            if _,ok := tthMap[d.Conf().TTH]; !ok {
+            if _,ok := downloaded[d.Conf().TTH]; !ok {
                 panic("wrong TTH")
             }
-            if tthMap[d.Conf().TTH] == true {
+
+            if downloaded[d.Conf().TTH] == true {
                 panic("TTH already downloaded")
             }
-            tthMap[d.Conf().TTH] = true
+            downloaded[d.Conf().TTH] = true
+
+            tth,err := dctk.TTHFromFile(paths[d.Conf().TTH])
+            if err != nil {
+                panic(err)
+            }
+
+            if tth != d.Conf().TTH {
+                panic(fmt.Errorf("TTH of file is wrong (%s) (%s)", paths[d.Conf().TTH], tth))
+            }
 
             count++
             fmt.Printf("COUNT: %d\n", count)
@@ -107,7 +125,7 @@ func client2() {
 
     client.Run()
 
-    for _,b := range tthMap {
+    for _,b := range downloaded {
         if b == false {
             panic("file not downloaded")
         }
