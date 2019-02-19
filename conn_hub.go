@@ -471,13 +471,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
         h.protoState = "preinitialized"
 
-    // flexhub send HubName just after lock
-    // HubName can also be sent twice
-    case *msgNmdcHubName:
-        if h.protoState != "preinitialized" && h.protoState != "lock" {
-            return fmt.Errorf("[HubName] invalid state: %s", h.protoState)
-        }
-
     case *msgNmdcZon:
         if h.protoState != "initialized" && h.protoState != "preinitialized" {
             return fmt.Errorf("[ZOn] invalid state: %s", h.protoState)
@@ -489,6 +482,14 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             return err
         }
 
+    // flexhub send HubName just after lock
+    // HubName can also be sent twice
+    case *msgNmdcHubName:
+        if h.protoState != "preinitialized" && h.protoState != "lock" {
+            return fmt.Errorf("[HubName] invalid state: %s", h.protoState)
+        }
+        dolog(LevelInfo, "[hub] [name] %s", msg.Content)
+
     case *msgNmdcHubTopic:
         if h.protoState != "preinitialized" && h.protoState != "initialized" {
             return fmt.Errorf("[HubTopic] invalid state: %s", h.protoState)
@@ -497,6 +498,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             return fmt.Errorf("HubTopic sent twice")
         }
         h.uniqueCmds["HubTopic"] = struct{}{}
+        dolog(LevelInfo, "[hub] [topic] %s", msg.Content)
 
     case *msgNmdcGetPass:
         if h.protoState != "preinitialized" {

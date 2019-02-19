@@ -354,15 +354,21 @@ func (m *msgNmdcHubIsFull) NmdcDecode(args string) error {
     return nil
 }
 
-type msgNmdcHubName struct {}
+type msgNmdcHubName struct {
+    Content string
+}
 
 func (m *msgNmdcHubName) NmdcDecode(args string) error {
+    m.Content = args
     return nil
 }
 
-type msgNmdcHubTopic struct {}
+type msgNmdcHubTopic struct {
+    Content string
+}
 
 func (m *msgNmdcHubTopic) NmdcDecode(args string) error {
+    m.Content = args
     return nil
 }
 
