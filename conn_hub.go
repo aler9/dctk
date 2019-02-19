@@ -171,7 +171,6 @@ func (h *connHub) do() {
                              "ADBASE": struct{}{},
                              "ADTIGR": struct{}{},
                              "ADUCM0": struct{}{}, // user commands
-                             "ADBLO0": struct{}{}, // bloom
                              "ADZLIF": struct{}{},
                         } },
                     })
