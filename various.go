@@ -111,7 +111,7 @@ func connWithTimeoutAndRetries(address string, timeout time.Duration, retries ui
     var err error
     for i := uint(0); i < retries; i++ {
         var conn net.Conn
-        conn,err = net.DialTimeout("tcp", address, timeout)
+        conn,err = net.DialTimeout("tcp4", address, timeout)
         if err == nil {
             return conn, nil
         }
