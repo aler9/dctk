@@ -40,15 +40,13 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
             return err
         }
 
-        /*xcert,err := x509.ParseCertificate(bcert)
-        if err != nil {
-            return err
+        if client.protoIsAdc == true {
+            xcert,err := x509.ParseCertificate(bcert)
+            if err != nil {
+                return err
+            }
+            client.adcFingerprint = adcCertificateFingerprint(xcert)
         }
-        if xcert.SignatureAlgorithm != x509.SHA256WithRSA {
-            return fmt.Errorf("unexpected signature")
-        }
-        ret := "SHA256/" + dcBase32Encode(xcert.Signature)
-        panic("k")*/
 
         certPEMBlock := pem.EncodeToMemory(&pem.Block{ Type: "CERTIFICATE", Bytes: bcert })
         keyPEMBlock := pem.EncodeToMemory(&pem.Block{ Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv) })

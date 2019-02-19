@@ -28,7 +28,7 @@ type Peer struct {
 
     adcSessionId        string
     adcClientId         []byte
-    adcTlsFingerprint   string
+    adcFingerprint      string
     adcSupports         map[string]struct{}
     adcUdpPort          uint
     nmdcConnection      string
@@ -67,7 +67,7 @@ func (c *Client) peerByClientId(clientId []byte) *Peer {
 
 func (c *Client) peerSupportsEncryption(p *Peer) bool {
     if c.protoIsAdc == true {
-        if p.adcTlsFingerprint != "" {
+        if p.adcFingerprint != "" {
             return true
         }
         if _,ok := p.adcSupports["ADCS"]; ok {

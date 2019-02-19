@@ -318,6 +318,22 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
                     // token is not sent back when in active mode
                 } },
             })
+        } else {
+            // validate peer fingerprint
+            // can be performed on client-side only since many clients do not send
+            // their certificate when in passive mode
+            if p.client.protoIsAdc == true && p.isEncrypted == true &&
+                p.peer.adcFingerprint != "" {
+
+                connFingerprint := adcCertificateFingerprint(
+                    p.conn.NetConn().(*tls.Conn).ConnectionState().PeerCertificates[0])
+
+                if connFingerprint != p.peer.adcFingerprint {
+                    return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
+                        connFingerprint, p.peer.adcFingerprint)
+                }
+                dolog(LevelInfo, "[peer] fingerprint validated")
+            }
         }
 
         dl := p.client.downloadByAdcToken(p.adcToken)

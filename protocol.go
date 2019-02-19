@@ -12,6 +12,7 @@ type msgDecodable interface {}
 type msgEncodable interface {}
 
 type protocol interface {
+    NetConn() net.Conn
     Terminate()
     SetSyncMode(val bool)
     SetReadBinary(val bool)
@@ -128,6 +129,10 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
     c.sendChan = make(chan []byte)
     go c.writer()
     return c
+}
+
+func (c *protocolBase) NetConn() net.Conn {
+    return c.netReadWriter.in
 }
 
 func (c *protocolBase) Terminate() {

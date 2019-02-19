@@ -292,7 +292,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             case adcFieldClientId: p.adcClientId = dcBase32Decode(val)
             case adcFieldSoftware: p.Client = val
             case adcFieldVersion: p.Version = val
-            case adcFieldTlsFingerprint: p.adcTlsFingerprint = val
+            case adcFieldTlsFingerprint: p.adcFingerprint = val
 
             case adcFieldSupports:
                 p.adcSupports = make(map[string]struct{})
