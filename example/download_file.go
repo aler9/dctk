@@ -1,3 +1,5 @@
+// +build ignore
+
 package main
 
 import (
@@ -26,6 +28,7 @@ func main() {
                 TTH: "AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y",
             })
         }
+    }
 
     // download has finished
     client.OnDownloadSuccessful = func(d *dctk.Download) {
