@@ -397,11 +397,11 @@ func (c *Client) getPrivateIp() error {
 func (c *Client) sendInfos(firstTime bool) {
     if c.protoIsAdc == true {
         supports := []string{ "SEGA", "ADC0" }
-        //if c.PeerEncryptionMode != DisableEncryption {
-        //    supports = append(supports, "ADCS")
-        //}
         if c.conf.IsPassive == false {
             supports = append(supports, "TCP4", "UDP4")
+        }
+        if c.conf.PeerEncryptionMode != DisableEncryption {
+            supports = append(supports, "ADCS")
         }
 
         fields := map[string]string{
@@ -480,15 +480,4 @@ func (c *Client) Safe(cb func()) {
 // Conf returns the configuration passed during client initialization.
 func (c *Client) Conf() ClientConf {
     return c.conf
-}
-
-// DownloadCount returns the number of remaining downloads, queued or active.
-func (c *Client) DownloadCount() int {
-    count := 0
-    for t,_ := range c.transfers {
-        if _,ok := t.(*Download); ok {
-            count++
-        }
-    }
-    return count
 }

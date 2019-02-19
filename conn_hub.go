@@ -170,8 +170,8 @@ func (h *connHub) do() {
                              "ADBAS0": struct{}{},
                              "ADBASE": struct{}{},
                              "ADTIGR": struct{}{},
-                             "ADUCM0": struct{}{},
-                             "ADBLO0": struct{}{},
+                             "ADUCM0": struct{}{}, // user commands
+                             "ADBLO0": struct{}{}, // bloom
                              "ADZLIF": struct{}{},
                         } },
                     })
@@ -211,8 +211,8 @@ func (h *connHub) do() {
 func (h *connHub) handleMessage(msgi msgDecodable) error {
     switch msg := msgi.(type) {
     case *msgAdcIStatus:
-        if msg.Code != 0 {
-            return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
+        if msg.Type != adcStatusOk {
+            return fmt.Errorf("error: %+v", msg)
         }
 
     case *msgAdcISupports:
@@ -291,6 +291,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             case adcFieldIp: p.Ip = val
             case adcFieldUdpPort: p.adcUdpPort = atoui(val)
             case adcFieldClientId: p.adcClientId = dcBase32Decode(val)
+            case adcFieldSoftware: p.Client = val
+            case adcFieldVersion: p.Version = val
+            case adcFieldTlsFingerprint: p.adcTlsFingerprint = val
+
             case adcFieldSupports:
                 p.adcSupports = make(map[string]struct{})
                 for _,feat := range strings.Split(val, ",") {
@@ -301,11 +305,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
                 ct := atoui(val)
                 p.IsBot = (ct & 1) != 0
                 p.IsOperator = ((ct & 4) | (ct & 8) | (ct & 16)) != 0
-
-            case adcFieldSoftware:
-                p.Client = val
-            case adcFieldVersion:
-                p.Version = val
             }
         }
 
@@ -381,14 +380,58 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         if p == nil {
             return fmt.Errorf("connecttome with unknown author")
         }
-        newConnPeer(h.client, false, false, nil, p.Ip, msg.TcpPort, msg.Token)
+        if msg.Token == "" {
+            return fmt.Errorf("connecttome with invalid token")
+        }
+
+        // invalid protocol
+        if _,ok :=  map[string]struct{}{
+            adcProtocolPlain: struct{}{},
+            adcProtocolEncrypted: struct{}{},
+        }[msg.Protocol]; ok == false {
+            h.conn.Write(&msgAdcDStatus{
+                msgAdcTypeD{ h.client.sessionId, msg.AuthorId },
+                msgAdcKeyStatus{ adcStatusWarning, 41, "Transfer protocol unsupported",
+                    map[string]string{
+                        adcFieldToken: msg.Token,
+                        adcFieldProtocol: msg.Protocol,
+                    },
+                },
+            })
+            return nil
+        }
+
+        // some clients send an ADCS request without checking whether we support it
+        // or not. the same can happen for ADC. send back a status
+        if (msg.Protocol == adcProtocolEncrypted &&
+            h.client.conf.PeerEncryptionMode == DisableEncryption) ||
+            (msg.Protocol == adcProtocolPlain &&
+            h.client.conf.PeerEncryptionMode == ForceEncryption) {
+
+            h.conn.Write(&msgAdcDStatus{
+                msgAdcTypeD{ h.client.sessionId, msg.AuthorId },
+                msgAdcKeyStatus{ adcStatusWarning, 41, "Transfer protocol unsupported",
+                    map[string]string{
+                        adcFieldToken: msg.Token,
+                        adcFieldProtocol: msg.Protocol,
+                    },
+                },
+            })
+            return nil
+        }
+
+        isEncrypted := (msg.Protocol == adcProtocolEncrypted)
+        newConnPeer(h.client, isEncrypted, false, nil, p.Ip, msg.TcpPort, msg.Token)
 
     case *msgAdcDRevConnectToMe:
         p := h.client.peerBySessionId(msg.AuthorId)
         if p == nil {
             return fmt.Errorf("revconnecttome with unknown author")
         }
-        h.client.handlePeerRevConnectToMe(p)
+        if msg.Token == "" {
+            return fmt.Errorf("revconnecttome with invalid token")
+        }
+        h.client.handlePeerRevConnectToMe(p, msg.Token)
 
     case *msgNmdcKeepAlive:
 
@@ -627,7 +670,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
         p := h.client.peerByNick(msg.Author)
         if p != nil {
-            h.client.handlePeerRevConnectToMe(p)
+            h.client.handlePeerRevConnectToMe(p, "")
         }
 
     case *msgNmdcPublicChat:

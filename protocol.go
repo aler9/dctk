@@ -266,3 +266,7 @@ func (c *protocolBase) WriteSync(in []byte) error {
     _,err := c.activeWriter.Write(in)
     return err
 }
+
+type msgBinary struct {
+    Content []byte
+}

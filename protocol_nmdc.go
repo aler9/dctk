@@ -91,8 +91,8 @@ func (p *protocolNmdc) Read() (msgDecodable,error) {
 
                 cmd := func() msgNmdcCommandDecodable {
                     switch key {
-                    case "ADCGET": return &msgNmdcAdcGet{}
-                    case "ADCSND": return &msgNmdcAdcSnd{}
+                    case "ADCGET": return &msgNmdcGetFile{}
+                    case "ADCSND": return &msgNmdcSendFile{}
                     case "BadPass": return &msgNmdcBadPassword{}
                     case "BotList": return &msgNmdcBotList{}
                     case "ConnectToMe": return &msgNmdcConnectToMe{}
@@ -155,14 +155,14 @@ func (p *protocolNmdc) Read() (msgDecodable,error) {
         if err != nil {
             return nil, err
         }
-        return &msgNmdcBinary{ Content: buf }, nil
+        return &msgBinary{ buf }, nil
     }
 }
 
 func (c *protocolNmdc) Write(msg msgEncodable) {
     nmdc,ok := msg.(msgNmdcEncodable)
     if !ok {
-        panic("command not fit for nmdc")
+        panic(fmt.Errorf("command not fit for nmdc (%T)", msg))
     }
     dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
     c.sendChan <- []byte(nmdc.NmdcEncode())
@@ -176,42 +176,42 @@ type msgNmdcEncodable interface {
     NmdcEncode() string
 }
 
-type msgNmdcAdcGet struct {
+type msgNmdcGetFile struct {
     Query           string
     Start           uint64
     Length          int64
-    Compress        bool
+    Compressed      bool
 }
 
-func (m *msgNmdcAdcGet) NmdcDecode(args string) error {
+func (m *msgNmdcGetFile) NmdcDecode(args string) error {
     matches := reNmdcCmdAdcGet.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
-    m.Query, m.Start, m.Length, m.Compress = matches[1], atoui64(matches[4]),
+    m.Query, m.Start, m.Length, m.Compressed = matches[1], atoui64(matches[4]),
         atoi64(matches[5]), (matches[6] != "")
     return nil
 }
 
-func (m *msgNmdcAdcGet) NmdcEncode() string {
+func (m *msgNmdcGetFile) NmdcEncode() string {
     return nmdcCommandEncode("ADCGET", fmt.Sprintf("%s %d %d%s",
         m.Query, m.Start, m.Length,
         func() string {
-            if m.Compress == true {
+            if m.Compressed == true {
                 return " ZL1"
             }
             return ""
         }()))
 }
 
-type msgNmdcAdcSnd struct {
+type msgNmdcSendFile struct {
     Query       string
     Start       uint64
     Length      uint64
     Compressed  bool
 }
 
-func (m *msgNmdcAdcSnd) NmdcDecode(args string) error {
+func (m *msgNmdcSendFile) NmdcDecode(args string) error {
     matches := reNmdcCmdAdcSnd.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
@@ -221,7 +221,7 @@ func (m *msgNmdcAdcSnd) NmdcDecode(args string) error {
     return nil
 }
 
-func (m *msgNmdcAdcSnd) NmdcEncode() string {
+func (m *msgNmdcSendFile) NmdcEncode() string {
     return nmdcCommandEncode("ADCSND", fmt.Sprintf("%s %d %d%s",
         m.Query, m.Start, m.Length,
         func() string {
@@ -236,14 +236,6 @@ type msgNmdcBadPassword struct {}
 
 func (m *msgNmdcBadPassword) NmdcDecode(args string) error {
     return nil
-}
-
-type msgNmdcBinary struct {
-    Content []byte
-}
-
-func (c *msgNmdcBinary) NmdcEncode() string {
-    return string(c.Content)
 }
 
 type msgNmdcBotList struct {

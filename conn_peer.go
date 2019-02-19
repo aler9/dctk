@@ -188,7 +188,6 @@ func (p *connPeer) do() {
                     p.conn.Write(&msgAdcCSupports{
                         msgAdcTypeC{},
                         msgAdcKeySupports{ map[string]struct{}{
-                            "CSUP": struct{}{},
                             "ADBAS0": struct{}{},
                             "ADBASE": struct{}{},
                             "ADTIGR": struct{}{},
@@ -253,18 +252,10 @@ func (p *connPeer) do() {
     })
 }
 
-func (p *connPeer) getPendingDownload() *Download {
-    dl,ok := p.client.activeDownloadsByPeer[p.peer.Nick]
-    if ok && dl.state == "waiting_peer" {
-        return dl
-    }
-    return nil
-}
-
 func (p *connPeer) handleMessage(msgi msgDecodable) error {
     switch msg := msgi.(type) {
     case *msgAdcCStatus:
-        if msg.Code != 0 {
+        if msg.Type != adcStatusOk {
             return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
         }
 
@@ -277,7 +268,6 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
             p.conn.Write(&msgAdcCSupports{
                 msgAdcTypeC{},
                 msgAdcKeySupports{ map[string]struct{}{
-                    "CSUP": struct{}{},
                     "ADBAS0": struct{}{},
                     "ADBASE": struct{}{},
                     "ADTIGR": struct{}{},
@@ -285,6 +275,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
                     "ADZLIG": struct{}{},
                 } },
             })
+
         } else {
             p.conn.Write(&msgAdcCInfos{
                 msgAdcTypeC{},
@@ -300,12 +291,72 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
             return fmt.Errorf("[Infos] invalid state: %s", p.protoState)
         }
         p.protoState = "infos"
+
+        clientId,ok := msg.Fields[adcFieldClientId]
+        if ok == false {
+            return fmt.Errorf("client id not provided")
+        }
+
+        p.peer = p.client.peerByClientId(dcBase32Decode(clientId))
+        if p.peer == nil {
+            return fmt.Errorf("unknown client id (%s)", clientId)
+        }
+
         if p.isActive == true {
+            token,ok := msg.Fields[adcFieldToken]
+            if ok == false {
+                return fmt.Errorf("token not provided")
+            }
+            p.adcToken = token
+
             p.conn.Write(&msgAdcCInfos{
                 msgAdcTypeC{},
-                msgAdcKeyInfos{ map[string]string{ adcFieldClientId: dcBase32Encode(p.client.clientId) } },
+                msgAdcKeyInfos{ map[string]string{
+                    adcFieldClientId: dcBase32Encode(p.client.clientId),
+                    // token is not sent back when in active mode
+                } },
             })
         }
+
+        dl := p.client.downloadByAdcToken(p.adcToken)
+        if dl != nil {
+            key := nickDirectionPair{ p.peer.Nick, "download" }
+            if _,ok := p.client.connPeersByKey[key]; ok {
+                return fmt.Errorf("a connection with this peer and direction already exists")
+            }
+            p.client.connPeersByKey[key] = p
+
+            p.direction = "download"
+            p.protoState = "wait_download"
+            p.state = "delegated_download"
+            p.transfer = dl
+            dl.pconn = p
+            dl.state = "waited_peer"
+            dl.wakeUp <- struct{}{}
+
+        } else {
+            key := nickDirectionPair{ p.peer.Nick, "upload" }
+            if _,ok := p.client.connPeersByKey[key]; ok {
+                return fmt.Errorf("a connection with this peer and direction already exists")
+            }
+            p.client.connPeersByKey[key] = p
+
+            p.direction = "upload"
+            p.protoState = "wait_upload"
+        }
+
+    case *msgAdcCGetFile:
+        if p.protoState != "wait_upload" {
+            return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
+        }
+
+        err := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+        if err != nil {
+            dolog(LevelInfo, "[peer] cannot start upload: %s", err)
+            return fmt.Errorf("terminated due to error")
+        }
+
+        p.state = "delegated_upload"
 
     case *msgNmdcMyNick:
         if p.protoState != "connected" {
@@ -346,7 +397,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
         p.localBet = uint(randomInt(1, 0x7FFF))
 
         // try download
-        if p.getPendingDownload() != nil {
+        if p.client.downloadPendingByPeer(p.peer) != nil {
             p.localDirection = "download"
             p.conn.Write(&msgNmdcDirection{
                 Direction: "Download",
@@ -400,8 +451,8 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
                 direction = "upload"
 
                 // if there's a pending download, request another connection
-                if dl := p.getPendingDownload(); dl != nil {
-                    p.client.peerRequestConnection(dl.conf.Peer)
+                if dl := p.client.downloadPendingByPeer(p.peer); dl != nil {
+                    p.client.peerRequestConnection(dl.conf.Peer, "")
                 }
 
             } else {
@@ -413,7 +464,6 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
         }
 
         key := nickDirectionPair{ p.peer.Nick, direction }
-
         if _,ok := p.client.connPeersByKey[key]; ok {
             return fmt.Errorf("a connection with this peer and direction already exists")
         }
@@ -427,23 +477,25 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 
         // download
         } else {
-            p.protoState = "wait_download"
-
-            if dl := p.getPendingDownload(); dl != nil {
+            dl := p.client.downloadPendingByPeer(p.peer)
+            if dl != nil {
+                p.protoState = "wait_download"
                 p.state = "delegated_download"
                 p.transfer = dl
                 dl.pconn = p
                 dl.state = "waited_peer"
                 dl.wakeUp <- struct{}{}
+            } else {
+                return fmt.Errorf("download connection but cannot find download")
             }
         }
 
-    case *msgNmdcAdcGet:
+    case *msgNmdcGetFile:
         if p.protoState != "wait_upload" {
             return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
         }
 
-        err := newUpload(p.client, p, msg)
+        err := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
         if err != nil {
             dolog(LevelInfo, "[peer] cannot start upload: %s", err)
             if err == errorNoSlots {
