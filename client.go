@@ -425,7 +425,8 @@ func (c *Client) sendInfos(firstTime bool) {
             fields[adcFieldClientId] = dcBase32Encode(c.clientId)
             fields[adcFieldPrivateId] = dcBase32Encode(c.privateId)
 
-            if c.conf.PeerEncryptionMode != DisableEncryption {
+            if c.conf.PeerEncryptionMode != DisableEncryption &&
+                c.conf.IsPassive == false {
                 fields[adcFieldTlsFingerprint] = c.adcFingerprint
             }
         }
