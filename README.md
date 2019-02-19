@@ -26,6 +26,8 @@ The public API can be considered stable.
 ## Command-line utilities
 
 #### Installation
+
+Go &ge; 1.11 is required. Download, compile and install the binaries:
 ```
 go get github.com/gswly/dctoolkit/cmd/...
 ```
@@ -55,6 +57,7 @@ Flags:
                --help-long and --help-man).
   --hub=HUB    The url of a hub, ie nmdc://hubip:411
   --nick=NICK  The nickname to use
+  --pwd=PWD    The password to use
   --passive    Turn on passive mode (ports are not required
                anymore)
   --tcp=3009   The TCP port to use
@@ -75,6 +78,7 @@ Flags:
                    --help-long and --help-man).
   --hub=HUB        The url of a hub, ie nmdc://hubip:411
   --nick=NICK      The nickname to use
+  --pwd=PWD        The password to use
   --passive        Turn on passive mode (ports are not
                    required anymore)
   --tcp=3009       The TCP port to use
@@ -97,6 +101,7 @@ Flags:
                    --help-long and --help-man).
   --hub=HUB        The url of a hub, ie nmdc://hubip:411
   --nick=NICK      The nickname to use
+  --pwd=PWD        The password to use
   --passive        Turn on passive mode (ports are not
                    required anymore)
   --tcp=3009       The TCP port to use
