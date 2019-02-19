@@ -70,7 +70,7 @@ Args:
 ```
 
 ```
-dc-download --hub=HUB --nick=NICK --output=OUTPUT [<flags>] <user> <fpath>
+dc-download --hub=HUB --nick=NICK --outdir=OUTDIR [<flags>] <user> <fpath>
 
 Download a file or a directory from a user in a given hub.
 
@@ -85,7 +85,7 @@ Flags:
   --tcp=3009       The TCP port to use
   --udp=3009       The UDP port to use
   --tls=3010       The TCP-TLS port to use
-  --output=OUTPUT  The directory in which to save files
+  --outdir=OUTDIR  The directory in which files will be saved
 
 Args:
   <user>   The user from which to download
