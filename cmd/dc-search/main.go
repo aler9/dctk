@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-    kingpin.CommandLine.Help = "Search files and directories by name on a given hub."
+    kingpin.CommandLine.Help = "Search files and directories by name in a given hub."
     kingpin.Parse()
 
     client,err := dctk.NewClient(dctk.ClientConf{

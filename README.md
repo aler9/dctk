@@ -50,7 +50,7 @@ Args:
 ```
 dc-search --hub=HUB --nick=NICK [<flags>] <query>
 
-Search files and directories by name on a given hub.
+Search files and directories by name in a given hub.
 
 Flags:
   --help       Show context-sensitive help (also try
