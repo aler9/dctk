@@ -4,8 +4,8 @@
 [![GoDoc](https://godoc.org/github.com/gswly/dctoolkit?status.svg)](https://godoc.org/github.com/gswly/dctoolkit)
 
 dctoolkit is a project that implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
-* a library, that allows the creation of clients capable of interacting with hubs and other clients;
-* a series of command line utilities that make use of the library.
+* a **library**, that allows the creation of clients capable of interacting with hubs and other clients;
+* a series of **command line utilities** that make use of the library.
 
 Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH), provided by users through their file list, and searchable on a hub-basis. There exist two implementations, the traditional NMDC protocol (NeoModus Direct Connect) and the newer ADC protocol (Advanced Direct Connect).
 
@@ -30,16 +30,89 @@ The public API can be considered stable.
 go get github.com/gswly/dctoolkit/cmd/...
 ```
 
-### Usage
+#### Usage
 
-TODO
+```
+dc-tth [<flags>] <filepath>
 
+Computes the Tiger Tree Hash (TTH) of a given file.
+
+Flags:
+  --help  Show context-sensitive help (also try --help-long and
+          --help-man).
+
+Args:
+  <filepath>  Path to a file
+```
+
+```
+dc-search --hub=HUB --nick=NICK [<flags>] <query>
+
+Search files and directories by name on a given hub.
+
+Flags:
+  --help       Show context-sensitive help (also try
+               --help-long and --help-man).
+  --hub=HUB    The url of a hub, ie nmdc://hubip:411
+  --nick=NICK  The nickname to use
+  --passive    Turn on passive mode (ports are not required
+               anymore)
+  --tcp=3009   The TCP port to use
+  --udp=3009   The UDP port to use
+  --tls=3010   The TCP-TLS port to use
+
+Args:
+  <query>  Search query
+```
+
+```
+dc-download --hub=HUB --nick=NICK --output=OUTPUT [<flags>] <user> <fpath>
+
+Download a file or a directory from a user in a given hub.
+
+Flags:
+  --help           Show context-sensitive help (also try
+                   --help-long and --help-man).
+  --hub=HUB        The url of a hub, ie nmdc://hubip:411
+  --nick=NICK      The nickname to use
+  --passive        Turn on passive mode (ports are not
+                   required anymore)
+  --tcp=3009       The TCP port to use
+  --udp=3009       The UDP port to use
+  --tls=3010       The TCP-TLS port to use
+  --output=OUTPUT  The directory in which to save files
+
+Args:
+  <user>   The user from which to download
+  <fpath>  The path of the file or directory to download
+```
+
+```
+dc-share --hub=HUB --nick=NICK [<flags>] <share>
+
+Share a folder in a given hub.
+
+Flags:
+  --help           Show context-sensitive help (also try
+                   --help-long and --help-man).
+  --hub=HUB        The url of a hub, ie nmdc://hubip:411
+  --nick=NICK      The nickname to use
+  --passive        Turn on passive mode (ports are not
+                   required anymore)
+  --tcp=3009       The TCP port to use
+  --udp=3009       The UDP port to use
+  --tls=3010       The TCP-TLS port to use
+  --alias="share"  The alias of the share
+
+Args:
+  <share>  The directory to share
+```
 
 ## Library
 
 #### Installation
 
-If you are using Go &ge; 1.11 and modules (i.e. there's a go.mod file in your project folder), it is enough to write the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
+When using Go &ge; 1.11 and modules (i.e. there's a go.mod file in your project folder), it is enough to write the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
 ```go
 import (
     ...
@@ -47,7 +120,7 @@ import (
 )
 ```
 
-If you are using an older Go version or you have not switched to modules yet, run:
+When using an older Go version, or modules are not deployed, the library must be downloaded manually:
 ```
 go get github.com/gswly/dctoolkit
 ```

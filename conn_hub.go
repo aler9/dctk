@@ -481,7 +481,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
             return err
         }
 
-    // flexhub send HubName just after lock
+    // flexhub sends HubName just after lock
     // HubName can also be sent twice
     case *msgNmdcHubName:
         if h.protoState != "preinitialized" && h.protoState != "lock" {
