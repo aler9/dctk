@@ -8,6 +8,7 @@ import (
     "hash"
     "strconv"
     "regexp"
+    "io"
     "math/rand"
     "encoding/base32"
     "github.com/cxmcc/tiger"
@@ -117,4 +118,23 @@ func connWithTimeoutAndRetries(address string, timeout time.Duration, retries ui
         }
     }
     return nil, err
+}
+
+type bytesReadCloser struct {
+    buf     []byte
+    offset  int
+}
+
+func newBytesWriteCloser(buf []byte) io.WriteCloser {
+    return &bytesReadCloser{ buf: buf }
+}
+
+func (rc *bytesReadCloser) Write(in []byte) (int,error) {
+    n := copy(rc.buf[rc.offset:], in)
+    rc.offset += n
+    return n, nil
+}
+
+func (rc *bytesReadCloser) Close() error {
+    return nil
 }

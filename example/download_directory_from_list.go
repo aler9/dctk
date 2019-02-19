@@ -43,7 +43,7 @@ func main() {
             }
 
             // download every file in the directory
-            client.DownloadFLDirectory(d.Conf().Peer, dir)
+            client.DownloadFLDirectory(d.Conf().Peer, dir, "/tmp/directory")
 
         // a file has been downloaded
         } else {

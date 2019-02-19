@@ -4,8 +4,11 @@ import (
     "fmt"
     "time"
     "bytes"
+    "io"
+    "os"
     "io/ioutil"
     "compress/bzip2"
+    "path/filepath"
 )
 
 type DownloadConf struct {
@@ -17,8 +20,11 @@ type DownloadConf struct {
     Start           uint64
     // the length of the file part. Leave zero if you want to download the entire file
     Length          int64
+    // if filled, the file is saved on the desired path on disk, otherwise it is kept on RAM
+    SavePath        string
     // after download, do not attempt to validate the file through its TTH
     SkipValidation  bool
+
     filelist        bool
 }
 
@@ -30,9 +36,10 @@ type Download struct {
     pconn               *connPeer
     query               string
     adcToken            string
+    writer              io.WriteCloser
     content             []byte
-    length              uint64
     offset              uint64
+    length              uint64
     lastPrintTime       time.Time
 }
 
@@ -77,33 +84,37 @@ func (c *Client) DownloadFileList(peer *Peer) (*Download,error) {
 }
 
 // DownloadFLFile starts downloading a file given a file list entry.
-func (c *Client) DownloadFLFile(peer *Peer, file *FileListFile) (*Download,error) {
+func (c *Client) DownloadFLFile(peer *Peer, file *FileListFile, savePath string) (*Download,error) {
     return c.DownloadFile(DownloadConf{
         Peer: peer,
         TTH: file.TTH,
+        SavePath: savePath,
     })
 }
 
 // DownloadFLDirectory starts downloading recursively all the files
 // inside a file list directory.
-func (c *Client) DownloadFLDirectory(peer *Peer, dir *FileListDirectory) error {
-    var dlDir func(sdir *FileListDirectory) error
-    dlDir = func(sdir *FileListDirectory) error {
+func (c *Client) DownloadFLDirectory(peer *Peer, dir *FileListDirectory, savePath string) error {
+    var dlDir func(sdir *FileListDirectory, dpath string) error
+    dlDir = func(sdir *FileListDirectory, dpath string) error {
+        // create destionation directory if does not exist
+        os.Mkdir(dpath, 0755)
+
         for _,file := range sdir.Files {
-            _,err := c.DownloadFLFile(peer, file)
+            _,err := c.DownloadFLFile(peer, file, filepath.Join(dpath, file.Name))
             if err != nil {
                 return err
             }
         }
         for _,ssdir := range sdir.Dirs {
-            err := dlDir(ssdir)
+            err := dlDir(ssdir, filepath.Join(dpath, ssdir.Name))
             if err != nil {
                 return err
             }
         }
         return nil
     }
-    return dlDir(dir)
+    return dlDir(dir, savePath)
 }
 
 // Download starts downloading a file by its Tiger Tree Hash (TTH). See DownloadConf for the options.
@@ -144,7 +155,8 @@ func (d *Download) Conf() DownloadConf {
     return d.conf
 }
 
-// Content returns the downloaded file content.
+// Content returns the downloaded file content, if SavePath is not used, otherwise
+// file content is saved directory on disk
 func (d *Download) Content() []byte {
     return d.content
 }
@@ -307,11 +319,25 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
         return fmt.Errorf("downloading null files is not supported")
     }
 
-    d.content = make([]byte, d.length)
     d.pconn.conn.SetReadBinary(true)
     if reqCompressed == true {
         d.pconn.conn.SetReadCompressionOn()
     }
+
+    // save in file
+    if d.conf.SavePath != "" {
+        f,err := os.Create(d.conf.SavePath)
+        if err != nil {
+            return fmt.Errorf("unable to create destination file")
+        }
+        d.writer = f
+
+    // save in ram
+    } else {
+        d.content = make([]byte, d.length)
+        d.writer = newBytesWriteCloser(d.content)
+    }
+
     return nil
 }
 
@@ -338,8 +364,12 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
             return fmt.Errorf("binary content too long (%d)", newLength)
         }
 
-        copied := copy(d.content[d.offset:], msg.Content)
-        d.offset += uint64(copied)
+        _,err := d.writer.Write(msg.Content)
+        if err != nil {
+            d.writer.Close()
+            return err
+        }
+        d.offset = newLength
 
         if time.Since(d.lastPrintTime) >= (1 * time.Second) {
             d.lastPrintTime = time.Now()
@@ -348,6 +378,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 
         if d.offset == d.length {
             d.pconn.conn.SetReadBinary(false)
+            d.writer.Close()
 
             // file list: unzip
             if d.conf.filelist {
@@ -359,9 +390,24 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 
             // normal file
             } else {
+                // validate
                 if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
                     dolog(LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
-                    contentTTH := TTHFromBytes(d.content)
+
+                    // file in disk
+                    var contentTTH string
+                    if d.conf.SavePath != "" {
+                        var err error
+                        contentTTH,err = TTHFromFile(d.conf.SavePath)
+                        if err != nil {
+                            return err
+                        }
+
+                    // file in ram
+                    } else {
+                        contentTTH = TTHFromBytes(d.content)
+                    }
+
                     if contentTTH != d.conf.TTH {
                         return fmt.Errorf("validation failed")
                     }
