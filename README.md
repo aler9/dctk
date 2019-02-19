@@ -14,8 +14,8 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * **Hub**: connection with configurable try count, password authentication, keepalive, compression, encryption
 * **Chat**: bidirectional public and private chat
 * **File search**: by name or TTH, reply to requests
-* **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH
-* **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support
+* **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH, client fingerprint validation
+* **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support, client fingerprint validation
 * Examples provided for every feature
 * Comprehensive test set
 

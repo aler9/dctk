@@ -114,6 +114,7 @@ type Client struct {
     privateId               []byte
     clientId                []byte
     sessionId               string // we save it encoded since it is 20 bits and cannot be decoded easily
+    adcFingerprint          string
     peers                   map[string]*Peer
     downloadSlotAvail       uint
     uploadSlotAvail         uint
@@ -423,6 +424,10 @@ func (c *Client) sendInfos(firstTime bool) {
             fields[adcFieldName] = c.conf.Nick
             fields[adcFieldClientId] = dcBase32Encode(c.clientId)
             fields[adcFieldPrivateId] = dcBase32Encode(c.privateId)
+
+            if c.conf.PeerEncryptionMode != DisableEncryption {
+                fields[adcFieldTlsFingerprint] = c.adcFingerprint
+            }
         }
 
         if c.conf.IsPassive == false {

@@ -29,7 +29,7 @@ var errorArgsFormat = fmt.Errorf("not formatted correctly")
 
 // base32 without padding, which can be one or multiple =
 func dcBase32Encode(in []byte) string {
-    return strings.TrimSuffix(base32.StdEncoding.EncodeToString(in), "=")
+    return strings.TrimRight(base32.StdEncoding.EncodeToString(in), "=")
 }
 
 // base32 without padding, which can be one or multiple =

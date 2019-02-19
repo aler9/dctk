@@ -6,6 +6,8 @@ import (
     "regexp"
     "net"
     "math/rand"
+    "crypto/x509"
+    "crypto/sha256"
 )
 
 const (
@@ -116,6 +118,12 @@ func adcRandomToken() string {
         buf[i] = chars[rand.Intn(len(chars))]
     }
     return string(buf)
+}
+
+func adcCertificateFingerprint(cert *x509.Certificate) string {
+    h := sha256.New()
+    h.Write(cert.Raw)
+    return "SHA256/" + dcBase32Encode(h.Sum(nil))
 }
 
 type protocolAdc struct {
