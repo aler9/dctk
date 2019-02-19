@@ -59,7 +59,7 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
         }
 
         listener,err = tls.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TcpTlsPort),
-            &tls.Config{Certificates: []tls.Certificate{ tcert }})
+            &tls.Config{ Certificates: []tls.Certificate{ tcert } })
         if err != nil {
             return err
         }
