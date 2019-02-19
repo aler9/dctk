@@ -11,8 +11,6 @@ var reNmdcCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?$")
 var reNmdcPublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)$")
 var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)$")
 
-var reNmdcCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
-var reNmdcCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/("+reStrTTH+")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
 var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
 var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
 var reNmdcCmdForceMove = regexp.MustCompile("^("+reStrAddress+")(:("+reStrPort+"))?$")
@@ -185,7 +183,7 @@ type msgNmdcGetFile struct {
 }
 
 func (m *msgNmdcGetFile) NmdcDecode(args string) error {
-    matches := reNmdcCmdAdcGet.FindStringSubmatch(args)
+    matches := reSharedCmdAdcGet.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -213,7 +211,7 @@ type msgNmdcSendFile struct {
 }
 
 func (m *msgNmdcSendFile) NmdcDecode(args string) error {
-    matches := reNmdcCmdAdcSnd.FindStringSubmatch(args)
+    matches := reSharedCmdAdcSnd.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
