@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-    kingpin.CommandLine.Help = "Share a folder in a given hub."
+    kingpin.CommandLine.Help = "Share a directory in a given hub."
     kingpin.Parse()
 
     client,err := dctk.NewClient(dctk.ClientConf{

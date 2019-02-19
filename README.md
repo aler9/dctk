@@ -95,7 +95,7 @@ Args:
 ```
 dc-share --hub=HUB --nick=NICK [<flags>] <share>
 
-Share a folder in a given hub.
+Share a directory in a given hub.
 
 Flags:
   --help           Show context-sensitive help (also try
