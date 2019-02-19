@@ -283,8 +283,6 @@ func (t *msgAdcTypeD) AdcTypeEncode(keyEncoded string) string {
     return "D" + keyEncoded[:3] + " " + t.AuthorId + " " + t.TargetId + " " + keyEncoded[3:] + "\n"
 }
 
-type msgAdcTypeE struct {}
-
 type msgAdcTypeF struct {
     SessionId string
     RequiredFeatures map[string]struct{}
