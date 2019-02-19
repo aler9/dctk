@@ -18,7 +18,7 @@ func main() {
         panic(err)
     }
 
-    // download a file by tth
+    // download a file by tth, keep it in RAM
     client.OnPeerConnected = func(p *dctk.Peer) {
         if p.Nick == "nickname" {
             client.DownloadFile(dctk.DownloadConf{
@@ -30,6 +30,7 @@ func main() {
     // download has finished
     client.OnDownloadSuccessful = func(d *dctk.Download) {
         fmt.Println("downloaded: %d", len(d.Content()))
+        client.Terminate()
     }
 
     client.Run()
