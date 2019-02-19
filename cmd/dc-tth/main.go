@@ -11,7 +11,7 @@ var (
 )
 
 func main() {
-    kingpin.CommandLine.Help = "Computes the Tiger Tree Hash (TTH) of a given file."
+    kingpin.CommandLine.Help = "Compute the Tiger Tree Hash (TTH) of a given file."
     kingpin.Parse()
 
     tth,err := dctk.TTHFromFile(*fpath)
