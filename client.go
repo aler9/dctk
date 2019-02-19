@@ -1,4 +1,4 @@
-// dctoolkit is a library that implements the client part of the Direct Connect
+// dctoolkit implements the client part of the Direct Connect
 // peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 // It allows the creation of clients that can interact with hubs and other
 // clients, and can be used as backend to user interfaces or automatic bots.
@@ -37,12 +37,12 @@ const (
 
 type ClientConf struct {
     // turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
-    // and TcpTlsPort on your router but functionalities are limited
+    // and TcpTlsPort but functionalities are limited
     IsPassive                   bool
     // whether to use the local IP instead of the IP of your internet provider
     PrivateIp                   bool
     // these are the 3 ports needed for active mode. They must be accessible from the
-    // internet, so your router must be configured
+    // internet, so any router/firewall in between must be configured
     TcpPort                     uint
     UdpPort                     uint
     TcpTlsPort                  uint
@@ -56,10 +56,8 @@ type ClientConf struct {
     // The hub url in the format protocol://address:port
     // supported protocols are adc, adcs, nmdc and nmdcs
     HubUrl                      string
-    // how many times attempting connection with hub before giving up
+    // how many times attempting a connection with hub before giving up
     HubConnTries                uint
-    // disables compression. Can be useful for debug purposes
-    HubDisableCompression       bool
     // if turned on, connection to hub is not automatic and HubConnect() must be
     // called manually
     HubManualConnect            bool
@@ -73,7 +71,7 @@ type ClientConf struct {
     Description                 string
     // the connection string, it influences the icon other peers see
     Connection                  string
-    // these are used to identify your client. By default they mimic the DC++ ones
+    // these are used to identify the software. By default they mimic DC++
     ClientString                string
     ClientVersion               string
     PkValue                     string
@@ -84,6 +82,7 @@ type ClientConf struct {
     HubOperatorCount            uint
 
     // options useful only for debugging purposes
+    HubDisableCompression       bool
     PeerDisableCompression      bool
     HubDisableKeepAlive         bool
 }
@@ -141,7 +140,7 @@ type Client struct {
     OnMessagePublic         func(p *Peer, content string)
     // called when a private message has been received
     OnMessagePrivate        func(p *Peer, content string)
-    // called when a seearch result has been received
+    // called when a search result has been received
     OnSearchResult          func(r *SearchResult)
     // called when a given download has finished
     OnDownloadSuccessful    func(d *Download)
@@ -276,7 +275,7 @@ func NewClient(conf ClientConf) (*Client,error) {
     return c, nil
 }
 
-// Terminate close every open connection and stop the client.
+// Terminate closes every open connection and stops the client.
 func (c *Client) Terminate() {
     switch c.state {
     case "terminated":
