@@ -68,9 +68,9 @@ var reAdcTypeD = regexp.MustCompile("^("+reStrAdcSessionId+") ("+reStrAdcSession
 var reAdcTypeF = regexp.MustCompile("^("+reStrAdcSessionId+") (((\\+|-)[A-Za-z0-9]+)+) ")
 var reAdcTypeU = regexp.MustCompile("^("+reStrAdcClientId+") ")
 
+var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ("+reStrAdcToken+")$")
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
 var reAdcQuit = regexp.MustCompile("^("+reStrAdcSessionId+")( (.+))?$")
-var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ("+reStrAdcToken+")$")
 var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ("+reStrAdcToken+")$")
 var readcSessionId = regexp.MustCompile("^"+reStrAdcSessionId+"$")
 var reAdcStatus = regexp.MustCompile("^(0|1|2)([0-9]+) (.+?)( (.+?))?$")
@@ -396,7 +396,7 @@ type msgAdcKeyGetFile struct {
 }
 
 func (m *msgAdcKeyGetFile) AdcKeyDecode(args string) error {
-    matches := reNmdcCmdAdcGet.FindStringSubmatch(args)
+    matches := reSharedCmdAdcGet.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
@@ -539,7 +539,7 @@ type msgAdcKeySendFile struct {
 }
 
 func (m *msgAdcKeySendFile) AdcKeyDecode(args string) error {
-    matches := reNmdcCmdAdcSnd.FindStringSubmatch(args)
+    matches := reSharedCmdAdcSnd.FindStringSubmatch(args)
     if matches == nil {
         return errorArgsFormat
     }
