@@ -60,7 +60,7 @@ const (
 )
 
 const reStrAdcSessionId = "[A-Z0-9]{4}"
-const reStrAdcClientId = "[A-Z0-9]+"
+const reStrAdcClientId = reStrTTH // is a base32-encoded hash, so is like a TTH
 const reStrAdcToken = "[A-Z0-9]+"
 
 var reAdcTypeB = regexp.MustCompile("^("+reStrAdcSessionId+") ")
@@ -70,6 +70,7 @@ var reAdcTypeU = regexp.MustCompile("^("+reStrAdcClientId+") ")
 
 var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ("+reStrAdcToken+")$")
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
+var reAdcMessage = regexp.MustCompile("^(.+?)( (.+))?$")
 var reAdcQuit = regexp.MustCompile("^("+reStrAdcSessionId+")( (.+))?$")
 var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ("+reStrAdcToken+")$")
 var readcSessionId = regexp.MustCompile("^"+reStrAdcSessionId+"$")
@@ -444,7 +445,16 @@ func (m *msgAdcKeyInfos) AdcKeyEncode() string {
 
 type msgAdcKeyMessage struct {
     Content string
-    Flags string
+    Flags   string
+}
+
+func (m *msgAdcKeyMessage) AdcKeyDecode(args string) error {
+    matches := reAdcMessage.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Content, m.Flags = adcUnescape(matches[1]), matches[3]
+    return nil
 }
 
 func (m *msgAdcKeyMessage) AdcKeyEncode() string {
@@ -453,15 +463,6 @@ func (m *msgAdcKeyMessage) AdcKeyEncode() string {
         ret += " " + m.Flags
     }
     return ret
-}
-
-func (m *msgAdcKeyMessage) AdcKeyDecode(args string) error {
-    argss := strings.Split(args, " ")
-    m.Content = adcUnescape(argss[0])
-    if len(argss) > 1 {
-        m.Flags = argss[1]
-    }
-    return nil
 }
 
 type msgAdcKeyPass struct {
@@ -585,7 +586,7 @@ func (m *msgAdcKeyStatus) AdcKeyDecode(args string) error {
         return errorArgsFormat
     }
     m.Type, m.Code, m.Message, m.Fields = adcStatusType(matches[1][0]),
-        atoui(matches[2]), adcUnescape(matches[3]), adcFieldsDecode(matches[4])
+        atoui(matches[2]), adcUnescape(matches[3]), adcFieldsDecode(matches[5])
     return nil
 }
 

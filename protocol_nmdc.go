@@ -7,9 +7,9 @@ import (
     "net"
 )
 
-var reNmdcCommand = regexp.MustCompile("^\\$([a-zA-Z0-9]+)( ([^|]+))?$")
-var reNmdcPublicChat = regexp.MustCompile("^<("+reStrNick+")> ([^|]+)$")
-var reNmdcPrivateChat = regexp.MustCompile("^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> ([^|]+)$")
+var reNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9]+)( (.+))?$")
+var reNmdcPublicChat = regexp.MustCompile("(?s)^<("+reStrNick+")> (.+)$")
+var reNmdcPrivateChat = regexp.MustCompile("(?s)^\\$To: ("+reStrNick+") From: ("+reStrNick+") \\$<("+reStrNick+")> (.+)$")
 
 var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("+reStrPort+")(S?)$")
 var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
@@ -20,7 +20,7 @@ var reNmdcCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+
 var reNmdcCmdSearchReqActive = regexp.MustCompile("^("+reStrIp+"):("+reStrPort+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
 var reNmdcCmdSearchReqPassive = regexp.MustCompile("^Hub:("+reStrNick+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
 var reNmdcCmdSearchResult = regexp.MustCompile("^("+reStrNick+") ([^\x05]+?)(\x05([0-9]+))? ([0-9]+)/([0-9]+)\x05TTH:("+reStrTTH+") \\(("+reStrIp+"):("+reStrPort+")\\)$")
-var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]+) ([0-9]{1,2}) (.*?)$")
+var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]{1,3}) ([0-9]{1,2}) (.*?)$")
 var reNmdcCmdUserIP = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+")$")
 
 // http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_key
