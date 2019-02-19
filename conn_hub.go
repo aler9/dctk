@@ -459,7 +459,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }
 
         h.conn.Write(&msgNmdcSupports{ features })
-        h.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Values[0])) })
+        h.conn.Write(&msgNmdcKey{ Key: nmdcComputeKey([]byte(msg.Lock)) })
         h.conn.Write(&msgNmdcValidateNick{ Nick: h.client.conf.Nick })
 
     case *msgNmdcValidateDenide:

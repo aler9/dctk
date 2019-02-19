@@ -198,9 +198,11 @@ func (p *connPeer) do() {
 
                 } else {
                     p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-                    p.conn.Write(&msgNmdcLock{ Values: []string{fmt.Sprintf(
-                        "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%sRef=%s:%d",
-                        p.client.conf.PkValue, p.client.hubSolvedIp, p.client.hubPort)} })
+                    p.conn.Write(&msgNmdcLock{
+                        Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
+                        Pk: p.client.conf.PkValue,
+                        Ref: fmt.Sprintf("%s:%d", p.client.hubSolvedIp, p.client.hubPort),
+                    })
                 }
 
             case "delegated_upload":
@@ -373,13 +375,15 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
             return fmt.Errorf("[Lock] invalid state: %s", p.protoState)
         }
         p.protoState = "lock"
-        p.remoteLock = []byte(msg.Values[0])
+        p.remoteLock = []byte(msg.Lock)
 
         // if transfer is active, wait remote before sending MyNick and Lock
         if p.isActive {
             p.conn.Write(&msgNmdcMyNick{ Nick: p.client.conf.Nick })
-            p.conn.Write(&msgNmdcLock{ Values: []string{ fmt.Sprintf(
-                "EXTENDEDPROTOCOLABCABCABCABCABCABC Pk=%s", p.client.conf.PkValue) } })
+            p.conn.Write(&msgNmdcLock{
+                Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
+                Pk: p.client.conf.PkValue,
+            })
         }
 
         features := map[string]struct{}{

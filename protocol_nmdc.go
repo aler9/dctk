@@ -17,6 +17,7 @@ var reNmdcCmdConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrIp+"):("
 var reNmdcCmdDirection = regexp.MustCompile("^(Download|Upload) ([0-9]+)$")
 var reNmdcCmdForceMove = regexp.MustCompile("^("+reStrAddress+")(:("+reStrPort+"))?$")
 var reNmdcCmdInfo = regexp.MustCompile("^\\$ALL ("+reStrNick+") (.*?)(<(.*?) V:(.+?),M:(A|P),H:([0-9]+)/([0-9]+)/([0-9]+),S:([0-9]+)>)?\\$ \\$(.*?)(.)\\$(.*?)\\$([0-9]+)\\$$")
+var reNmdcCmdLock = regexp.MustCompile("^([^ ]+)( Pk=(.+?)(Ref=(.+?))?)?$")
 var reNmdcCmdRevConnectToMe = regexp.MustCompile("^("+reStrNick+") ("+reStrNick+")$")
 var reNmdcCmdSearchReqActive = regexp.MustCompile("^("+reStrIp+"):("+reStrPort+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
 var reNmdcCmdSearchReqPassive = regexp.MustCompile("^Hub:("+reStrNick+") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
@@ -379,16 +380,29 @@ func (m *msgNmdcKey) NmdcEncode() string {
 }
 
 type msgNmdcLock struct {
-    Values []string
+    Lock    string
+    Pk      string
+    Ref     string
 }
 
 func (m *msgNmdcLock) NmdcDecode(args string) error {
-    m.Values = strings.Split(args, " ")
+    matches := reNmdcCmdLock.FindStringSubmatch(args)
+    if matches == nil {
+        return errorArgsFormat
+    }
+    m.Lock, m.Pk, m.Ref = matches[1], matches[3], matches[5]
     return nil
 }
 
 func (m *msgNmdcLock) NmdcEncode() string {
-    return nmdcCommandEncode("Lock", strings.Join(m.Values, " "))
+    ret := m.Lock
+    if m.Pk != "" {
+        ret += " Pk=" + m.Pk
+        if m.Ref != "" {
+            ret += "Ref=" + m.Ref
+        }
+    }
+    return nmdcCommandEncode("Lock", ret)
 }
 
 type msgNmdcLoggedIn struct {}
