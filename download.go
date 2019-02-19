@@ -12,13 +12,13 @@ import (
 )
 
 type DownloadConf struct {
-    // the peer you want to download from
+    // the peer from which downloading
     Peer            *Peer
-    // the TTH of the file you want to download
+    // the TTH of the file to download
     TTH             string
-    // the starting point of the file part you want to download, in bytes
+    // the starting point of the file part to download, in bytes
     Start           uint64
-    // the length of the file part. Leave zero if you want to download the entire file
+    // the length of the file part. Leave zero to download the entire file
     Length          int64
     // if filled, the file is saved on the desired path on disk, otherwise it is kept on RAM
     SavePath        string
