@@ -14,7 +14,7 @@ var (
     tcpPort = kingpin.Flag("tcp", "The TCP port to use").Default("3009").Uint()
     udpPort = kingpin.Flag("udp", "The UDP port to use").Default("3009").Uint()
     tlsPort = kingpin.Flag("tls", "The TCP-TLS port to use").Default("3010").Uint()
-    output = kingpin.Flag("output", "The directory in which files will be saved").Required().String()
+    outdir = kingpin.Flag("outdir", "The directory in which files will be saved").Required().String()
     user = kingpin.Arg("user", "The user from which to download").Required().String()
     fpath = kingpin.Arg("fpath", "The path of the file or directory to download").Required().String()
 )
@@ -55,14 +55,14 @@ func main() {
             // check if it is a file
             file,err := fl.GetFile(*fpath)
             if err == nil {
-                client.DownloadFLFile(d.Conf().Peer, file, filepath.Join(*output, file.Name))
+                client.DownloadFLFile(d.Conf().Peer, file, filepath.Join(*outdir, file.Name))
                 return
             }
 
             // check if it is a directory
             dir,err := fl.GetDirectory(*fpath)
             if err == nil {
-                client.DownloadFLDirectory(d.Conf().Peer, dir, filepath.Join(*output, dir.Name))
+                client.DownloadFLDirectory(d.Conf().Peer, dir, filepath.Join(*outdir, dir.Name))
                 return
             }
 
