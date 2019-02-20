@@ -14,6 +14,7 @@ var (
     tcpPort = kingpin.Flag("tcp", "The TCP port to use").Default("3009").Uint()
     udpPort = kingpin.Flag("udp", "The UDP port to use").Default("3009").Uint()
     tlsPort = kingpin.Flag("tls", "The TCP-TLS port to use").Default("3010").Uint()
+    share = kingpin.Flag("share", "An (optional) folder to share. Some hubs require a minimum share").String()
     outdir = kingpin.Flag("outdir", "The directory in which files will be saved").Required().String()
     user = kingpin.Arg("user", "The user from which to download").Required().String()
     fpath = kingpin.Arg("fpath", "The path of the file or directory to download").Required().String()
@@ -31,9 +32,22 @@ func main() {
         UdpPort: *udpPort,
         TcpTlsPort: *tlsPort,
         IsPassive: *passive,
+        HubManualConnect: true,
     })
     if err != nil {
         panic(err)
+    }
+
+    client.OnInitialized = func() {
+        if *share != "" {
+            client.ShareAdd("share", *share)
+        } else {
+            client.HubConnect()
+        }
+    }
+
+    client.OnShareIndexed = func() {
+        client.HubConnect()
     }
 
     client.OnPeerConnected = func(p *dctk.Peer) {
