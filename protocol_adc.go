@@ -72,7 +72,7 @@ var reAdcTypeU = regexp.MustCompile("^("+reStrAdcClientId+") ")
 
 var reAdcConnectToMe = regexp.MustCompile("^(.+?) ("+reStrPort+") ("+reStrAdcToken+")$")
 var reAdcGetPass = regexp.MustCompile("^[A-Z0-9]{3,}$")
-var reAdcMessage = regexp.MustCompile("^(.+?)( (.+))?$")
+var reAdcMessage = regexp.MustCompile("^([^ ]+)( (.+))?$")
 var reAdcQuit = regexp.MustCompile("^("+reStrAdcSessionId+")( (.+))?$")
 var reAdcRevConnectToMe = regexp.MustCompile("^(.+?) ("+reStrAdcToken+")$")
 var readcSessionId = regexp.MustCompile("^"+reStrAdcSessionId+"$")
