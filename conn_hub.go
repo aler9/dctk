@@ -390,7 +390,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         }[msg.Protocol]; ok == false {
             h.conn.Write(&msgAdcDStatus{
                 msgAdcTypeD{ h.client.sessionId, msg.AuthorId },
-                msgAdcKeyStatus{ adcStatusWarning, 41, "Transfer protocol unsupported",
+                msgAdcKeyStatus{
+                    adcStatusWarning,
+                    adcCodeProtocolUnsupported,
+                    "Transfer protocol unsupported",
                     map[string]string{
                         adcFieldToken: msg.Token,
                         adcFieldProtocol: msg.Protocol,

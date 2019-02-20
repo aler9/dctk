@@ -367,14 +367,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
         if p.protoState != "wait_upload" {
             return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
         }
-
-        err := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
-        if err != nil {
-            dolog(LevelInfo, "[peer] cannot start upload: %s", err)
-            return fmt.Errorf("terminated due to error")
-        }
-
-        p.state = "delegated_upload"
+        newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
 
     case *msgNmdcMyNick:
         if p.protoState != "connected" {
@@ -514,19 +507,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
         if p.protoState != "wait_upload" {
             return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
         }
-
-        err := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
-        if err != nil {
-            dolog(LevelInfo, "[peer] cannot start upload: %s", err)
-            if err == errorNoSlots {
-                p.conn.Write(&msgNmdcMaxedOut{})
-            } else {
-                p.conn.Write(&msgNmdcError{ Error: "File Not Available" })
-            }
-            return nil
-        }
-
-        p.state = "delegated_upload"
+        newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
 
     default:
         return fmt.Errorf("unhandled: %T %+v", msgi, msgi)

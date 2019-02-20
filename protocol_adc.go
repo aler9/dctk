@@ -61,6 +61,12 @@ const (
     adcStatusError      adcStatusType = '2'
 )
 
+const (
+    adcCodeProtocolUnsupported  = 41
+    adcCodeFileNotAvailable     = 51
+    adcCodeSlotsFull            = 53
+)
+
 const reStrAdcSessionId = "[A-Z0-9]{4}"
 const reStrAdcClientId = reStrTTH // is a base32-encoded hash, so is like a TTH
 const reStrAdcToken = "[A-Z0-9]+"
