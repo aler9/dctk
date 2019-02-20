@@ -14,6 +14,7 @@ var (
     tcpPort = kingpin.Flag("tcp", "The TCP port to use").Default("3009").Uint()
     udpPort = kingpin.Flag("udp", "The UDP port to use").Default("3009").Uint()
     tlsPort = kingpin.Flag("tls", "The TCP-TLS port to use").Default("3010").Uint()
+    share = kingpin.Flag("share", "An (optional) folder to share. Some hubs require a minimum share").String()
     query = kingpin.Arg("query", "Search query").Required().String()
 )
 
@@ -29,9 +30,22 @@ func main() {
         UdpPort: *udpPort,
         TcpTlsPort: *tlsPort,
         IsPassive: *passive,
+        HubManualConnect: true,
     })
     if err != nil {
         panic(err)
+    }
+
+    client.OnInitialized = func() {
+        if *share != "" {
+            client.ShareAdd("share", *share)
+        } else {
+            client.HubConnect()
+        }
+    }
+
+    client.OnShareIndexed = func() {
+        client.HubConnect()
     }
 
     client.OnHubConnected = func() {
