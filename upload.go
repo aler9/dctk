@@ -28,7 +28,7 @@ type upload struct {
 func (*upload) isTransfer() {}
 
 func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64,
-    reqLength int64, reqCompressed bool) error {
+    reqLength int64, reqCompressed bool) {
 
     u := &upload{
         client: client,
@@ -43,12 +43,12 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
     dolog(LevelInfo, "[upload] [%s] request %s (s=%d l=%d)",
         pconn.peer.Nick, dcReadableQuery(u.query), u.start, reqLength)
 
-    // check available slots
-    if u.client.uploadSlotAvail <= 0 {
-        return errorNoSlots
-    }
-
     err := func() error {
+        // check available slots
+        if u.client.uploadSlotAvail <= 0 {
+            return errorNoSlots
+        }
+
         // upload is file list
         if u.query == "file files.xml.bz2" {
             if u.start != 0 || reqLength != -1 {
@@ -130,7 +130,35 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
         return nil
     }()
     if err != nil {
-        return err
+        dolog(LevelInfo, "[peer] cannot start upload: %s", err)
+        if err == errorNoSlots {
+            if u.client.protoIsAdc == true {
+                u.pconn.conn.Write(&msgAdcCStatus{
+                    msgAdcTypeC{},
+                    msgAdcKeyStatus{
+                        Type: adcStatusWarning,
+                        Code: adcCodeSlotsFull,
+                        Message: "Slots full",
+                    },
+                })
+            } else {
+                u.pconn.conn.Write(&msgNmdcMaxedOut{})
+            }
+        } else {
+            if u.client.protoIsAdc == true {
+                u.pconn.conn.Write(&msgAdcCStatus{
+                    msgAdcTypeC{},
+                    msgAdcKeyStatus{
+                        Type: adcStatusWarning,
+                        Code: adcCodeFileNotAvailable,
+                        Message: "File Not Available",
+                    },
+                })
+            } else {
+                u.pconn.conn.Write(&msgNmdcError{ Error: "File Not Available" })
+            }
+        }
+        return
     }
 
     if u.client.protoIsAdc == true {
@@ -155,9 +183,8 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 
     client.transfers[u] = struct{}{}
     u.client.uploadSlotAvail -= 1
+    u.pconn.state = "delegated_upload"
     u.pconn.transfer = u
-
-    return nil
 }
 
 func (u *upload) terminate() {
