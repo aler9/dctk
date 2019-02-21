@@ -440,8 +440,10 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
                 }
 
                 // move to final path
-                if err := os.Rename(d.conf.SavePath + ".tmp", d.conf.SavePath); err != nil {
-                    return err
+                if d.conf.SavePath != "" {
+                    if err := os.Rename(d.conf.SavePath + ".tmp", d.conf.SavePath); err != nil {
+                        return err
+                    }
                 }
             }
 
