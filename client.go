@@ -76,10 +76,6 @@ type ClientConf struct {
     ClientVersion               string
     PkValue                     string
     ListGenerator               string
-    // these are variables sent to the hub, in this library they are static
-    HubUnregisteredCount        uint
-    HubRegisteredCount          uint
-    HubOperatorCount            uint
 
     // options useful only for debugging purposes
     HubDisableCompression       bool
@@ -190,9 +186,6 @@ func NewClient(conf ClientConf) (*Client,error) {
     }
     if conf.ListGenerator == "" {
         conf.ListGenerator = "DC++ 0.868" // verified
-    }
-    if conf.HubRegisteredCount == 0 {
-        conf.HubRegisteredCount = 1
     }
 
     u,err := url.Parse(conf.HubUrl)
@@ -395,6 +388,16 @@ func (c *Client) getPrivateIp() error {
 }
 
 func (c *Client) sendInfos(firstTime bool) {
+    hubUnregisteredCount := uint(0)
+    hubRegisteredCount := uint(0)
+    hubOperatorCount := uint(0)
+
+    if c.connHub.passwordSent == true {
+        hubRegisteredCount = 1
+    } else {
+        hubUnregisteredCount = 1
+    }
+
     if c.protoIsAdc == true {
         supports := []string{ "SEGA", "ADC0" }
         if c.conf.IsPassive == false {
@@ -408,14 +411,19 @@ func (c *Client) sendInfos(firstTime bool) {
             adcFieldDescription: c.conf.Description,
             adcFieldShareCount: numtoa(c.shareCount),
             adcFieldShareSize: numtoa(c.shareSize),
-            adcFieldHubUnregisteredCount: numtoa(c.conf.HubUnregisteredCount),
-            adcFieldHubRegisteredCount: numtoa(c.conf.HubRegisteredCount),
-            adcFieldHubOperatorCount: numtoa(c.conf.HubOperatorCount),
+            adcFieldHubUnregisteredCount: numtoa(hubUnregisteredCount),
+            adcFieldHubRegisteredCount: numtoa(hubRegisteredCount),
+            adcFieldHubOperatorCount: numtoa(hubOperatorCount),
             adcFieldSoftware: c.conf.ClientString, // verified
             adcFieldVersion: c.conf.ClientVersion, // verified
             adcFieldSupports: strings.Join(supports, ","),
             adcFieldUploadSpeed: "655",
             adcFieldUploadSlotCount: numtoa(c.conf.UploadMaxParallel),
+        }
+
+        if c.conf.IsPassive == false {
+            fields[adcFieldIp] = c.ip
+            fields[adcFieldUdpPort] = numtoa(c.conf.UdpPort)
         }
 
         // these must be send only during initialization
@@ -428,11 +436,6 @@ func (c *Client) sendInfos(firstTime bool) {
                 c.conf.IsPassive == false {
                 fields[adcFieldTlsFingerprint] = c.adcFingerprint
             }
-        }
-
-        if c.conf.IsPassive == false {
-            fields[adcFieldIp] = c.ip
-            fields[adcFieldUdpPort] = numtoa(c.conf.UdpPort)
         }
 
         c.connHub.conn.Write(&msgAdcBInfos{
@@ -461,9 +464,9 @@ func (c *Client) sendInfos(firstTime bool) {
             Client: c.conf.ClientString,
             Version: c.conf.ClientVersion,
             Mode: modestr,
-            HubUnregisteredCount: c.conf.HubUnregisteredCount,
-            HubRegisteredCount: c.conf.HubRegisteredCount,
-            HubOperatorCount: c.conf.HubOperatorCount,
+            HubUnregisteredCount: hubUnregisteredCount,
+            HubRegisteredCount: hubRegisteredCount,
+            HubOperatorCount: hubOperatorCount,
             UploadSlots: c.conf.UploadMaxParallel,
             Connection: c.conf.Connection,
             StatusByte: statusByte,
