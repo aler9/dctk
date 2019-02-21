@@ -69,8 +69,8 @@ type ClientConf struct {
     Email                       string
     // a description, optional
     Description                 string
-    // the connection string, it influences the icon other peers see
-    Connection                  string
+    // the maximum upload speed in bytes/sec. It is not really applied, but is sent to the hub
+    UploadMaxSpeed              uint
     // these are used to identify the software. By default they mimic DC++
     ClientString                string
     ClientVersion               string
@@ -172,8 +172,8 @@ func NewClient(conf ClientConf) (*Client,error) {
     if conf.Nick == "" {
         return nil, fmt.Errorf("nick is mandatory")
     }
-    if conf.Connection == "" {
-        conf.Connection = "Cable"
+    if conf.UploadMaxSpeed == 0 {
+        conf.UploadMaxSpeed = 2 * 1024 * 1024
     }
     if conf.ClientString == "" {
         conf.ClientString = "++" // verified
@@ -417,7 +417,7 @@ func (c *Client) sendInfos(firstTime bool) {
             adcFieldSoftware: c.conf.ClientString, // verified
             adcFieldVersion: c.conf.ClientVersion, // verified
             adcFieldSupports: strings.Join(supports, ","),
-            adcFieldUploadSpeed: "655",
+            adcFieldUploadSpeed: numtoa(c.conf.UploadMaxSpeed),
             adcFieldUploadSlotCount: numtoa(c.conf.UploadMaxParallel),
         }
 
@@ -468,7 +468,7 @@ func (c *Client) sendInfos(firstTime bool) {
             HubRegisteredCount: hubRegisteredCount,
             HubOperatorCount: hubOperatorCount,
             UploadSlots: c.conf.UploadMaxParallel,
-            Connection: c.conf.Connection,
+            Connection: fmt.Sprintf("%d KiB/s", c.conf.UploadMaxSpeed / 1024),
             StatusByte: statusByte,
             Email: c.conf.Email,
             ShareSize: c.shareSize,
