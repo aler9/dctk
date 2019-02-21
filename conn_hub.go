@@ -45,6 +45,7 @@ type connHub struct {
     protoState      string
     wakeUp          chan struct{}
     conn            protocol
+    passwordSent    bool
     uniqueCmds      map[string]struct{}
 }
 
@@ -257,6 +258,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         hasher.Write(msg.Data)
         data := hasher.Sum(nil)
 
+        h.passwordSent = true
         h.conn.Write(&msgAdcHPass{
             msgAdcTypeH{},
             msgAdcKeyPass{ Data: data },
@@ -506,6 +508,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
         if h.protoState != "preinitialized" {
             return fmt.Errorf("[GetPass] invalid state: %s", h.protoState)
         }
+        h.passwordSent = true
         h.conn.Write(&msgNmdcMyPass{ Pass: h.client.conf.Password })
         if _,ok := h.uniqueCmds["GetPass"]; ok {
             return fmt.Errorf("GetPass sent twice")
