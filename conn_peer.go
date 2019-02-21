@@ -21,6 +21,7 @@ type connPeer struct {
     state               string
     protoState          string
     conn                protocol
+    tlsConn             *tls.Conn
     adcToken            string
     passiveIp           string
     passivePort         uint
@@ -53,6 +54,9 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
             return ""
         }())
         p.state = "pre_connected"
+        if p.isEncrypted == true {
+            p.tlsConn = rawconn.(*tls.Conn)
+        }
         if client.protoIsAdc == true {
             p.conn = newProtocolAdc("p", rawconn, true, true)
         } else {
@@ -166,7 +170,8 @@ func (p *connPeer) do() {
 
                 rawconn := ce.Conn
                 if p.isEncrypted == true {
-                    rawconn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
+                    p.tlsConn = tls.Client(rawconn, &tls.Config{ InsecureSkipVerify: true })
+                    rawconn = p.tlsConn
                 }
 
                 if p.client.protoIsAdc == true {
@@ -326,7 +331,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
                 p.peer.adcFingerprint != "" {
 
                 connFingerprint := adcCertificateFingerprint(
-                    p.conn.NetConn().(*tls.Conn).ConnectionState().PeerCertificates[0])
+                    p.tlsConn.ConnectionState().PeerCertificates[0])
 
                 if connFingerprint != p.peer.adcFingerprint {
                     return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
