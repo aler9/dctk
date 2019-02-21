@@ -5,6 +5,7 @@ import (
     "fmt"
     "time"
     "io"
+    "bufio"
     "compress/zlib"
 )
 
@@ -12,7 +13,6 @@ type msgDecodable interface {}
 type msgEncodable interface {}
 
 type protocol interface {
-    NetConn() net.Conn
     Terminate()
     SetSyncMode(val bool)
     SetReadBinary(val bool)
@@ -23,43 +23,75 @@ type protocol interface {
     WriteSync(in []byte) error
 }
 
-type protocolTimedNetReadWriter struct {
+// this forces net.Conn to use timeouts
+type timedConn struct {
     in              net.Conn
     readTimeout     time.Duration
     writeTimeout    time.Duration
 }
 
-func (nr protocolTimedNetReadWriter) Close() {
-    nr.in.Close()
+func (c *timedConn) Close() error {
+    return c.in.Close()
 }
 
-func (nr protocolTimedNetReadWriter) Read(buf []byte) (int, error) {
-    if nr.readTimeout > 0 {
-        if err := nr.in.SetReadDeadline(time.Now().Add(nr.readTimeout)); err != nil {
+func newTimedNetConn(in net.Conn, readTimeout time.Duration,
+    writeTimeout time.Duration) io.ReadWriteCloser {
+    return &timedConn{
+        in: in,
+        readTimeout: readTimeout,
+        writeTimeout: writeTimeout,
+    }
+}
+
+func (c *timedConn) Read(buf []byte) (int, error) {
+    if c.readTimeout > 0 {
+        if err := c.in.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
             return 0, err
         }
     }
-    return nr.in.Read(buf)
+    return c.in.Read(buf)
 }
 
-func (nr protocolTimedNetReadWriter) Write(buf []byte) (int, error) {
-    if nr.writeTimeout > 0 {
-        if err := nr.in.SetWriteDeadline(time.Now().Add(nr.writeTimeout)); err != nil {
+func (c *timedConn) Write(buf []byte) (int, error) {
+    if c.writeTimeout > 0 {
+        if err := c.in.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
             return 0, err
         }
     }
-    return nr.in.Write(buf)
+    return c.in.Write(buf)
 }
 
-// we provide a io.ByteReader interface, otherwise zlib.NewReader()
-// adds a bufio layer, resulting in a constant 4096-bytes request to Read(),
-// that messes up the zlib on/off phase.
-// https://golang.org/src/compress/flate/inflate.go -> makeReader()
-// this could be replaced by a bufio wrapper, but is IMHO less efficients
-func (nr protocolTimedNetReadWriter) ReadByte() (byte, error) {
-    var dest [1]byte
-    _,err := nr.Read(dest[:])
-    return dest[0], err
+// we buffer the readings for two reasons:
+// 1) in this way SetReadDeadline() is called only when buffer is refilled, and
+//    not every time ReadByte() is called, improving efficiency;
+// 2) we must provide a io.ByteReader interface to zlib.NewReader(), otherwise
+//    it automatically adds a bufio layer that messes up the zlib on/off phase.
+type readBufferedConn struct {
+    in          io.ReadWriteCloser
+    readBuffer  *bufio.Reader
+}
+
+func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
+    return &readBufferedConn{
+        in: in,
+        readBuffer: bufio.NewReaderSize(in, 4 * 4096),
+    }
+}
+
+func (c *readBufferedConn) Close() error {
+    return c.in.Close()
+}
+
+func (c *readBufferedConn) Read(buf []byte) (int, error) {
+    return c.readBuffer.Read(buf)
+}
+
+func (c *readBufferedConn) ReadByte() (byte, error) {
+    return c.readBuffer.ReadByte()
+}
+
+func (c *readBufferedConn) Write(buf []byte) (int, error) {
+    return c.in.Write(buf)
 }
 
 // this is like bufio.ReadSlice(), except it does not buffer
@@ -93,7 +125,7 @@ type protocolBase struct {
     terminated          bool
     readBinary          bool
     syncMode            bool
-    netReadWriter       protocolTimedNetReadWriter
+    netReadWriter       io.ReadWriteCloser
     zlibReader          io.ReadCloser
     activeReader        io.Reader
     zlibWriter          *zlib.Writer
@@ -108,31 +140,25 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
         msgDelim: msgDelim,
         writerJoined: make(chan struct{}),
         readBinary: false,
-        netReadWriter: protocolTimedNetReadWriter{
-            in: nconn,
-            readTimeout: func() time.Duration {
+        netReadWriter: newReadBufferedConn(newTimedNetConn(nconn,
+            func() time.Duration {
                 if applyReadTimeout == true {
                     return 60 * time.Second
                 }
                 return 0
             }(),
-            writeTimeout: func() time.Duration {
+            func() time.Duration {
                 if applyWriteTimeout == true {
                     return 10 * time.Second
                 }
                 return 0
-            }(),
-        },
+            }())),
     }
     c.activeReader = c.netReadWriter
     c.activeWriter = c.netReadWriter
     c.sendChan = make(chan []byte)
     go c.writer()
     return c
-}
-
-func (c *protocolBase) NetConn() net.Conn {
-    return c.netReadWriter.in
 }
 
 func (c *protocolBase) Terminate() {
