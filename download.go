@@ -76,9 +76,10 @@ func (c *Client) downloadPendingByPeer(peer *Peer) *Download {
 }
 
 // DownloadFileList starts downloading the file list of a given peer.
-func (c *Client) DownloadFileList(peer *Peer) (*Download,error) {
+func (c *Client) DownloadFileList(peer *Peer, savePath string) (*Download,error) {
     return c.DownloadFile(DownloadConf{
         Peer: peer,
+        SavePath: savePath,
         filelist: true,
     })
 }
@@ -382,13 +383,43 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 
             // file list: unzip
             if d.conf.filelist {
-                cnt,err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
-                if err != nil {
-                    return err
-                }
-                d.content = cnt
+                if d.conf.SavePath != "" {
+                    tmpFilePath := d.conf.SavePath + ".tmp"
+                    destf,err := os.Create(tmpFilePath)
+                    if err != nil {
+                        return err
+                    }
 
-            // normal file
+                    srcf,err := os.Open(d.conf.SavePath)
+                    if err != nil {
+                        destf.Close()
+                        return err
+                    }
+
+                    _,err = io.Copy(destf, bzip2.NewReader(srcf))
+                    srcf.Close()
+                    destf.Close()
+                    if err != nil {
+                        return err
+                    }
+
+                    if err := os.Remove(d.conf.SavePath); err != nil {
+                        return err
+                    }
+
+                    if err := os.Rename(tmpFilePath, d.conf.SavePath); err != nil {
+                        return err
+                    }
+
+                } else {
+                    cnt,err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
+                    if err != nil {
+                        return err
+                    }
+                    d.content = cnt
+                }
+
+            // normal file: validate
             } else {
                 // validate
                 if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
