@@ -156,8 +156,8 @@ func (d *Download) Conf() DownloadConf {
     return d.conf
 }
 
-// Content returns the downloaded file content, if SavePath is not used, otherwise
-// file content is saved directory on disk
+// Content returns the downloaded file content ONLY if SavePath is not used, otherwise
+// file content is saved directly on disk
 func (d *Download) Content() []byte {
     return d.content
 }
@@ -327,7 +327,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 
     // save in file
     if d.conf.SavePath != "" {
-        f,err := os.Create(d.conf.SavePath)
+        f,err := os.Create(d.conf.SavePath + ".tmp")
         if err != nil {
             return fmt.Errorf("unable to create destination file")
         }
@@ -381,18 +381,17 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
             d.pconn.conn.SetReadBinary(false)
             d.writer.Close()
 
-            // file list: unzip
+            // file list: unzip in final path
             if d.conf.filelist {
                 if d.conf.SavePath != "" {
-                    tmpFilePath := d.conf.SavePath + ".tmp"
-                    destf,err := os.Create(tmpFilePath)
+                    srcf,err := os.Open(d.conf.SavePath + ".tmp")
                     if err != nil {
                         return err
                     }
 
-                    srcf,err := os.Open(d.conf.SavePath)
+                    destf,err := os.Create(d.conf.SavePath)
                     if err != nil {
-                        destf.Close()
+                        srcf.Close()
                         return err
                     }
 
@@ -403,11 +402,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
                         return err
                     }
 
-                    if err := os.Remove(d.conf.SavePath); err != nil {
-                        return err
-                    }
-
-                    if err := os.Rename(tmpFilePath, d.conf.SavePath); err != nil {
+                    if err := os.Remove(d.conf.SavePath + ".tmp"); err != nil {
                         return err
                     }
 
@@ -419,7 +414,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
                     d.content = cnt
                 }
 
-            // normal file: validate
+            // normal file
             } else {
                 // validate
                 if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
@@ -429,7 +424,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
                     var contentTTH string
                     if d.conf.SavePath != "" {
                         var err error
-                        contentTTH,err = TTHFromFile(d.conf.SavePath)
+                        contentTTH,err = TTHFromFile(d.conf.SavePath + ".tmp")
                         if err != nil {
                             return err
                         }
@@ -442,6 +437,11 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
                     if contentTTH != d.conf.TTH {
                         return fmt.Errorf("validation failed")
                     }
+                }
+
+                // move to final path
+                if err := os.Rename(d.conf.SavePath + ".tmp", d.conf.SavePath); err != nil {
+                    return err
                 }
             }
 
