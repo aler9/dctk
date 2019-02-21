@@ -74,7 +74,7 @@ type readBufferedConn struct {
 func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
     return &readBufferedConn{
         in: in,
-        readBuffer: bufio.NewReaderSize(in, 4 * 4096),
+        readBuffer: bufio.NewReaderSize(in, 2048), // TCP MTU is 1460 bytes
     }
 }
 
