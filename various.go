@@ -120,21 +120,21 @@ func connWithTimeoutAndRetries(address string, timeout time.Duration, retries ui
     return nil, err
 }
 
-type bytesReadCloser struct {
+type bytesWriteCloser struct {
     buf     []byte
     offset  int
 }
 
 func newBytesWriteCloser(buf []byte) io.WriteCloser {
-    return &bytesReadCloser{ buf: buf }
+    return &bytesWriteCloser{ buf: buf }
 }
 
-func (rc *bytesReadCloser) Write(in []byte) (int,error) {
+func (rc *bytesWriteCloser) Write(in []byte) (int,error) {
     n := copy(rc.buf[rc.offset:], in)
     rc.offset += n
     return n, nil
 }
 
-func (rc *bytesReadCloser) Close() error {
+func (rc *bytesWriteCloser) Close() error {
     return nil
 }
