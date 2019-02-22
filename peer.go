@@ -1,7 +1,5 @@
 package dctoolkit
 
-import ()
-
 // Peer represents a client connected to a Hub.
 type Peer struct {
 	// peer nickname

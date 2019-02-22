@@ -195,10 +195,10 @@ func NewClient(conf ClientConf) (*Client, error) {
 		return nil, fmt.Errorf("unable to parse hub url")
 	}
 	if _, ok := map[string]struct{}{
-		"adc":   struct{}{},
-		"adcs":  struct{}{},
-		"nmdc":  struct{}{},
-		"nmdcs": struct{}{},
+		"adc":   {},
+		"adcs":  {},
+		"nmdc":  {},
+		"nmdcs": {},
 	}[u.Scheme]; !ok {
 		return nil, fmt.Errorf("unsupported protocol: %s", u.Scheme)
 	}
@@ -327,10 +327,10 @@ func (c *Client) Run() {
 
 	c.Safe(func() {
 		c.connHub.terminate()
-		for t, _ := range c.transfers {
+		for t := range c.transfers {
 			t.terminate()
 		}
-		for p, _ := range c.connPeers {
+		for p := range c.connPeers {
 			p.terminate()
 		}
 		if c.listenerUdp != nil {

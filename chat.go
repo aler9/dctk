@@ -1,7 +1,5 @@
 package dctoolkit
 
-import ()
-
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
 	if c.protoIsAdc == true {

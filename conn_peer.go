@@ -193,11 +193,11 @@ func (p *connPeer) do() {
 					p.conn.Write(&msgAdcCSupports{
 						msgAdcTypeC{},
 						msgAdcKeySupports{map[string]struct{}{
-							"ADBAS0": struct{}{},
-							"ADBASE": struct{}{},
-							"ADTIGR": struct{}{},
-							"ADBZIP": struct{}{},
-							"ADZLIG": struct{}{},
+							"ADBAS0": {},
+							"ADBASE": {},
+							"ADTIGR": {},
+							"ADBZIP": {},
+							"ADZLIG": {},
 						}},
 					})
 
@@ -275,11 +275,11 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.conn.Write(&msgAdcCSupports{
 				msgAdcTypeC{},
 				msgAdcKeySupports{map[string]struct{}{
-					"ADBAS0": struct{}{},
-					"ADBASE": struct{}{},
-					"ADTIGR": struct{}{},
-					"ADBZIP": struct{}{},
-					"ADZLIG": struct{}{},
+					"ADBAS0": {},
+					"ADBASE": {},
+					"ADTIGR": {},
+					"ADBZIP": {},
+					"ADZLIG": {},
 				}},
 			})
 
@@ -401,11 +401,11 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		}
 
 		features := map[string]struct{}{
-			"MiniSlots": struct{}{},
-			"XmlBZList": struct{}{},
-			"ADCGet":    struct{}{},
-			"TTHL":      struct{}{},
-			"TTHF":      struct{}{},
+			"MiniSlots": {},
+			"XmlBZList": {},
+			"ADCGet":    {},
+			"TTHL":      {},
+			"TTHF":      {},
 		}
 		if p.client.conf.PeerDisableCompression == false {
 			features["ZLIG"] = struct{}{}

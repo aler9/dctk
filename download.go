@@ -48,7 +48,7 @@ func (*Download) isTransfer() {}
 // DownloadCount returns the number of remaining downloads, queued or active.
 func (c *Client) DownloadCount() int {
 	count := 0
-	for t, _ := range c.transfers {
+	for t := range c.transfers {
 		if _, ok := t.(*Download); ok {
 			count++
 		}
@@ -57,7 +57,7 @@ func (c *Client) DownloadCount() int {
 }
 
 func (c *Client) downloadByAdcToken(adcToken string) *Download {
-	for t, _ := range c.transfers {
+	for t := range c.transfers {
 		if dl, ok := t.(*Download); ok {
 			if dl.adcToken == adcToken && dl.state == "waiting_peer" {
 				return dl
@@ -468,7 +468,7 @@ func (d *Download) handleExit(err error) {
 
 	// free activedl and unlock next download
 	delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
-	for rot, _ := range d.client.transfers {
+	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
 			if od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
 				od.state = "waited_activedl"
@@ -480,7 +480,7 @@ func (d *Download) handleExit(err error) {
 
 	// free slot and unlock next download
 	d.client.downloadSlotAvail += 1
-	for rot, _ := range d.client.transfers {
+	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
 			if od.state == "waiting_slot" {
 				od.state = "waited_slot"
