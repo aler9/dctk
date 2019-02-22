@@ -239,13 +239,13 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 	}
 }
 
-func (c *protocolAdc) Write(msg msgEncodable) {
+func (p *protocolAdc) Write(msg msgEncodable) {
 	adc, ok := msg.(msgAdcTypeKeyEncodable)
 	if !ok {
 		panic(fmt.Errorf("command not fit for adc (%T)", msg))
 	}
-	dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
-	c.sendChan <- []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
+	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
+	p.sendChan <- []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
 }
 
 type msgAdcTypeDecodable interface {
