@@ -6,14 +6,15 @@ import (
 	"strings"
 )
 
+// SearchType contains the search type.
 type SearchType int
 
 const (
-	// search for a file or directory by name
+	// SearchAny searches for a file or directory by name
 	SearchAny SearchType = iota
-	// search for a directory by name
+	// SearchDirectory searches for a directory by name
 	SearchDirectory
-	// search for a file by TTH
+	// SearchTTH searches for a file by TTH
 	SearchTTH
 )
 
@@ -84,6 +85,7 @@ func nmdcSearchUnescape(in string) string {
 	return strings.Replace(in, "$", " ", -1)
 }
 
+// SearchResult contains a single result received after a search request.
 type SearchResult struct {
 	// whether the search result was received in passive or active mode
 	IsActive bool
@@ -101,6 +103,7 @@ type SearchResult struct {
 	SlotAvail uint
 }
 
+// SearchConf allows to configure a search request.
 type SearchConf struct {
 	// the search type, defaults to SearchAny. See SearchType for all the available options
 	Type SearchType

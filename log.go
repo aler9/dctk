@@ -5,14 +5,15 @@ import (
 	"os"
 )
 
+// LogLevel contains the available log levels.
 type LogLevel int
 
 const (
-	// pring everything
+	// LevelDebug prints everything
 	LevelDebug LogLevel = iota
-	// print only important messages
+	// LevelInfo prints only important messages
 	LevelInfo
-	// print only error messages
+	// LevelError prints only error messages
 	LevelError
 )
 

@@ -187,13 +187,13 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 	}
 }
 
-func (c *protocolNmdc) Write(msg msgEncodable) {
+func (p *protocolNmdc) Write(msg msgEncodable) {
 	nmdc, ok := msg.(msgNmdcEncodable)
 	if !ok {
 		panic(fmt.Errorf("command not fit for nmdc (%T)", msg))
 	}
-	dolog(LevelDebug, "[c->%s] %T %+v", c.remoteLabel, msg, msg)
-	c.sendChan <- []byte(nmdc.NmdcEncode())
+	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
+	p.sendChan <- []byte(nmdc.NmdcEncode())
 }
 
 type msgNmdcCommandDecodable interface {
