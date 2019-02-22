@@ -345,9 +345,9 @@ func (c *Client) handleNmdcSearchRequest(req *msgNmdcSearchRequest) {
 	results, err := func() ([]interface{}, error) {
 		// we do not support search by type
 		if _, ok := map[nmdcSearchType]struct{}{
-			nmdcSearchTypeAny:       struct{}{},
-			nmdcSearchTypeDirectory: struct{}{},
-			nmdcSearchTypeTTH:       struct{}{},
+			nmdcSearchTypeAny:       {},
+			nmdcSearchTypeDirectory: {},
+			nmdcSearchTypeTTH:       {},
 		}[req.Type]; !ok {
 			return nil, fmt.Errorf("unsupported search type: %v", req.Type)
 		}

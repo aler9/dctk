@@ -168,11 +168,11 @@ func (h *connHub) do() {
 					h.conn.Write(&msgAdcHSupports{
 						msgAdcTypeH{},
 						msgAdcKeySupports{map[string]struct{}{
-							"ADBAS0": struct{}{},
-							"ADBASE": struct{}{},
-							"ADTIGR": struct{}{},
-							"ADUCM0": struct{}{}, // user commands
-							"ADZLIF": struct{}{},
+							"ADBAS0": {},
+							"ADBASE": {},
+							"ADTIGR": {},
+							"ADUCM0": {}, // user commands
+							"ADZLIF": {},
 						}},
 					})
 				}
@@ -396,8 +396,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		// invalid protocol
 		if _, ok := map[string]struct{}{
-			adcProtocolPlain:     struct{}{},
-			adcProtocolEncrypted: struct{}{},
+			adcProtocolPlain:     {},
+			adcProtocolEncrypted: {},
 		}[msg.Protocol]; ok == false {
 			h.conn.Write(&msgAdcDStatus{
 				msgAdcTypeD{h.client.sessionId, msg.AuthorId},
@@ -457,11 +457,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		// https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
 		features := map[string]struct{}{
-			"UserCommand": struct{}{},
-			"NoGetINFO":   struct{}{},
-			"NoHello":     struct{}{},
-			"UserIP2":     struct{}{},
-			"TTHSearch":   struct{}{},
+			"UserCommand": {},
+			"NoGetINFO":   {},
+			"NoHello":     {},
+			"UserIP2":     {},
+			"TTHSearch":   {},
 		}
 		if h.client.conf.HubDisableCompression == false {
 			features["ZPipe0"] = struct{}{}

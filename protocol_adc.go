@@ -121,7 +121,7 @@ func adcFieldsEncode(fields map[string]string) string {
 func adcRandomToken() string {
 	const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	buf := make([]byte, 10)
-	for i, _ := range buf {
+	for i := range buf {
 		buf[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(buf)
@@ -355,10 +355,10 @@ func (t *msgAdcTypeF) AdcTypeDecode(msg string) (int, error) {
 
 func (t *msgAdcTypeF) AdcTypeEncode(keyEncoded string) string {
 	ret := "F" + keyEncoded[:3] + " " + t.SessionId + " "
-	for feat, _ := range t.RequiredFeatures {
+	for feat := range t.RequiredFeatures {
 		ret += "+" + feat
 	}
-	for feat, _ := range t.ExcludedFeatures {
+	for feat := range t.ExcludedFeatures {
 		ret += "-" + feat
 	}
 	ret += " " + keyEncoded[3:] + "\n"
@@ -649,7 +649,7 @@ func (m *msgAdcKeySupports) AdcKeyDecode(args string) error {
 
 func (m *msgAdcKeySupports) AdcKeyEncode() string {
 	var out []string
-	for feat, _ := range m.Features {
+	for feat := range m.Features {
 		out = append(out, feat)
 	}
 	return "SUP" + strings.Join(out, " ")

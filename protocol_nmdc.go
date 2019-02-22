@@ -740,7 +740,7 @@ func (m *msgNmdcSupports) NmdcDecode(args string) error {
 
 func (m *msgNmdcSupports) NmdcEncode() string {
 	var ret []string
-	for feat, _ := range m.Features {
+	for feat := range m.Features {
 		ret = append(ret, feat)
 	}
 	return nmdcCommandEncode("Supports", strings.Join(ret, " "))
