@@ -245,7 +245,7 @@ func (p *protocolAdc) Write(msg msgEncodable) {
 		panic(fmt.Errorf("command not fit for adc (%T)", msg))
 	}
 	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
-	p.sendChan <- []byte(adc.AdcTypeEncode(adc.AdcKeyEncode()))
+	p.protocolBase.Write([]byte(adc.AdcTypeEncode(adc.AdcKeyEncode())))
 }
 
 type msgAdcTypeDecodable interface {

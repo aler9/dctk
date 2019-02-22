@@ -280,6 +280,13 @@ func (c *protocolBase) WriteSync(in []byte) error {
 	return err
 }
 
+func (c *protocolBase) Write(in []byte) {
+	if c.terminated == true {
+		return
+	}
+	c.sendChan <- in
+}
+
 type msgBinary struct {
 	Content []byte
 }

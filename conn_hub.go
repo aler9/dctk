@@ -23,10 +23,13 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 		for {
 			select {
 			case <-ticker.C:
-				if h.client.protoIsAdc == true {
-				} else {
-					h.conn.Write(&msgNmdcKeepAlive{})
-				}
+				// we must call Safe() since conn.Write() is not thread safe
+				h.client.Safe(func() {
+					if h.client.protoIsAdc == true {
+					} else {
+						h.conn.Write(&msgNmdcKeepAlive{})
+					}
+				})
 			case <-ka.terminate:
 				return
 			}
