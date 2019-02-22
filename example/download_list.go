@@ -29,7 +29,7 @@ func main() {
 
     // download has finished
     client.OnDownloadSuccessful = func(d *dctk.Download) {
-        fmt.Println("downloaded: %d", len(d.Content()))
+        fmt.Printf("downloaded: %d\n", len(d.Content()))
         client.Terminate()
     }
 
