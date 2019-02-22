@@ -25,19 +25,17 @@ type protocol interface {
 
 // this forces net.Conn to use timeouts
 type timedConn struct {
-    in              net.Conn
+    io.Closer
+    conn            net.Conn
     readTimeout     time.Duration
     writeTimeout    time.Duration
 }
 
-func (c *timedConn) Close() error {
-    return c.in.Close()
-}
-
-func newTimedNetConn(in net.Conn, readTimeout time.Duration,
+func newTimedConn(conn net.Conn, readTimeout time.Duration,
     writeTimeout time.Duration) io.ReadWriteCloser {
     return &timedConn{
-        in: in,
+        Closer: conn,
+        conn: conn,
         readTimeout: readTimeout,
         writeTimeout: writeTimeout,
     }
@@ -45,20 +43,20 @@ func newTimedNetConn(in net.Conn, readTimeout time.Duration,
 
 func (c *timedConn) Read(buf []byte) (int, error) {
     if c.readTimeout > 0 {
-        if err := c.in.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+        if err := c.conn.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
             return 0, err
         }
     }
-    return c.in.Read(buf)
+    return c.conn.Read(buf)
 }
 
 func (c *timedConn) Write(buf []byte) (int, error) {
     if c.writeTimeout > 0 {
-        if err := c.in.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
+        if err := c.conn.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
             return 0, err
         }
     }
-    return c.in.Write(buf)
+    return c.conn.Write(buf)
 }
 
 // we buffer the readings for two reasons:
@@ -67,31 +65,15 @@ func (c *timedConn) Write(buf []byte) (int, error) {
 // 2) we must provide a io.ByteReader interface to zlib.NewReader(), otherwise
 //    it automatically adds a bufio layer that messes up the zlib on/off phase.
 type readBufferedConn struct {
-    in          io.ReadWriteCloser
-    readBuffer  *bufio.Reader
+    io.WriteCloser
+    *bufio.Reader
 }
 
 func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
     return &readBufferedConn{
-        in: in,
-        readBuffer: bufio.NewReaderSize(in, 2048), // TCP MTU is 1460 bytes
+        WriteCloser: in,
+        Reader: bufio.NewReaderSize(in, 2048), // TCP MTU is 1460 bytes
     }
-}
-
-func (c *readBufferedConn) Close() error {
-    return c.in.Close()
-}
-
-func (c *readBufferedConn) Read(buf []byte) (int, error) {
-    return c.readBuffer.Read(buf)
-}
-
-func (c *readBufferedConn) ReadByte() (byte, error) {
-    return c.readBuffer.ReadByte()
-}
-
-func (c *readBufferedConn) Write(buf []byte) (int, error) {
-    return c.in.Write(buf)
 }
 
 // this is like bufio.ReadSlice(), except it does not buffer
@@ -140,7 +122,7 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
         msgDelim: msgDelim,
         writerJoined: make(chan struct{}),
         readBinary: false,
-        netReadWriter: newReadBufferedConn(newTimedNetConn(nconn,
+        netReadWriter: newReadBufferedConn(newTimedConn(nconn,
             func() time.Duration {
                 if applyReadTimeout == true {
                     return 60 * time.Second
