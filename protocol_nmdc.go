@@ -193,7 +193,7 @@ func (p *protocolNmdc) Write(msg msgEncodable) {
 		panic(fmt.Errorf("command not fit for nmdc (%T)", msg))
 	}
 	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
-	p.sendChan <- []byte(nmdc.NmdcEncode())
+	p.protocolBase.Write([]byte(nmdc.NmdcEncode()))
 }
 
 type msgNmdcCommandDecodable interface {
