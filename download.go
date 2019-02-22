@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// DownloadConf allows to configure a download.
 type DownloadConf struct {
 	// the peer from which downloading
 	Peer *Peer

@@ -39,6 +39,7 @@ const (
 	ForceEncryption
 )
 
+// ClientConf allows to configure a client.
 type ClientConf struct {
 	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
 	// and TcpTlsPort but functionalities are limited
