@@ -28,6 +28,7 @@ type DownloadConf struct {
 	filelist bool
 }
 
+// Download represents an in-progress file download.
 type Download struct {
 	conf          DownloadConf
 	client        *Client
@@ -118,7 +119,7 @@ func (c *Client) DownloadFLDirectory(peer *Peer, dir *FileListDirectory, savePat
 	return dlDir(dir, savePath)
 }
 
-// Download starts downloading a file by its Tiger Tree Hash (TTH). See DownloadConf for the options.
+// DownloadFile starts downloading a file by its Tiger Tree Hash (TTH). See DownloadConf for the options.
 func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	if conf.Length <= 0 {
 		conf.Length = -1

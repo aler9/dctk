@@ -1,4 +1,4 @@
-// dctoolkit implements the client part of the Direct Connect
+// Package dctoolkit implements the client part of the Direct Connect
 // peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 // It allows the creation of clients that can interact with hubs and other
 // clients, and can be used as backend to user interfaces or automatic bots.
@@ -26,14 +26,16 @@ type transfer interface {
 	terminate()
 }
 
+// EncryptionMode contains the options regarding encryption.
 type EncryptionMode int
 
 const (
-	// use encryption when the two peers both support it
+	// PreferEncryption uses encryption when the two peers both support it
 	PreferEncryption EncryptionMode = iota
-	// disable competely encryption
+	// DisableEncryption disables competely encryption
 	DisableEncryption
-	// do not interact with peers that do not support encrypton
+	// ForceEncryption forces encryption and block interaction with peers that
+	// do not support encrypton
 	ForceEncryption
 )
 
@@ -85,6 +87,7 @@ type ClientConf struct {
 	HubDisableKeepAlive    bool
 }
 
+// Client represents a DC client.
 type Client struct {
 	conf           ClientConf
 	state          string
