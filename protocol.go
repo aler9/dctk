@@ -184,17 +184,17 @@ func (p *protocolBase) SetReadCompressionOn() error {
 		return fmt.Errorf("zlib already activated")
 	}
 
+	var err error
 	if p.zlibReader == nil {
-		var err error
 		p.zlibReader, err = zlib.NewReader(p.netReadWriter)
-		if err != nil {
-			panic(err)
-		}
 	} else {
-		p.zlibReader.(zlib.Resetter).Reset(p.netReadWriter, nil)
+		err = p.zlibReader.(zlib.Resetter).Reset(p.netReadWriter, nil)
 	}
-	p.activeReader = p.zlibReader
+	if err != nil {
+		return err
+	}
 
+	p.activeReader = p.zlibReader
 	dolog(LevelDebug, "[read zlib on]")
 	return nil
 }
