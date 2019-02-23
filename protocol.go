@@ -61,7 +61,7 @@ func (c *timedConn) Write(buf []byte) (int, error) {
 
 // we buffer the readings for two reasons:
 // 1) in this way SetReadDeadline() is called only when buffer is refilled, and
-//    not every time ReadByte() is called, improving efficiency;
+//    not every time Read() or ReadByte() is called, improving efficiency;
 // 2) we must provide a io.ByteReader interface to zlib.NewReader(), otherwise
 //    it automatically adds a bufio layer that messes up the zlib on/off phase.
 type readBufferedConn struct {
