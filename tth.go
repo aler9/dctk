@@ -13,7 +13,7 @@ import (
 
 var reTTH = regexp.MustCompile("^" + reStrTTH + "$")
 
-// TTHIsValid checsk the validity of a Tiger Tree Hash (TTH), the 39-digits string
+// TTHIsValid checks the validity of a Tiger Tree Hash (TTH), the 39-digits string
 // associated to a specific shared file.
 func TTHIsValid(in string) bool {
 	return reTTH.MatchString(in)
