@@ -161,7 +161,7 @@ https://godoc.org/github.com/gswly/dctoolkit
 
 If you want to edit this library and test the results, you can you automated tests through:
 ```
-./test.sh --all
+make test
 ```
 
 ## Links
