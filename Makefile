@@ -14,7 +14,7 @@ help:
 	@echo " "
 	@echo "  run-example [name]          run an example by name."
 	@echo " "
-	@echo "  run-command \"[name] [args]\" run a command by name."
+	@echo "  run-command '[name] [args]' run a command by name."
 	@echo " "
 
 
