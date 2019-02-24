@@ -42,12 +42,13 @@ test:
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
 
   # run tests
+	@echo "building main image..."
 	@docker build . -f test/Dockerfile -t dctk-test >$(OUT)
 	@docker network create dctk-test >/dev/null
 	@for PROTO in $(PROTOCOLS); do \
 		case $$PROTO in \
-			nmdc) docker build test/verlihub -t dctk-hub >$(OUT); HUBURL="nmdc://dctk-hub:4111";; \
-			adc) docker build test/luadch -t dctk-hub >$(OUT); HUBURL="adcs://dctk-hub:5001";; \
+			nmdc) echo "building nmdc image..."; docker build test/verlihub -t dctk-hub >$(OUT); HUBURL="nmdc://dctk-hub:4111";; \
+			adc) echo "building adc image..."; docker build test/luadch -t dctk-hub >$(OUT); HUBURL="adcs://dctk-hub:5001";; \
 			*) echo "protocol unrecognized"; exit 1;; \
 		esac; \
 		\
