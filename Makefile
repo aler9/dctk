@@ -95,10 +95,12 @@ endif
 define COMMAND_DOCKERFILE
 FROM amd64/golang:1.11-stretch
 WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . ./
 RUN go install ./...
 endef
 export COMMAND_DOCKERFILE
 run-command:
-	@echo "$$COMMAND_DOCKERFILE" | docker build . -f - -t dctk-runcmd
-	docker run --rm -it dctk-runcmd $(ARGS)
+	@echo "$$COMMAND_DOCKERFILE" | docker build . -f - -t dctk-runcmd >/dev/null
+	@docker run --rm -it -e COLUMNS=$(shell tput cols) dctk-runcmd $(ARGS)
