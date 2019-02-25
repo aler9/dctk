@@ -29,13 +29,12 @@ format:
 
 .PHONY: test
 ifeq (test, $(firstword $(MAKECMDGOALS)))
-  ARGS = $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
   $(eval $(ARGS):;@:)
-
-  PROTOCOLS = $(if $(word 1, $(ARGS)), $(word 1, $(ARGS)), nmdc adc)
-  TESTNAMES = $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//'))
-  OUT = $(if $(V), /dev/stdout, /dev/null)
 endif
+test: PROTOCOLS := $(if $(word 1, $(ARGS)), $(word 1, $(ARGS)), nmdc adc)
+test: TESTNAMES := $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//'))
+test: OUT := $(if $(V), /dev/stdout, /dev/null)
 test:
   # cleanup residuals
 	@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
@@ -72,13 +71,12 @@ test:
 
 .PHONY: run-example
 ifeq (run-example, $(firstword $(MAKECMDGOALS)))
-  ARGS = $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
   $(eval $(ARGS):;@:)
-
-  EXAMPLE = $(word 1, $(ARGS))
 endif
+run-example: EXAMPLE := $(word 1, $(ARGS))
 run-example:
-	@if [ ! -f "./example/$(EXAMPLE).go" ]; then echo "example file not found"; exit 1; fi
+	@test -f "./example/$(EXAMPLE).go" || ( echo "example file not found"; exit 1 )
 	@docker run --rm -it \
 		-v $(PWD):/src \
 		-p 3009:3009 \
@@ -90,7 +88,7 @@ run-example:
 
 .PHONY: run-command
 ifeq (run-command, $(firstword $(MAKECMDGOALS)))
-  ARGS = $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
   $(eval $(ARGS):;@:)
 endif
 define COMMAND_DOCKERFILE
