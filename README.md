@@ -40,83 +40,24 @@ go get github.com/gswly/dctoolkit/cmd/...
 dc-tth [<flags>] <filepath>
 
 Compute the Tiger Tree Hash (TTH) of a given file.
-
-Flags:
-  --help  Show context-sensitive help (also try --help-long and
-          --help-man).
-
-Args:
-  <filepath>  Path to a file
 ```
 
 ```
 dc-search --hub=HUB --nick=NICK [<flags>] <query>
 
 Search files and directories by name in a given hub.
-
-Flags:
-  --help         Show context-sensitive help (also try
-                 --help-long and --help-man).
-  --hub=HUB      The url of a hub, ie nmdc://hubip:411
-  --nick=NICK    The nickname to use
-  --pwd=PWD      The password to use
-  --passive      Turn on passive mode (ports are not required
-                 anymore)
-  --tcp=3009     The TCP port to use
-  --udp=3009     The UDP port to use
-  --tls=3010     The TCP-TLS port to use
-  --share=SHARE  An (optional) folder to share. Some hubs
-                 require a minimum share
-
-Args:
-  <query>  Search query
 ```
 
 ```
 dc-download --hub=HUB --nick=NICK --outdir=OUTDIR [<flags>] <user> <fpath>
 
 Download a file or a directory from a user in a given hub.
-
-Flags:
-  --help           Show context-sensitive help (also try
-                   --help-long and --help-man).
-  --hub=HUB        The url of a hub, ie nmdc://hubip:411
-  --nick=NICK      The nickname to use
-  --pwd=PWD        The password to use
-  --passive        Turn on passive mode (ports are not
-                   required anymore)
-  --tcp=3009       The TCP port to use
-  --udp=3009       The UDP port to use
-  --tls=3010       The TCP-TLS port to use
-  --share=SHARE    An (optional) folder to share. Some hubs
-                   require a minimum share
-  --outdir=OUTDIR  The directory in which files will be saved
-
-Args:
-  <user>   The user from which to download
-  <fpath>  The path of the file or directory to download
 ```
 
 ```
 dc-share --hub=HUB --nick=NICK [<flags>] <share>
 
 Share a directory in a given hub.
-
-Flags:
-  --help           Show context-sensitive help (also try
-                   --help-long and --help-man).
-  --hub=HUB        The url of a hub, ie nmdc://hubip:411
-  --nick=NICK      The nickname to use
-  --pwd=PWD        The password to use
-  --passive        Turn on passive mode (ports are not
-                   required anymore)
-  --tcp=3009       The TCP port to use
-  --udp=3009       The UDP port to use
-  --tls=3010       The TCP-TLS port to use
-  --alias="share"  The alias of the share
-
-Args:
-  <share>  The directory to share
 ```
 
 ## Library
