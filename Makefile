@@ -29,8 +29,8 @@ format:
 
 .PHONY: test
 ifeq (test, $(firstword $(MAKECMDGOALS)))
+  $(eval %:;@:) # do not treat arguments as targets
   ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-  $(eval $(ARGS):;@:)
   PROTOCOLS := $(if $(word 1, $(ARGS)), $(word 1, $(ARGS)), nmdc adc)
   TESTNAMES := $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//'))
   OUT := $(if $(V), /dev/stdout, /dev/null)
@@ -54,16 +54,12 @@ test:
 		for TESTNAME in $(TESTNAMES); do \
 			[ -f test/$$TESTNAME.go ] || { echo "test not found"; exit 1; }; \
 			echo "[$$PROTO $$TESTNAME]"; \
-			# start hub \
 			docker run --rm -d --network=dctk-test --name=dctk-hub \
 				dctk-hub $1 >/dev/null; \
-			# run test \
 			docker run --rm -it --network=dctk-test --name=dctk-test \
 				-v $$PWD:/src -e HUBURL=$$HUBURL -e TEST=$$TESTNAME dctk-test >$(OUT); \
 				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAILED"; \
-			# stop hub \
 			docker container kill dctk-hub >/dev/null 2>&1; \
-			\
 		done \
 	done
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
@@ -71,8 +67,8 @@ test:
 
 .PHONY: run-example
 ifeq (run-example, $(firstword $(MAKECMDGOALS)))
+  $(eval %:;@:) # do not treat arguments as targets
   ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-  $(eval $(ARGS):;@:)
   EXAMPLE := $(word 1, $(ARGS))
 endif
 run-example:
@@ -88,8 +84,8 @@ run-example:
 
 .PHONY: run-command
 ifeq (run-command, $(firstword $(MAKECMDGOALS)))
+  $(eval %:;@:) # do not treat arguments as targets
   ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-  $(eval $(ARGS):;@:)
 endif
 define COMMAND_DOCKERFILE
 FROM amd64/golang:1.11-stretch
