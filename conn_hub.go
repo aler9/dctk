@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	_HUB_KEEPALIVE_PERIOD = 120 * time.Second
+)
+
 type hubKeepAliver struct {
 	terminate chan struct{}
 }
@@ -18,7 +22,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	}
 
 	go func() {
-		ticker := time.NewTicker(120 * time.Second)
+		ticker := time.NewTicker(_HUB_KEEPALIVE_PERIOD)
 		defer ticker.Stop()
 		for {
 			select {
@@ -26,6 +30,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 				// we must call Safe() since conn.Write() is not thread safe
 				h.client.Safe(func() {
 					if h.client.protoIsAdc == true {
+						// ADC uses the TCP keepalive feature or empty packets
 					} else {
 						h.conn.Write(&msgNmdcKeepAlive{})
 					}
