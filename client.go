@@ -17,7 +17,9 @@ import (
 	"time"
 )
 
-const _PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
+const (
+	_PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
+)
 
 var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
 
