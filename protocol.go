@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	_CONN_READ_TIMEOUT  = 60 * time.Second
+	_CONN_WRITE_TIMEOUT = 10 * time.Second
+)
+
 type msgDecodable interface{}
 type msgEncodable interface{}
 
@@ -125,13 +130,13 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 		netReadWriter: newReadBufferedConn(newTimedConn(nconn,
 			func() time.Duration {
 				if applyReadTimeout == true {
-					return 60 * time.Second
+					return _CONN_READ_TIMEOUT
 				}
 				return 0
 			}(),
 			func() time.Duration {
 				if applyWriteTimeout == true {
-					return 10 * time.Second
+					return _CONN_WRITE_TIMEOUT
 				}
 				return 0
 			}())),
