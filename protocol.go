@@ -215,7 +215,11 @@ func (p *protocolBase) SetWriteCompression(val bool) {
 
 	if val == true {
 		dolog(LevelDebug, "[write zlib on]")
-		p.zlibWriter = zlib.NewWriter(p.netReadWriter)
+		if p.zlibWriter == nil {
+			p.zlibWriter = zlib.NewWriter(p.netReadWriter)
+		} else {
+			p.zlibWriter.(*zlib.Writer).Reset(p.netReadWriter)
+		}
 		p.currentWriter = p.zlibWriter
 	} else {
 		dolog(LevelDebug, "[write zlib off]")
