@@ -207,6 +207,9 @@ func (u *upload) handleUpload() error {
 		u.pconn.conn.SetWriteCompression(true)
 	}
 
+	// setup time to correctly compute speed
+	u.lastPrintTime = time.Now()
+
 	var buf [1024 * 1024]byte
 	for {
 		n, err := u.reader.Read(buf[:])
@@ -224,9 +227,11 @@ func (u *upload) handleUpload() error {
 			return err
 		}
 
-		if time.Since(u.lastPrintTime) >= (1 * time.Second) {
+		since := time.Since(u.lastPrintTime)
+		if since >= (1 * time.Second) {
 			u.lastPrintTime = time.Now()
-			dolog(LevelInfo, "[sent] %d/%d", u.offset, u.length)
+			speed := float64(u.pconn.conn.PullWriteCounter()) / 1024 / (float64(since) / float64(time.Second))
+			dolog(LevelInfo, "[sent] %d/%d (%.1f KiB/s)", u.offset, u.length, speed)
 		}
 	}
 
