@@ -18,6 +18,11 @@ const (
 type msgDecodable interface{}
 type msgEncodable interface{}
 
+type monitoredConnIntf interface {
+	PullReadCounter() uint
+	PullWriteCounter() uint
+}
+
 type protocol interface {
 	Terminate()
 	SetSyncMode(val bool)
@@ -27,6 +32,7 @@ type protocol interface {
 	Read() (msgDecodable, error)
 	Write(msg msgEncodable)
 	WriteSync(in []byte) error
+	monitoredConnIntf
 }
 
 // timedConn forces net.Conn to use timeouts.
@@ -63,6 +69,46 @@ func (c *timedConn) Write(buf []byte) (int, error) {
 		}
 	}
 	return c.conn.Write(buf)
+}
+
+// monitoredConn implements a read and a writer counter, that is used to
+// compute the connection speed.
+type monitoredConn struct {
+	io.Closer
+	in           io.ReadWriteCloser
+	readCounter  uint
+	writeCounter uint
+}
+
+func newMonitoredConn(in io.ReadWriteCloser) *monitoredConn {
+	return &monitoredConn{
+		Closer: in,
+		in:     in,
+	}
+}
+
+func (c *monitoredConn) Read(buf []byte) (int, error) {
+	n, err := c.in.Read(buf)
+	c.readCounter += uint(n)
+	return n, err
+}
+
+func (c *monitoredConn) Write(buf []byte) (int, error) {
+	n, err := c.in.Write(buf)
+	c.writeCounter += uint(n)
+	return n, err
+}
+
+func (c *monitoredConn) PullReadCounter() uint {
+	ret := c.readCounter
+	c.readCounter = 0
+	return ret
+}
+
+func (c *monitoredConn) PullWriteCounter() uint {
+	ret := c.writeCounter
+	c.writeCounter = 0
+	return ret
 }
 
 // readBufferedConn buffer the readings. This is done for two reasons:
@@ -119,6 +165,7 @@ type protocolBase struct {
 	currentReader io.Reader
 	currentWriter io.Writer
 	writerJoined  chan struct{}
+	monitoredConnIntf
 }
 
 func newProtocolBase(remoteLabel string, nconn net.Conn,
@@ -136,7 +183,8 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 			}
 			return 0
 		}())
-	rbc := newReadBufferedConn(tc)
+	mc := newMonitoredConn(tc)
+	rbc := newReadBufferedConn(mc)
 
 	p := &protocolBase{
 		remoteLabel:   remoteLabel,
@@ -148,6 +196,7 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	p.currentReader = p.netReadWriter
 	p.currentWriter = p.netReadWriter
 	p.sendChan = make(chan []byte)
+	p.monitoredConnIntf = mc
 	go p.writer()
 	return p
 }

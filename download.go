@@ -341,6 +341,9 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 		d.writer = newBytesWriteCloser(d.content)
 	}
 
+	// setup time to correctly compute speed
+	d.lastPrintTime = time.Now()
+
 	return nil
 }
 
@@ -374,9 +377,11 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 		}
 		d.offset = newLength
 
-		if time.Since(d.lastPrintTime) >= (1 * time.Second) {
+		since := time.Since(d.lastPrintTime)
+		if since >= (1 * time.Second) {
 			d.lastPrintTime = time.Now()
-			dolog(LevelInfo, "[recv] %d/%d", d.offset, d.length)
+			speed := float64(d.pconn.conn.PullReadCounter()) / 1024 / (float64(since) / float64(time.Second))
+			dolog(LevelInfo, "[recv] %d/%d (%.1f KiB/s)", d.offset, d.length, speed)
 		}
 
 		if d.offset == d.length {
