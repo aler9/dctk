@@ -98,4 +98,9 @@ endef
 export COMMAND_DOCKERFILE
 run-command:
 	@echo "$$COMMAND_DOCKERFILE" | docker build . -f - -t dctk-runcmd >/dev/null
-	@docker run --rm -it -e COLUMNS=$(shell tput cols) dctk-runcmd $(ARGS)
+	@docker run --rm -it \
+		-p 3009:3009 \
+		-p 3009:3009/udp \
+		-p 3010:3010 \
+		-e COLUMNS=$(shell tput cols) \
+		dctk-runcmd $(ARGS)
