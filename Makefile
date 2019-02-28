@@ -55,7 +55,7 @@ test:
 			[ -f test/$$TESTNAME.go ] || { echo "test not found"; exit 1; }; \
 			echo "[$$PROTO $$TESTNAME]"; \
 			docker run --rm -d --network=dctk-test --name=dctk-hub \
-				dctk-hub $1 >/dev/null; \
+				dctk-hub $$TESTNAME >/dev/null; \
 			docker run --rm -it --network=dctk-test --name=dctk-test \
 				-v $$PWD:/src -e HUBURL=$$HUBURL -e TEST=$$TESTNAME dctk-test >$(OUT); \
 				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAILED"; \
