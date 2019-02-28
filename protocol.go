@@ -12,6 +12,7 @@ import (
 const (
 	_CONN_READ_TIMEOUT  = 60 * time.Second
 	_CONN_WRITE_TIMEOUT = 10 * time.Second
+	_MAX_MESSAGE_SIZE   = 10 * 1024
 )
 
 type msgDecodable interface{}
@@ -28,7 +29,7 @@ type protocol interface {
 	WriteSync(in []byte) error
 }
 
-// this forces net.Conn to use timeouts
+// timedConn forces net.Conn to use timeouts.
 type timedConn struct {
 	io.Closer
 	conn         net.Conn
@@ -64,7 +65,7 @@ func (c *timedConn) Write(buf []byte) (int, error) {
 	return c.conn.Write(buf)
 }
 
-// we buffer the readings for two reasons:
+// readBufferedConn buffer the readings. This is done for two reasons:
 // 1) in this way SetReadDeadline() is called only when buffer is refilled, and
 //    not every time Read() or ReadByte() is called, improving efficiency;
 // 2) we must provide a io.ByteReader interface to zlib.NewReader(), otherwise
@@ -85,7 +86,7 @@ func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
 // anything, to allow the zlib on/off phase
 // and it also strips the delimiter
 func readUntilDelim(in io.Reader, delim byte) (string, error) {
-	var buffer [10 * 1024]byte // max message size
+	var buffer [_MAX_MESSAGE_SIZE]byte
 	offset := 0
 	for {
 		// read one character at a time
@@ -114,35 +115,38 @@ type protocolBase struct {
 	syncMode      bool
 	netReadWriter io.ReadWriteCloser
 	zlibReader    io.ReadCloser
-	activeReader  io.Reader
-	zlibWriter    *zlib.Writer
-	activeWriter  io.Writer
+	zlibWriter    io.WriteCloser
+	currentReader io.Reader
+	currentWriter io.Writer
 	writerJoined  chan struct{}
 }
 
 func newProtocolBase(remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *protocolBase {
+	tc := newTimedConn(nconn,
+		func() time.Duration {
+			if applyReadTimeout == true {
+				return _CONN_READ_TIMEOUT
+			}
+			return 0
+		}(),
+		func() time.Duration {
+			if applyWriteTimeout == true {
+				return _CONN_WRITE_TIMEOUT
+			}
+			return 0
+		}())
+	rbc := newReadBufferedConn(tc)
+
 	p := &protocolBase{
-		remoteLabel:  remoteLabel,
-		msgDelim:     msgDelim,
-		writerJoined: make(chan struct{}),
-		readBinary:   false,
-		netReadWriter: newReadBufferedConn(newTimedConn(nconn,
-			func() time.Duration {
-				if applyReadTimeout == true {
-					return _CONN_READ_TIMEOUT
-				}
-				return 0
-			}(),
-			func() time.Duration {
-				if applyWriteTimeout == true {
-					return _CONN_WRITE_TIMEOUT
-				}
-				return 0
-			}())),
+		remoteLabel:   remoteLabel,
+		msgDelim:      msgDelim,
+		writerJoined:  make(chan struct{}),
+		readBinary:    false,
+		netReadWriter: rbc,
 	}
-	p.activeReader = p.netReadWriter
-	p.activeWriter = p.netReadWriter
+	p.currentReader = p.netReadWriter
+	p.currentWriter = p.netReadWriter
 	p.sendChan = make(chan []byte)
 	go p.writer()
 	return p
@@ -185,9 +189,10 @@ func (p *protocolBase) SetReadBinary(val bool) {
 }
 
 func (p *protocolBase) SetReadCompressionOn() error {
-	if p.activeReader == p.zlibReader {
+	if p.currentReader == p.zlibReader {
 		return fmt.Errorf("zlib already activated")
 	}
+	dolog(LevelDebug, "[read zlib on]")
 
 	var err error
 	if p.zlibReader == nil {
@@ -198,26 +203,24 @@ func (p *protocolBase) SetReadCompressionOn() error {
 	if err != nil {
 		return err
 	}
-
-	p.activeReader = p.zlibReader
-	dolog(LevelDebug, "[read zlib on]")
+	p.currentReader = p.zlibReader
 	return nil
 }
 
 func (p *protocolBase) SetWriteCompression(val bool) {
-	if (val && p.activeWriter == p.zlibWriter) ||
-		(!val && p.activeWriter != p.zlibWriter) {
+	if (val && p.currentWriter == p.zlibWriter) ||
+		(!val && p.currentWriter != p.zlibWriter) {
 		return
 	}
 
 	if val == true {
-		p.zlibWriter = zlib.NewWriter(p.netReadWriter)
-		p.activeWriter = p.zlibWriter
 		dolog(LevelDebug, "[write zlib on]")
+		p.zlibWriter = zlib.NewWriter(p.netReadWriter)
+		p.currentWriter = p.zlibWriter
 	} else {
-		p.zlibWriter.Close()
-		p.activeWriter = p.netReadWriter
 		dolog(LevelDebug, "[write zlib off]")
+		p.zlibWriter.Close()
+		p.currentWriter = p.netReadWriter
 	}
 }
 
@@ -228,13 +231,13 @@ func (p *protocolBase) ReadMessage() (string, error) {
 	}
 
 	for {
-		msg, err := readUntilDelim(p.activeReader, p.msgDelim)
+		msg, err := readUntilDelim(p.currentReader, p.msgDelim)
 		if err != nil {
 			// zlib EOF: disable and read again
-			if p.activeReader == p.zlibReader && err == io.EOF {
+			if p.currentReader == p.zlibReader && err == io.EOF {
 				dolog(LevelDebug, "[read zlib off]")
 				p.zlibReader.Close()
-				p.activeReader = p.netReadWriter
+				p.currentReader = p.netReadWriter
 				continue
 			}
 			if p.terminated == true {
@@ -254,13 +257,13 @@ func (p *protocolBase) ReadBinary() ([]byte, error) {
 
 	var buf [2048]byte
 	for {
-		read, err := p.activeReader.Read(buf[:])
+		read, err := p.currentReader.Read(buf[:])
 		if read == 0 {
 			// zlib EOF: disable and read again
-			if p.activeReader == p.zlibReader && err == io.EOF {
+			if p.currentReader == p.zlibReader && err == io.EOF {
 				dolog(LevelDebug, "[read zlib off]")
 				p.zlibReader.Close()
-				p.activeReader = p.netReadWriter
+				p.currentReader = p.netReadWriter
 				continue
 			}
 			if p.terminated == true {
@@ -281,7 +284,7 @@ func (p *protocolBase) writer() {
 }
 
 func (p *protocolBase) WriteSync(in []byte) error {
-	_, err := p.activeWriter.Write(in)
+	_, err := p.currentWriter.Write(in)
 	return err
 }
 
