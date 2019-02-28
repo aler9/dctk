@@ -135,22 +135,22 @@ func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
 // zlibSwitchableConn implements a read/write compression that can be switched
 // on or off at any time.
 type zlibSwitchableConn struct {
-	in 		      io.ReadWriteCloser
-	zlibReader    io.ReadCloser
-	zlibWriter    io.WriteCloser
-	activeReader  io.Reader
-	activeWriter  io.Writer
+	in           io.ReadWriteCloser
+	zlibReader   io.ReadCloser
+	zlibWriter   io.WriteCloser
+	activeReader io.Reader
+	activeWriter io.Writer
 }
 
 func newZlibSwitchableConn(in io.ReadWriteCloser) *zlibSwitchableConn {
 	return &zlibSwitchableConn{
-		in: in,
+		in:           in,
 		activeReader: in,
 		activeWriter: in,
 	}
 }
 
-func (c *zlibSwitchableConn) Close() (error) {
+func (c *zlibSwitchableConn) Close() error {
 	if c.activeReader == c.zlibReader {
 		c.zlibReader.Close()
 	}
@@ -162,7 +162,7 @@ func (c *zlibSwitchableConn) Close() (error) {
 
 func (c *zlibSwitchableConn) Read(buf []byte) (int, error) {
 	for {
-		n,err := c.activeReader.Read(buf)
+		n, err := c.activeReader.Read(buf)
 
 		// zlib EOF: disable and read again
 		if n == 0 && err == io.EOF && c.activeReader == c.zlibReader {
@@ -171,7 +171,7 @@ func (c *zlibSwitchableConn) Read(buf []byte) (int, error) {
 			c.activeReader = c.in
 			continue
 		}
-		return n,err
+		return n, err
 	}
 }
 
