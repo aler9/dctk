@@ -7,7 +7,7 @@ help:
 	@echo " "
 	@echo "  format                      format source files."
 	@echo " "
-	@echo "  test [proto] [testname]     run available tests. By default all"
+	@echo "  test [proto] [testname]     run available tests. by default all"
 	@echo "                              tests are run, but they can be"
 	@echo "                              filtered by protocol or name."
 	@echo "                              add V=1 to increase verbosity."
