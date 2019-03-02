@@ -6,8 +6,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gswly/dctoolkit)](https://goreportcard.com/report/github.com/gswly/dctoolkit)
 
 dctoolkit implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
-* a **library**, that allows the creation of clients capable of interacting with hubs and other clients;
-* a series of **command line utilities** that make use of the library.
+* a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
+* a series of [**command line utilities**](#command-line-utilities) that make use of the library.
 
 Direct Connect is semi-centralized peer-to-peer system in which peers connect to servers (hubs) and exchange textual messages and files. Files are indexed by computing their Tiger Tree Hash (TTH), provided by users through their file list, and searchable on a hub-basis. There exist two variants, one based on the traditional NMDC protocol (NeoModus Direct Connect) and the other based on the newer ADC protocol (Advanced Direct Connect).
 
@@ -24,41 +24,6 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * Comprehensive test set
 
 The public API can be considered stable.
-
-## Command-line utilities
-
-#### Installation
-
-Go &ge; 1.11 is required. Download, compile and install the binaries:
-```
-go get github.com/gswly/dctoolkit/cmd/...
-```
-
-#### Usage
-
-```
-dc-tth [<flags>] <filepath>
-
-Compute the Tiger Tree Hash (TTH) of a given file.
-```
-
-```
-dc-search --hub=HUB --nick=NICK [<flags>] <query>
-
-Search files and directories by name in a given hub.
-```
-
-```
-dc-download --hub=HUB --nick=NICK --outdir=OUTDIR [<flags>] <user> <fpath>
-
-Download a file or a directory from a user in a given hub.
-```
-
-```
-dc-share --hub=HUB --nick=NICK [<flags>] <share>
-
-Share a directory in a given hub.
-```
 
 ## Library
 
@@ -103,6 +68,41 @@ https://godoc.org/github.com/gswly/dctoolkit
 If you want to edit this library and test the results, you can you automated tests through:
 ```
 make test
+```
+
+## Command-line utilities
+
+#### Installation
+
+Go &ge; 1.11 is required. Download, compile and install the binaries with a single command:
+```
+go get github.com/gswly/dctoolkit/cmd/...
+```
+
+#### Usage
+
+```
+dc-tth [<flags>] <filepath>
+
+Compute the Tiger Tree Hash (TTH) of a given file.
+```
+
+```
+dc-search --hub=HUB --nick=NICK [<flags>] <query>
+
+Search files and directories by name in a given hub.
+```
+
+```
+dc-download --hub=HUB --nick=NICK --outdir=OUTDIR [<flags>] <user> <fpath>
+
+Download a file or a directory from a user in a given hub.
+```
+
+```
+dc-share --hub=HUB --nick=NICK [<flags>] <share>
+
+Share a directory in a given hub.
 ```
 
 ## Links
