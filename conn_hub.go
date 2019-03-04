@@ -578,14 +578,17 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		p.ShareSize = msg.ShareSize
 		p.nmdcConnection = msg.Connection
 		p.nmdcStatusByte = msg.StatusByte
-		if msg.Mode != "" { // set mode only if it has been sent
-			p.IsPassive = (msg.Mode == "P")
-		}
+
+		// client, version, mode are in the tag part of MyInfo (i.e. <>)
+		// that can be deliberately hidden by hub
 		if msg.Client != "" {
 			p.Client = msg.Client
 		}
 		if msg.Version != "" {
 			p.Version = msg.Version
+		}
+		if msg.Mode != "" {
+			p.IsPassive = (msg.Mode == "P")
 		}
 
 		if exists == false {
