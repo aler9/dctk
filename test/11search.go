@@ -72,33 +72,43 @@ func client2() {
 	client.OnSearchResult = func(res *dctk.SearchResult) {
 		switch step {
 		case 0:
-			if res.IsDir == true && res.Path == "/aliasname/inner folder" &&
-				res.TTH == "" && // res.Size for folders is provided by ADC, not provided by NMDC
-				res.IsActive == true {
-				step++
-				client.Search(dctk.SearchConf{
-					Query: "test file",
-				})
+			if res.IsDir != true ||
+				res.Path != "/aliasname/inner folder" ||
+				res.TTH != "" ||
+				// res.Size for folders is provided by ADC, not provided by NMDC
+				((os.Args[1] == "nmdc" && res.Size != 0) || (os.Args[1] == "adc" && res.Size != 10000)) ||
+				res.IsActive != true {
+				panic("wrong result (1)")
 			}
+			step++
+			client.Search(dctk.SearchConf{
+				Query: "test file",
+			})
 
 		case 1:
-			if res.IsDir == false && res.Path == "/aliasname/inner folder/test file.txt" &&
-				res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" && res.Size == 10000 &&
-				res.IsActive == true {
-				step++
-				client.Search(dctk.SearchConf{
-					Type:  dctk.SearchTTH,
-					Query: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
-				})
+			if res.IsDir != false ||
+				res.Path != "/aliasname/inner folder/test file.txt" ||
+				res.TTH != "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" ||
+				res.Size != 10000 ||
+				res.IsActive != true {
+				panic("wrong result (2)")
 			}
+			step++
+			client.Search(dctk.SearchConf{
+				Type:  dctk.SearchTTH,
+				Query: "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY",
+			})
 
 		case 2:
-			if res.IsDir == false && res.Path == "/aliasname/inner folder/test file.txt" &&
-				res.TTH == "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" && res.Size == 10000 &&
-				res.IsActive == true {
-				ok = true
-				client.Terminate()
+			if res.IsDir != false ||
+				res.Path != "/aliasname/inner folder/test file.txt" ||
+				res.TTH != "UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY" ||
+				res.Size != 10000 ||
+				res.IsActive != true {
+				panic("wrong result (3)")
 			}
+			ok = true
+			client.Terminate()
 		}
 	}
 
