@@ -258,33 +258,35 @@ type protocolBase struct {
 
 func newProtocolBase(remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *protocolBase {
-	tc := newTimedConn(nconn,
-		func() time.Duration {
-			if applyReadTimeout == true {
-				return _CONN_READ_TIMEOUT
-			}
-			return 0
-		}(),
-		func() time.Duration {
-			if applyWriteTimeout == true {
-				return _CONN_WRITE_TIMEOUT
-			}
-			return 0
-		}())
+
+	readTimeout := func() time.Duration {
+		if applyReadTimeout == true {
+			return _CONN_READ_TIMEOUT
+		}
+		return 0
+	}()
+	writeTimeout := func() time.Duration {
+		if applyWriteTimeout == true {
+			return _CONN_WRITE_TIMEOUT
+		}
+		return 0
+	}()
+
+	tc := newTimedConn(nconn, readTimeout, writeTimeout)
 	mc := newMonitoredConn(tc)
 	rbc := newReadBufferedConn(mc)
 	zsc := newZlibSwitchableConn(rbc)
 
 	p := &protocolBase{
-		remoteLabel:   remoteLabel,
-		msgDelim:      msgDelim,
-		writerJoined:  make(chan struct{}),
-		readBinary:    false,
-		netReadWriter: zsc,
+		remoteLabel:            remoteLabel,
+		msgDelim:               msgDelim,
+		writerJoined:           make(chan struct{}),
+		readBinary:             false,
+		netReadWriter:          zsc,
+		sendChan:               make(chan []byte),
+		monitoredConnIntf:      mc,
+		zlibSwitchableConnIntf: zsc,
 	}
-	p.sendChan = make(chan []byte)
-	p.monitoredConnIntf = mc
-	p.zlibSwitchableConnIntf = zsc
 	go p.writer()
 	return p
 }
