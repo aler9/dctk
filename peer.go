@@ -1,12 +1,12 @@
 package dctoolkit
 
-// Peer represents a client connected to a Hub.
+// Peer represents a remote client connected to a Hub.
 type Peer struct {
 	// peer nickname
 	Nick string
-	// peer description, if provided
+	// peer description (if provided)
 	Description string
-	// peer email, if provided
+	// peer email (if provided)
 	Email string
 	// whether peer is a bot
 	IsBot bool
@@ -20,7 +20,7 @@ type Peer struct {
 	ShareSize uint64
 	// whether peer is in passive mode (in NMDC this could be hidden)
 	IsPassive bool
-	// peer ip, if sent by hub
+	// peer ip (if provided by both peer and hub)
 	Ip string
 
 	adcSessionId   string

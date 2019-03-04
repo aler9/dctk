@@ -90,7 +90,7 @@ type ClientConf struct {
 	HubDisableKeepAlive    bool
 }
 
-// Client represents a DC client.
+// Client represents a local client.
 type Client struct {
 	conf           ClientConf
 	state          string
