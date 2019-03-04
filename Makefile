@@ -40,13 +40,13 @@ test_cleanup:
 	@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
 test_do:
-	@echo "building main image..."
+	@echo "building main test image..."
 	@docker build . -f test/Dockerfile -t dctk-test >$(OUT)
 	@docker network create dctk-test >/dev/null
 	@for PROTO in $(PROTOCOLS); do \
 		case $$PROTO in \
-			nmdc) echo "building nmdc image..."; docker build test/verlihub -t dctk-hub >$(OUT); HUBURL="nmdc://dctk-hub:4111";; \
-			adc) echo "building adc image..."; docker build test/luadch -t dctk-hub >$(OUT); HUBURL="adcs://dctk-hub:5001";; \
+			nmdc) echo "building nmdc test image..."; docker build test/verlihub -t dctk-hub >$(OUT); HUBURL="nmdc://dctk-hub:4111";; \
+			adc) echo "building adc test image..."; docker build test/luadch -t dctk-hub >$(OUT); HUBURL="adcs://dctk-hub:5001";; \
 			*) echo "protocol unrecognized"; exit 1;; \
 		esac; \
 		\
@@ -56,7 +56,7 @@ test_do:
 			docker run --rm -d --network=dctk-test --name=dctk-hub \
 				dctk-hub $$TESTNAME >/dev/null; \
 			docker run --rm -it --network=dctk-test --name=dctk-test \
-				-v $$PWD:/src -e HUBURL=$$HUBURL -e TEST=$$TESTNAME dctk-test >$(OUT); \
+				-v $$PWD:/src:ro -e HUBURL=$$HUBURL -e TEST=$$TESTNAME dctk-test >$(OUT); \
 				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAILED"; \
 			docker container kill dctk-hub >/dev/null 2>&1; \
 		done \
