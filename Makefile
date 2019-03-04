@@ -56,7 +56,11 @@ test_do:
 			docker run --rm -d --network=dctk-test --name=dctk-hub \
 				dctk-hub $$TESTNAME >/dev/null; \
 			docker run --rm -it --network=dctk-test --name=dctk-test \
-				-v $$PWD:/src:ro -e HUBURL=$$HUBURL -e TEST=$$TESTNAME dctk-test >$(OUT); \
+				-v $$PWD:/src:ro \
+				-e HUBURL=$$HUBURL \
+				-e TESTNAME=$$TESTNAME \
+				-e PROTO=$$PROTO \
+				dctk-test >$(OUT); \
 				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAILED"; \
 			docker container kill dctk-hub >/dev/null 2>&1; \
 		done \
