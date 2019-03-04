@@ -148,11 +148,15 @@ func (c *Client) Search(conf SearchConf) error {
 			fields[adcFieldFileTTH] = conf.Query
 		}
 
-		if conf.MaxSize != 0 {
-			fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
-		}
-		if conf.MinSize != 0 {
-			fields[adcFieldMinSize] = numtoa(conf.MinSize)
+		// MaxSize and MinSize are used only for files. They can be used for
+		// directories too in ADC, but we want to minimize differences with NMDC.
+		if conf.Type == SearchAny || conf.Type == SearchTTH {
+			if conf.MaxSize != 0 {
+				fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
+			}
+			if conf.MinSize != 0 {
+				fields[adcFieldMinSize] = numtoa(conf.MinSize)
+			}
 		}
 
 		requiredFeatures := make(map[string]struct{})
