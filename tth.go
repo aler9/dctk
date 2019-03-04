@@ -118,7 +118,7 @@ func TTHFromLeaves(leaves []byte) string {
 		copy(sumToAdd[:], leaves[:n])
 		leaves = leaves[n:]
 
-		// upper level level hashes
+		// upper level hashes
 		for curLevel := 0; curLevel < len(levels); curLevel++ {
 			// level has already a hash: compute upper hash and clear level
 			if levels[curLevel].occupied == true {
