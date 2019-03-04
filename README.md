@@ -22,14 +22,15 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support, client fingerprint validation
 * Examples provided for every feature
 * Comprehensive test set
-
-The public API can be considered stable.
+* Stable public API
 
 ## Library
 
 #### Installation
 
-When using Go &ge; 1.11 and modules (i.e. there's a go.mod file in your project folder), it is enough to write the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
+Go &ge; 1.11 is required.
+
+When using modules (i.e. there's a go.mod file in your project folder), it is enough to write the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
 ```go
 import (
     ...
@@ -37,7 +38,7 @@ import (
 )
 ```
 
-When using an older Go version, or modules are not deployed, the library must be downloaded manually:
+When modules are not deployed, the library must be downloaded manually:
 ```
 go get github.com/gswly/dctoolkit
 ```
