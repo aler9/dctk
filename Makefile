@@ -27,7 +27,7 @@ format:
 		&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
 
-.PHONY: test test_cleanup test_do
+.PHONY: test
 ifeq (test, $(firstword $(MAKECMDGOALS)))
   $(eval %:;@:) # do not treat arguments as targets
   ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
@@ -35,11 +35,11 @@ ifeq (test, $(firstword $(MAKECMDGOALS)))
   TESTNAMES := $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//'))
   OUT := $(if $(V), /dev/stdout, /dev/null)
 endif
-test: test_cleanup test_do
-test_cleanup:
+test:
+# cleanup
 	@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
-test_do:
+# run tests
 	@echo "building main test image..."
 	@docker build . -f test/Dockerfile -t dctk-test >$(OUT)
 	@docker network create dctk-test >/dev/null
