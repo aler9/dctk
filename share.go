@@ -267,8 +267,8 @@ func (sm *shareIndexer) do() {
 
 // ShareAdd adds a given directory (dpath) to the client share, with the given
 // alias, and starts indexing its subdirectories and files.
-// if a folder with the same alias was added previously, it is replaced with the
-// new one. OnShareIndexed is called when the indexing is finished.
+// if a directory with the same alias was added previously, it is replaced with
+// the new one. OnShareIndexed is called when the indexing is finished.
 func (c *Client) ShareAdd(alias string, dpath string) {
 	c.shareRoots[alias] = dpath
 
