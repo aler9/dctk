@@ -42,7 +42,7 @@ const (
 	adcFieldQueryAnd          = "AN"
 	adcFieldFileQueryOr       = "NO"
 	adcFieldFilePath          = "FN"
-	adcFieldFileSize          = "SI"
+	adcFieldSize              = "SI" // both files and directories
 	adcFieldFileExactSize     = "EQ"
 	adcFieldFileTTH           = "TR"
 	adcFieldFileGroup         = "GR"

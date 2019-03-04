@@ -47,7 +47,7 @@ func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult)
 		switch key {
 		case adcFieldFilePath:
 			sr.Path = val
-		case adcFieldFileSize:
+		case adcFieldSize:
 			sr.Size = atoui64(val)
 		case adcFieldFileTTH:
 			if val == dirTTH {
@@ -95,7 +95,7 @@ type SearchResult struct {
 	Path string
 	// whether the result is a directory
 	IsDir bool
-	// size (file only)
+	// size (file only in NMDC, both files and directories in ADC)
 	Size uint64
 	// TTH (file only)
 	TTH string
@@ -109,7 +109,7 @@ type SearchConf struct {
 	Type SearchType
 	// the minimum size of the searched file
 	MinSize uint64
-	// the maximum size of the searched fil
+	// the maximum size of the searched file
 	MaxSize uint64
 	// part of a file name (if type is SearchAny), part of a directory name
 	// (if type is SearchAny or SearchFolder) or a TTH (if type is SearchTTH)
@@ -298,13 +298,13 @@ func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySe
 		case *shareFile:
 			fields[adcFieldFilePath] = o.aliasPath
 			fields[adcFieldFileTTH] = o.tth
-			fields[adcFieldFileSize] = numtoa(o.size)
+			fields[adcFieldSize] = numtoa(o.size)
 
 		case *shareDirectory:
 			// if directory, add a trailing slash
 			fields[adcFieldFilePath] = o.aliasPath + "/"
 			fields[adcFieldFileTTH] = dirTTH
-			fields[adcFieldFileSize] = numtoa(o.size)
+			fields[adcFieldSize] = numtoa(o.size)
 		}
 
 		// add token if sent by author
