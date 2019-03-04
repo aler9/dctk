@@ -107,12 +107,12 @@ type SearchResult struct {
 type SearchConf struct {
 	// the search type, defaults to SearchAny. See SearchType for all the available options
 	Type SearchType
-	// the minimum size of the searched file
+	// the minimum size of the searched file (if type is SearchAny or SearchTTH)
 	MinSize uint64
-	// the maximum size of the searched file
+	// the maximum size of the searched file (if type is SearchAny or SearchTTH)
 	MaxSize uint64
 	// part of a file name (if type is SearchAny), part of a directory name
-	// (if type is SearchAny or SearchFolder) or a TTH (if type is SearchTTH)
+	// (if type is SearchAny or SearchDirectory) or a TTH (if type is SearchTTH)
 	Query string
 }
 
@@ -141,7 +141,7 @@ func (c *Client) Search(conf SearchConf) error {
 			fields[adcFieldQueryAnd] = conf.Query
 
 		case SearchDirectory:
-			fields[adcFieldIsFileOrFolder] = adcSearchDirectory
+			fields[adcFieldIsFileOrDir] = adcSearchDirectory
 			fields[adcFieldQueryAnd] = conf.Query
 
 		case SearchTTH:
@@ -239,8 +239,8 @@ func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySe
 		if _, ok := req.Fields[adcFieldFileExtension]; ok {
 			return nil, fmt.Errorf("search by extension is not supported")
 		}
-		if _, ok := req.Fields[adcFieldIsFileOrFolder]; ok {
-			if req.Fields[adcFieldIsFileOrFolder] != adcSearchDirectory {
+		if _, ok := req.Fields[adcFieldIsFileOrDir]; ok {
+			if req.Fields[adcFieldIsFileOrDir] != adcSearchDirectory {
 				return nil, fmt.Errorf("search file only is not supported")
 			}
 		}
@@ -255,8 +255,8 @@ func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySe
 				if _, ok := req.Fields[adcFieldFileTTH]; ok {
 					return SearchTTH
 				}
-				if _, ok := req.Fields[adcFieldIsFileOrFolder]; ok {
-					if req.Fields[adcFieldIsFileOrFolder] == adcSearchDirectory {
+				if _, ok := req.Fields[adcFieldIsFileOrDir]; ok {
+					if req.Fields[adcFieldIsFileOrDir] == adcSearchDirectory {
 						return SearchDirectory
 					}
 				}

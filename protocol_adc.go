@@ -37,7 +37,7 @@ const (
 	// search requests & results
 	adcFieldMinSize           = "GE"
 	adcFieldMaxSize           = "LE"
-	adcFieldIsFileOrFolder    = "TY"
+	adcFieldIsFileOrDir       = "TY"
 	adcFieldFileExtension     = "EX"
 	adcFieldQueryAnd          = "AN"
 	adcFieldFileQueryOr       = "NO"
