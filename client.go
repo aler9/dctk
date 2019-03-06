@@ -407,12 +407,12 @@ func (c *Client) sendInfos(firstTime bool) {
 	}
 
 	if c.protoIsAdc == true {
-		supports := []string{"SEGA", "ADC0"}
+		supports := []string{adcSupportFileExtensionGrouping, adcSupport0}
 		if c.conf.IsPassive == false {
-			supports = append(supports, "TCP4", "UDP4")
+			supports = append(supports, adcSupportTcp4, adcSupportUdp4)
 		}
 		if c.conf.PeerEncryptionMode != DisableEncryption {
-			supports = append(supports, "ADCS")
+			supports = append(supports, adcSupportTls)
 		}
 
 		fields := map[string]string{
