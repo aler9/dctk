@@ -29,8 +29,8 @@ func nmdcSearchUnescape(in string) string {
 	return strings.Replace(in, "$", " ", -1)
 }
 
-func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) *SearchResult {
-	return &SearchResult{
+func (c *Client) handleNmdcSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) {
+	sr := &SearchResult{
 		IsActive:  isActive,
 		Peer:      peer,
 		Path:      msg.Path,
@@ -39,9 +39,10 @@ func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) 
 		TTH:       msg.TTH,
 		IsDir:     msg.IsDir,
 	}
+	c.handleSearchResult(sr)
 }
 
-func (c *Client) handleNmdcOutgoingSearchRequest(conf SearchConf) error {
+func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 	if conf.MaxSize != 0 && conf.MinSize != 0 {
 		return fmt.Errorf("max size and min size cannot be used together in NMDC")
 	}
@@ -81,7 +82,7 @@ func (c *Client) handleNmdcOutgoingSearchRequest(conf SearchConf) error {
 	return nil
 }
 
-func (c *Client) handleNmdcIncomingSearchReq(req *msgNmdcSearchRequest) {
+func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 	results, err := func() ([]interface{}, error) {
 		// we do not support search by type
 		if _, ok := map[nmdcSearchType]struct{}{
@@ -95,7 +96,7 @@ func (c *Client) handleNmdcIncomingSearchReq(req *msgNmdcSearchRequest) {
 			return nil, fmt.Errorf("invalid TTH: %v", req.Query)
 		}
 
-		return c.handleIncomingSearchRequest(&searchRequest{
+		return c.handleSearchIncomingRequestuest(&searchRequest{
 			stype: func() SearchType {
 				switch req.Type {
 				case nmdcSearchTypeAny:

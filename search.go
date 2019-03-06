@@ -50,9 +50,9 @@ type SearchConf struct {
 
 type searchRequest struct {
 	stype    SearchType
-	query    string
 	minSize  uint64
 	maxSize  uint64
+	query    string
 	isActive bool
 }
 
@@ -63,13 +63,13 @@ func (c *Client) Search(conf SearchConf) error {
 	}
 
 	if c.protoIsAdc == true {
-		return c.handleAdcOutgoingSearchRequest(conf)
+		return c.handleAdcSearchOutgoingRequest(conf)
 	} else {
-		return c.handleNmdcOutgoingSearchRequest(conf)
+		return c.handleNmdcSearchOutgoingRequest(conf)
 	}
 }
 
-func (c *Client) handleIncomingSearchRequest(req *searchRequest) ([]interface{}, error) {
+func (c *Client) handleSearchIncomingRequestuest(req *searchRequest) ([]interface{}, error) {
 	if len(req.query) < 3 {
 		return nil, fmt.Errorf("query too short: %s", req.query)
 	}
