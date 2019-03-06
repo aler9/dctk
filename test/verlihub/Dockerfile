@@ -21,12 +21,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -L https://github.com/Verlihub/verlihub/archive/1.1.0.0.tar.gz | tar xvfz - \
-    && ( cd verlihub* \
+    && cd /verlihub* \
     && cmake . \
     && make -j$(nproc) \
     && make install \
-    && ldconfig ) \
-    && rm -rf verlihub*
+    && ldconfig \
+    && rm -rf /verlihub*
 
 COPY setup.sh /
 RUN /setup.sh

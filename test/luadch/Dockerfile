@@ -14,11 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/luadch/luadch \
-    && cd luadch \
+    && cd /luadch \
     && git checkout 080fdfe \
     && ./compile \
     && mv ./build_gcc/luadch /luadch-out \
-    && cd ../ \
     && rm -rf /luadch
 
 WORKDIR /luadch-out
