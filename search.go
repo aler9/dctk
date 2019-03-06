@@ -69,7 +69,7 @@ func (c *Client) Search(conf SearchConf) error {
 	}
 }
 
-func (c *Client) handleSearchIncomingRequestuest(req *searchRequest) ([]interface{}, error) {
+func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{}, error) {
 	if len(req.query) < 3 {
 		return nil, fmt.Errorf("query too short: %s", req.query)
 	}
