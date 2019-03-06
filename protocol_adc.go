@@ -26,6 +26,14 @@ const (
 )
 
 const (
+	adcSupport0                     = "ADC0"
+	adcSupportTcp4                  = "TCP4"
+	adcSupportUdp4                  = "UDP4"
+	adcSupportTls                   = "ADCS"
+	adcSupportFileExtensionGrouping = "SEGA"
+)
+
+const (
 	// generic
 	adcFieldCategory        = "CT"
 	adcFieldDescription     = "DE"

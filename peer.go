@@ -67,7 +67,7 @@ func (c *Client) peerSupportsEncryption(p *Peer) bool {
 		if p.adcFingerprint != "" {
 			return true
 		}
-		if _, ok := p.adcSupports["ADCS"]; ok {
+		if _, ok := p.adcSupports[adcSupportTls]; ok {
 			return true
 		}
 		return false

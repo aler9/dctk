@@ -328,7 +328,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		// a peer is active if it supports udp4, it exposes udp port and ip
 		p.IsPassive = true
-		if _, ok := p.adcSupports["UDP4"]; ok {
+		if _, ok := p.adcSupports[adcSupportUdp4]; ok {
 			if p.Ip != "" && p.adcUdpPort != 0 {
 				p.IsPassive = false
 			}
