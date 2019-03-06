@@ -407,7 +407,7 @@ func (c *Client) sendInfos(firstTime bool) {
 	}
 
 	if c.protoIsAdc == true {
-		supports := []string{adcSupportFileExtensionGrouping, adcSupport0}
+		supports := []string{adcSupport0}
 		if c.conf.IsPassive == false {
 			supports = append(supports, adcSupportTcp4, adcSupportUdp4)
 		}
