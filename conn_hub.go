@@ -176,11 +176,11 @@ func (h *connHub) do() {
 					h.conn.Write(&msgAdcHSupports{
 						msgAdcTypeH{},
 						msgAdcKeySupports{map[string]struct{}{
-							"ADBAS0": {},
-							"ADBASE": {},
-							"ADTIGR": {},
-							"ADUCM0": {}, // user commands
-							"ADZLIF": {},
+							adcFeatureBas0:         {},
+							adcFeatureBase:         {},
+							adcFeatureTiger:        {},
+							adcFeatureUserCommands: {},
+							adcFeatureZlibFull:     {},
 						}},
 					})
 				}
@@ -465,18 +465,18 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		// https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
 		features := map[string]struct{}{
-			"UserCommand": {},
-			"NoGetINFO":   {},
-			"NoHello":     {},
-			"UserIP2":     {},
-			"TTHSearch":   {},
+			nmdcFeatureUserCommands: {},
+			nmdcFeatureNoGetInfo:    {},
+			nmdcFeatureNoHello:      {},
+			nmdcFeatureUserIp:       {},
+			nmdcFeatureTTHSearch:    {},
 		}
 		if h.client.conf.HubDisableCompression == false {
-			features["ZPipe0"] = struct{}{}
+			features[nmdcFeatureZlibFull] = struct{}{}
 		}
 		// this must be provided, otherwise the final S is stripped from ConnectToMe
 		if h.client.conf.PeerEncryptionMode != DisableEncryption {
-			features["TLS"] = struct{}{}
+			features[nmdcFeatureTls] = struct{}{}
 		}
 
 		h.conn.Write(&msgNmdcSupports{features})

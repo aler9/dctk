@@ -11,6 +11,21 @@ import (
 )
 
 const (
+	// universal features
+	adcFeatureBas0  = "ADBAS0"
+	adcFeatureBase  = "ADBASE"
+	adcFeatureTiger = "ADTIGR"
+	// client <-> hub features
+	adcFeatureUserCommands = "ADUCM0"
+	adcFeatureZlibFull     = "ADZLIF"
+	adcFeatureBloom        = "ADBLO0"
+	adcFeatureDht          = "ADDHT0"
+	// client <-> client features
+	adcFeatureZlibGet      = "ADZLIG"
+	adcFeatureFileListBzip = "ADBZIP"
+)
+
+const (
 	// generic
 	adcFieldCategory        = "CT"
 	adcFieldDescription     = "DE"

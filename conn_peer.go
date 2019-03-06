@@ -193,11 +193,11 @@ func (p *connPeer) do() {
 					p.conn.Write(&msgAdcCSupports{
 						msgAdcTypeC{},
 						msgAdcKeySupports{map[string]struct{}{
-							"ADBAS0": {},
-							"ADBASE": {},
-							"ADTIGR": {},
-							"ADBZIP": {},
-							"ADZLIG": {},
+							adcFeatureBas0:         {},
+							adcFeatureBase:         {},
+							adcFeatureTiger:        {},
+							adcFeatureFileListBzip: {},
+							adcFeatureZlibGet:      {},
 						}},
 					})
 
@@ -275,11 +275,11 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.conn.Write(&msgAdcCSupports{
 				msgAdcTypeC{},
 				msgAdcKeySupports{map[string]struct{}{
-					"ADBAS0": {},
-					"ADBASE": {},
-					"ADTIGR": {},
-					"ADBZIP": {},
-					"ADZLIG": {},
+					adcFeatureBas0:         {},
+					adcFeatureBase:         {},
+					adcFeatureTiger:        {},
+					adcFeatureFileListBzip: {},
+					adcFeatureZlibGet:      {},
 				}},
 			})
 
@@ -401,14 +401,14 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		}
 
 		features := map[string]struct{}{
-			"MiniSlots": {},
-			"XmlBZList": {},
-			"ADCGet":    {},
-			"TTHL":      {},
-			"TTHF":      {},
+			nmdcFeatureMiniSlots:    {},
+			nmdcFeatureFileListBzip: {},
+			nmdcFeatureAdcGet:       {},
+			nmdcFeatureTTHLeaves:    {},
+			nmdcFeatureTTHDownload:  {},
 		}
 		if p.client.conf.PeerDisableCompression == false {
-			features["ZLIG"] = struct{}{}
+			features[nmdcFeatureZlibGet] = struct{}{}
 		}
 		p.conn.Write(&msgNmdcSupports{features})
 

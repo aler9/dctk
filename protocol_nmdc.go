@@ -7,6 +7,24 @@ import (
 	"strings"
 )
 
+const (
+	// client <-> hub features
+	nmdcFeatureUserCommands = "UserCommand"
+	nmdcFeatureNoGetInfo    = "NoGetINFO"
+	nmdcFeatureNoHello      = "NoHello"
+	nmdcFeatureUserIp       = "UserIP2"
+	nmdcFeatureTTHSearch    = "TTHSearch"
+	nmdcFeatureZlibFull     = "ZPipe0"
+	nmdcFeatureTls          = "TLS"
+	// client <-> client features
+	nmdcFeatureMiniSlots    = "MiniSlots"
+	nmdcFeatureFileListBzip = "XmlBZList"
+	nmdcFeatureAdcGet       = "ADCGet"
+	nmdcFeatureTTHLeaves    = "TTHL"
+	nmdcFeatureTTHDownload  = "TTHF"
+	nmdcFeatureZlibGet      = "ZLIG"
+)
+
 var reNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9]+)( (.+))?$")
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 var reNmdcPrivateChat = regexp.MustCompile("(?s)^\\$To: (" + reStrNick + ") From: (" + reStrNick + ") \\$<(" + reStrNick + ")> (.+)$")
