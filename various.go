@@ -36,7 +36,7 @@ func dcBase32Encode(in []byte) string {
 // base32 without padding, which can be one or multiple =
 func dcBase32Decode(in string) []byte {
 	// add missing padding
-	if len(in)%8 != 0 {
+	if (len(in) % 8) != 0 {
 		mlen := (8 - (len(in) % 8))
 		for n := 0; n < mlen; n++ {
 			in += "="
