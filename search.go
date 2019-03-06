@@ -63,96 +63,13 @@ func (c *Client) Search(conf SearchConf) error {
 	}
 
 	if c.protoIsAdc == true {
-		fields := make(map[string]string)
-
-		// always add token even if we're not using it
-		fields[adcFieldToken] = adcRandomToken()
-
-		switch conf.Type {
-		case SearchAny:
-			fields[adcFieldQueryAnd] = conf.Query
-
-		case SearchDirectory:
-			fields[adcFieldIsFileOrDir] = adcSearchDirectory
-			fields[adcFieldQueryAnd] = conf.Query
-
-		case SearchTTH:
-			fields[adcFieldFileTTH] = conf.Query
-		}
-
-		// MaxSize and MinSize are used only for files. They can be used for
-		// directories too in ADC, but we want to minimize differences with NMDC.
-		if conf.Type == SearchAny || conf.Type == SearchTTH {
-			if conf.MaxSize != 0 {
-				fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
-			}
-			if conf.MinSize != 0 {
-				fields[adcFieldMinSize] = numtoa(conf.MinSize)
-			}
-		}
-
-		requiredFeatures := make(map[string]struct{})
-
-		// if we're passive, require that the recipient is active
-		if c.conf.IsPassive == true {
-			requiredFeatures["TCP4"] = struct{}{}
-		}
-
-		if len(requiredFeatures) > 0 {
-			c.connHub.conn.Write(&msgAdcFSearchRequest{
-				msgAdcTypeF{SessionId: c.sessionId, RequiredFeatures: requiredFeatures},
-				msgAdcKeySearchRequest{fields},
-			})
-
-		} else {
-			c.connHub.conn.Write(&msgAdcBSearchRequest{
-				msgAdcTypeB{c.sessionId},
-				msgAdcKeySearchRequest{fields},
-			})
-		}
-
+		return c.handleAdcOutgoingSearchRequest(conf)
 	} else {
-		if conf.MaxSize != 0 && conf.MinSize != 0 {
-			return fmt.Errorf("max size and min size cannot be used together in NMDC")
-		}
-
-		c.connHub.conn.Write(&msgNmdcSearchRequest{
-			Type: func() nmdcSearchType {
-				switch conf.Type {
-				case SearchAny:
-					return nmdcSearchTypeAny
-				case SearchDirectory:
-					return nmdcSearchTypeDirectory
-				}
-				return nmdcSearchTypeTTH
-			}(),
-			MaxSize: conf.MaxSize,
-			MinSize: conf.MinSize,
-			Query:   conf.Query,
-			Ip: func() string {
-				if c.conf.IsPassive == false {
-					return c.ip
-				}
-				return ""
-			}(),
-			UdpPort: func() uint {
-				if c.conf.IsPassive == false {
-					return c.conf.UdpPort
-				}
-				return 0
-			}(),
-			Nick: func() string {
-				if c.conf.IsPassive == true {
-					return c.conf.Nick
-				}
-				return ""
-			}(),
-		})
+		return c.handleNmdcOutgoingSearchRequest(conf)
 	}
-	return nil
 }
 
-func (c *Client) handleSearchRequest(req *searchRequest) ([]interface{}, error) {
+func (c *Client) handleIncomingSearchRequest(req *searchRequest) ([]interface{}, error) {
 	if len(req.query) < 3 {
 		return nil, fmt.Errorf("query too short: %s", req.query)
 	}

@@ -375,7 +375,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.client.handlePrivateMessage(p, msg.Content)
 
 	case *msgAdcBSearchRequest:
-		h.client.handleAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+		h.client.handleAdcIncomingSearchReq(msg.SessionId, &msg.msgAdcKeySearchRequest)
 
 	case *msgAdcFSearchRequest:
 		if _, ok := msg.RequiredFeatures["TCP4"]; ok {
@@ -384,7 +384,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 				return nil
 			}
 		}
-		h.client.handleAdcSearchRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
+		h.client.handleAdcIncomingSearchReq(msg.SessionId, &msg.msgAdcKeySearchRequest)
 
 	case *msgAdcDSearchResult:
 		p := h.client.peerBySessionId(msg.AuthorId)
@@ -667,7 +667,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 	case *msgNmdcSearchRequest:
 		// searches can be received even before initialization; ignore them
 		if h.protoState == "initialized" {
-			h.client.handleNmdcSearchRequest(msg)
+			h.client.handleNmdcIncomingSearchReq(msg)
 		}
 
 	case *msgNmdcSearchResult:
