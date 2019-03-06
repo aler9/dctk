@@ -11,11 +11,12 @@ const (
 	adcSearchDirectory = "2"
 )
 
-func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult) *SearchResult {
+func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult) {
 	sr := &SearchResult{
 		IsActive: isActive,
 		Peer:     peer,
 	}
+
 	for key, val := range msg.Fields {
 		switch key {
 		case adcFieldFilePath:
@@ -35,10 +36,11 @@ func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult)
 	if sr.IsDir == true {
 		sr.Path = strings.TrimSuffix(sr.Path, "/")
 	}
-	return sr
+
+	c.handleSearchResult(sr)
 }
 
-func (c *Client) handleAdcOutgoingSearchRequest(conf SearchConf) error {
+func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	fields := make(map[string]string)
 
 	// always add token even if we're not using it
@@ -88,7 +90,7 @@ func (c *Client) handleAdcOutgoingSearchRequest(conf SearchConf) error {
 	return nil
 }
 
-func (c *Client) handleAdcIncomingSearchReq(authorSessionId string, req *msgAdcKeySearchRequest) {
+func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
 	var peer *Peer
 	results, err := func() ([]interface{}, error) {
 		peer = c.peerBySessionId(authorSessionId)
@@ -122,7 +124,7 @@ func (c *Client) handleAdcIncomingSearchReq(authorSessionId string, req *msgAdcK
 			}
 		}
 
-		return c.handleIncomingSearchRequest(&searchRequest{
+		return c.handleSearchIncomingRequestuest(&searchRequest{
 			stype: func() SearchType {
 				if _, ok := req.Fields[adcFieldFileTTH]; ok {
 					return SearchTTH
