@@ -1,9 +1,9 @@
 package dctoolkit
 
 import (
-    "fmt"
-    "net"
-    "strings"
+	"fmt"
+	"net"
+	"strings"
 )
 
 const (
@@ -38,7 +38,57 @@ func adcMsgToSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult)
 	return sr
 }
 
-func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
+func (c *Client) handleAdcOutgoingSearchRequest(conf SearchConf) error {
+	fields := make(map[string]string)
+
+	// always add token even if we're not using it
+	fields[adcFieldToken] = adcRandomToken()
+
+	switch conf.Type {
+	case SearchAny:
+		fields[adcFieldQueryAnd] = conf.Query
+
+	case SearchDirectory:
+		fields[adcFieldIsFileOrDir] = adcSearchDirectory
+		fields[adcFieldQueryAnd] = conf.Query
+
+	case SearchTTH:
+		fields[adcFieldFileTTH] = conf.Query
+	}
+
+	// MaxSize and MinSize are used only for files. They can be used for
+	// directories too in ADC, but we want to minimize differences with NMDC.
+	if conf.Type == SearchAny || conf.Type == SearchTTH {
+		if conf.MaxSize != 0 {
+			fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
+		}
+		if conf.MinSize != 0 {
+			fields[adcFieldMinSize] = numtoa(conf.MinSize)
+		}
+	}
+
+	requiredFeatures := make(map[string]struct{})
+
+	// if we're passive, require that the recipient is active
+	if c.conf.IsPassive == true {
+		requiredFeatures["TCP4"] = struct{}{}
+	}
+
+	if len(requiredFeatures) > 0 {
+		c.connHub.conn.Write(&msgAdcFSearchRequest{
+			msgAdcTypeF{SessionId: c.sessionId, RequiredFeatures: requiredFeatures},
+			msgAdcKeySearchRequest{fields},
+		})
+	} else {
+		c.connHub.conn.Write(&msgAdcBSearchRequest{
+			msgAdcTypeB{c.sessionId},
+			msgAdcKeySearchRequest{fields},
+		})
+	}
+	return nil
+}
+
+func (c *Client) handleAdcIncomingSearchReq(authorSessionId string, req *msgAdcKeySearchRequest) {
 	var peer *Peer
 	results, err := func() ([]interface{}, error) {
 		peer = c.peerBySessionId(authorSessionId)
@@ -72,7 +122,7 @@ func (c *Client) handleAdcSearchRequest(authorSessionId string, req *msgAdcKeySe
 			}
 		}
 
-		return c.handleSearchRequest(&searchRequest{
+		return c.handleIncomingSearchRequest(&searchRequest{
 			stype: func() SearchType {
 				if _, ok := req.Fields[adcFieldFileTTH]; ok {
 					return SearchTTH

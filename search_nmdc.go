@@ -1,9 +1,9 @@
 package dctoolkit
 
 import (
-    "fmt"
-    "net"
-    "strings"
+	"fmt"
+	"net"
+	"strings"
 )
 
 type nmdcSearchType int
@@ -41,7 +41,47 @@ func nmdcMsgToSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) 
 	}
 }
 
-func (c *Client) handleNmdcSearchRequest(req *msgNmdcSearchRequest) {
+func (c *Client) handleNmdcOutgoingSearchRequest(conf SearchConf) error {
+	if conf.MaxSize != 0 && conf.MinSize != 0 {
+		return fmt.Errorf("max size and min size cannot be used together in NMDC")
+	}
+
+	c.connHub.conn.Write(&msgNmdcSearchRequest{
+		Type: func() nmdcSearchType {
+			switch conf.Type {
+			case SearchAny:
+				return nmdcSearchTypeAny
+			case SearchDirectory:
+				return nmdcSearchTypeDirectory
+			}
+			return nmdcSearchTypeTTH
+		}(),
+		MaxSize: conf.MaxSize,
+		MinSize: conf.MinSize,
+		Query:   conf.Query,
+		Ip: func() string {
+			if c.conf.IsPassive == false {
+				return c.ip
+			}
+			return ""
+		}(),
+		UdpPort: func() uint {
+			if c.conf.IsPassive == false {
+				return c.conf.UdpPort
+			}
+			return 0
+		}(),
+		Nick: func() string {
+			if c.conf.IsPassive == true {
+				return c.conf.Nick
+			}
+			return ""
+		}(),
+	})
+	return nil
+}
+
+func (c *Client) handleNmdcIncomingSearchReq(req *msgNmdcSearchRequest) {
 	results, err := func() ([]interface{}, error) {
 		// we do not support search by type
 		if _, ok := map[nmdcSearchType]struct{}{
@@ -55,7 +95,7 @@ func (c *Client) handleNmdcSearchRequest(req *msgNmdcSearchRequest) {
 			return nil, fmt.Errorf("invalid TTH: %v", req.Query)
 		}
 
-		return c.handleSearchRequest(&searchRequest{
+		return c.handleIncomingSearchRequest(&searchRequest{
 			stype: func() SearchType {
 				switch req.Type {
 				case nmdcSearchTypeAny:
