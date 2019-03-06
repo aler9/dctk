@@ -124,7 +124,7 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 			}
 		}
 
-		return c.handleSearchIncomingRequestuest(&searchRequest{
+		return c.handleSearchIncomingRequest(&searchRequest{
 			stype: func() SearchType {
 				if _, ok := req.Fields[adcFieldFileTTH]; ok {
 					return SearchTTH

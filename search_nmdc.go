@@ -96,7 +96,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 			return nil, fmt.Errorf("invalid TTH: %v", req.Query)
 		}
 
-		return c.handleSearchIncomingRequestuest(&searchRequest{
+		return c.handleSearchIncomingRequest(&searchRequest{
 			stype: func() SearchType {
 				switch req.Type {
 				case nmdcSearchTypeAny:
