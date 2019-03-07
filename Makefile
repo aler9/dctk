@@ -4,18 +4,18 @@ help:
 	@echo "usage: make [action] [args...]"
 	@echo " "
 	@echo "available actions:"
-	@echo " "
+	@echo ""
 	@echo "  format                      format source files."
-	@echo " "
+	@echo ""
 	@echo "  test [proto] [testname]     run available tests. by default all"
 	@echo "                              tests are run, but they can be"
 	@echo "                              filtered by protocol or name."
 	@echo "                              add V=1 to increase verbosity."
-	@echo " "
+	@echo ""
 	@echo "  run-example [name]          run an example by name."
-	@echo " "
+	@echo ""
 	@echo "  run-command '[name] [args]' run a command by name."
-	@echo " "
+	@echo ""
 
 
 .PHONY: format
