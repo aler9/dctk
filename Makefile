@@ -23,7 +23,7 @@ format:
 	@docker run --rm -it \
 		-v $(PWD):/src \
 		amd64/golang:1.11-stretch \
-		bash -c "cd /src \
+		sh -c "cd /src \
 		&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
 
@@ -81,7 +81,7 @@ run-example:
 		-p 3009:3009 \
 		-p 3009:3009/udp \
 		-p 3010:3010 \
-		amd64/golang:1.11-stretch bash -c "\
+		amd64/golang:1.11-stretch sh -c "\
 		cd /src && go run example/$(EXAMPLE).go"
 
 
