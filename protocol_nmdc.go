@@ -684,7 +684,7 @@ type msgNmdcSearchResult struct {
 	Path       string
 	IsDir      bool
 	Size       uint64 // file only, also directory in ADC
-	TTH        TTH // file only
+	TTH        TTH    // file only
 	Nick       string
 	SlotAvail  uint
 	SlotCount  uint
@@ -702,7 +702,7 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 	var tth TTH
 	if matches[3] != "" {
 		var err error
-		tth,err = TTHDecode(matches[7])
+		tth, err = TTHDecode(matches[7])
 		if err != nil {
 			return err
 		}

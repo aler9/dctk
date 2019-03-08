@@ -96,8 +96,8 @@ func client2() {
 			}
 			step++
 			client.Search(dctk.SearchConf{
-				Type:  dctk.SearchTTH,
-				TTH: dctk.TTHMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+				Type: dctk.SearchTTH,
+				TTH:  dctk.TTHMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 			})
 
 		case 2:
