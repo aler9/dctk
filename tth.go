@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base32"
 	"encoding/xml"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -287,6 +288,21 @@ func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
 // MarshalXMLAttr implements the xml.MarshalerAttr interface.
 func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
 	return xml.Attr{name, t.String()}, nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (t *TTH) UnmarshalJSON(in []byte) error {
+	tth, err := TTHDecode(string(in[1:len(in)-1]))
+	if err != nil {
+		return err
+	}
+	*t = tth
+    return err
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (t TTH) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
 
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
