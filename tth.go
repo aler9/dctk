@@ -70,7 +70,7 @@ func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
 	return TTHLeaves(out), nil
 }
 
-// TTH is a Tiger Tree Hash (TTH), the univoque id associated to a specific file.
+// TTH is a Tiger Tree Hash, the univoque id associated to a specific file.
 // It is a 24-byte sequence, encoded in base32, resulting in a 39-digits string.
 type TTH [24]byte
 
@@ -287,7 +287,7 @@ func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
 
 // MarshalXMLAttr implements the xml.MarshalerAttr interface.
 func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
-	return xml.Attr{name, t.String()}, nil
+	return xml.Attr{Name: name, Value: t.String()}, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
