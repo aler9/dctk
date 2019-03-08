@@ -28,6 +28,6 @@ func main() {
 	}
 
 	if reflect.DeepEqual(cmp, inout) == false {
-		panic(fmt.Errorf("inout and output are different"))
+		panic(fmt.Errorf("input and output are different"))
 	}
 }
