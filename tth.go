@@ -42,7 +42,7 @@ func TTHLeavesFromFile(fpath string) (TTHLeaves, error) {
 	return TTHLeavesFromReader(buf)
 }
 
-// TTHLeavesFromReader computes the tth leaves of data provided by an io.Reader.
+// TTHLeavesFromReader computes the TTH leaves of data provided by an io.Reader.
 func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
 	hasher := newTiger()
 	var out []byte
