@@ -9,10 +9,7 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"regexp"
 )
-
-var reTTH = regexp.MustCompile("^" + reStrTTH + "$")
 
 type tthLevel struct {
 	b        [24]byte
@@ -72,16 +69,34 @@ func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
 	return TTHLeaves(out), nil
 }
 
-// TTH is a Tiger Tree Hash (TTH), the 39-digits string
-// associated to a specific shared file.
-type TTH string
+// TTH is a Tiger Tree Hash (TTH), the univoque id associated to a specific file.
+// It is a 24-byte sequence, encoded in base32, resulting in a the 39-digits string.
+type TTH [24]byte
 
-// TTHImport imports a Tiger Tree Hash (TTH) in string format.
-func TTHImport(in string) (TTH, error) {
-	if reTTH.MatchString(in) == false {
-		return "", fmt.Errorf("invalid TTH")
+// TTHDecode decodes a Tiger Tree Hash (TTH) in string format.
+func TTHDecode(in string) (TTH, error) {
+	var ret TTH
+
+    if len(in) != 39 {
+        return ret, fmt.Errorf("invalid TTH size")
+    }
+
+    byt,err := base32.StdEncoding.DecodeString(in + "=")
+    if err != nil {
+        return ret, err
+    }
+
+    copy(ret[:], byt)
+	return ret, nil
+}
+
+// TTHMust is like TTHDecode but panics in case of error.
+func TTHMust(in string) (TTH) {
+	ret,err := TTHDecode(in)
+	if err != nil {
+		panic(err)
 	}
-	return TTH(in), nil
+	return ret
 }
 
 // TTHFromBytes computes the Tiger Tree Hash (TTH) of a given byte sequence.
@@ -94,7 +109,7 @@ func TTHFromBytes(in []byte) TTH {
 func TTHFromFile(fpath string) (TTH, error) {
 	f, err := os.Open(fpath)
 	if err != nil {
-		return "", err
+		return TTH{}, err
 	}
 	defer f.Close()
 
@@ -174,8 +189,7 @@ func TTHFromLeaves(leaves TTHLeaves) TTH {
 		}
 	}
 
-	out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
-	return TTH(out)
+	return topLevel.b
 }
 
 // TTHFromReader computes the Tiger Tree Hash (TTH) of data provided by an io.Reader.
@@ -191,7 +205,7 @@ func TTHFromReader(in io.Reader) (TTH, error) {
 	for {
 		n, err := in.Read(buf[:])
 		if err != nil && err != io.EOF {
-			return "", err
+			return TTH{}, err
 		}
 		if n == 0 && firstHash == false { // hash at least one chunk (in case input has zero size)
 			break
@@ -253,17 +267,16 @@ func TTHFromReader(in io.Reader) (TTH, error) {
 		}
 	}
 
-	out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
-	return TTH(out), nil
+	return topLevel.b, nil
 }
 
 func (t TTH) String() string {
-	return string(t)
+	return base32.StdEncoding.EncodeToString(t[:])[:39]
 }
 
 // UnmarshalXMLAttr implements the xml.UnmarshalerAttr interface.
 func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
-	tth,err := TTHImport(attr.Value)
+	tth,err := TTHDecode(attr.Value)
 	if err != nil {
 		return err
 	}
@@ -273,7 +286,7 @@ func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
 
 // MarshalXMLAttr implements the xml.MarshalerAttr interface.
 func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
-	return xml.Attr{name, string(t)}, nil
+	return xml.Attr{name, t.String()}, nil
 }
 
 // MagnetLink generates a link to a shared file. The link can be shared anywhere

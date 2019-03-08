@@ -25,7 +25,7 @@ func main() {
 		if p.Nick == "nickname" {
 			client.DownloadFile(dctk.DownloadConf{
 				Peer: p,
-				TTH:  "AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y",
+				TTH:  dctk.TTHMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
 			})
 		}
 	}

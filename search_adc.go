@@ -27,7 +27,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKey
 			if val == dirTTH {
 				sr.IsDir = true
 			} else {
-				tth,err := TTHImport(val)
+				tth,err := TTHDecode(val)
 				if err != nil {
 					return
 				}
@@ -59,7 +59,7 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 		fields[adcFieldQueryAnd] = conf.Query
 
 	case SearchTTH:
-		fields[adcFieldFileTTH] = conf.Query
+		fields[adcFieldFileTTH] = conf.TTH.String()
 	}
 
 	// MaxSize and MinSize are used only for files. They can be used for
@@ -175,7 +175,7 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 		switch o := res.(type) {
 		case *shareFile:
 			fields[adcFieldFilePath] = o.aliasPath
-			fields[adcFieldFileTTH] = string(o.tth)
+			fields[adcFieldFileTTH] = o.tth.String()
 			fields[adcFieldSize] = numtoa(o.size)
 
 		case *shareDirectory:
