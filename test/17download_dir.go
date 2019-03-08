@@ -63,7 +63,7 @@ func client2() {
 		}
 	}
 
-	paths := map[string]string{
+	paths := map[dctk.TTH]string{
 		"I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI": "/share/folder/first file.txt",
 		"PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA": "/share/folder/second file.txt",
 		"GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI": "/share/folder/third file.txt",
@@ -71,7 +71,7 @@ func client2() {
 		"7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY": "/share/folder/subdir/fifth file.txt",
 	}
 
-	downloaded := map[string]bool{
+	downloaded := map[dctk.TTH]bool{
 		"I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI": false,
 		"PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA": false,
 		"GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI": false,
@@ -112,7 +112,7 @@ func client2() {
 				panic(err)
 			}
 
-			if string(tth) != d.Conf().TTH {
+			if tth != d.Conf().TTH {
 				panic(fmt.Errorf("TTH of file is wrong (%s) (%s)", paths[d.Conf().TTH], tth))
 			}
 

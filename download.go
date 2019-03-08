@@ -16,7 +16,7 @@ type DownloadConf struct {
 	// the peer from which downloading
 	Peer *Peer
 	// the TTH of the file to download
-	TTH string
+	TTH TTH
 	// the starting point of the file part to download, in bytes
 	Start uint64
 	// the length of the file part. Leave zero to download the entire file
@@ -90,7 +90,7 @@ func (c *Client) DownloadFileList(peer *Peer, savePath string) (*Download, error
 func (c *Client) DownloadFLFile(peer *Peer, file *FileListFile, savePath string) (*Download, error) {
 	return c.DownloadFile(DownloadConf{
 		Peer:     peer,
-		TTH:      string(file.TTH),
+		TTH:      file.TTH,
 		SavePath: savePath,
 	})
 }
@@ -125,12 +125,6 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	if conf.Length <= 0 {
 		conf.Length = -1
 	}
-	if conf.filelist == false {
-		_, err := TTHImport(conf.TTH)
-		if err != nil {
-			return nil, fmt.Errorf("invalid TTH")
-		}
-	}
 
 	d := &Download{
 		conf:   conf,
@@ -145,7 +139,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 		if d.conf.filelist == true {
 			return "file files.xml.bz2"
 		}
-		return "file TTH/" + d.conf.TTH
+		return "file TTH/" + d.conf.TTH.String()
 	}()
 
 	dolog(LevelInfo, "[download] [%s] request %s (s=%d l=%d)",
@@ -444,7 +438,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 						contentTTH = TTHFromBytes(d.content)
 					}
 
-					if string(contentTTH) != d.conf.TTH {
+					if contentTTH != d.conf.TTH {
 						return fmt.Errorf("validation failed")
 					}
 				}

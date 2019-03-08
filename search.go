@@ -30,7 +30,7 @@ type SearchResult struct {
 	// size (file only in NMDC, both files and directories in ADC)
 	Size uint64
 	// TTH (file only)
-	TTH string
+	TTH TTH
 	// the available upload slots of the peer
 	SlotAvail uint
 }
@@ -73,26 +73,18 @@ func (c *Client) Search(conf SearchConf) error {
 }
 
 func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{}, error) {
-	if len(req.query) < 3 {
-		return nil, fmt.Errorf("query too short: %s", req.query)
-	}
-	if req.stype == SearchTTH {
-		_, err := TTHImport(req.query)
-		if err != nil {
-			return nil, fmt.Errorf("invalid TTH: %s", req.query)
-		}
-	}
-
-	// normalize query
-	if req.stype != SearchTTH {
-		req.query = strings.ToLower(req.query)
-	}
-
 	var results []interface{}
 	var scanDir func(dname string, dir *shareDirectory, dirAddToResults bool)
 
 	// search file or directory by name
 	if req.stype == SearchAny || req.stype == SearchDirectory {
+		if len(req.query) < 3 {
+			return nil, fmt.Errorf("query too short: %s", req.query)
+		}
+
+		// normalize query
+		req.query = strings.ToLower(req.query)
+
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			// always add directories
 			if dirAddToResults == false {
@@ -123,9 +115,14 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 
 		// search file by TTH
 	} else {
+		tth, err := TTHImport(req.query)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TTH: %s", req.query)
+		}
+
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			for _, file := range dir.files {
-				if string(file.tth) == req.query {
+				if file.tth == tth {
 					results = append(results, file)
 				}
 			}

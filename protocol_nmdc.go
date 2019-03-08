@@ -684,7 +684,7 @@ type msgNmdcSearchResult struct {
 	Path       string
 	IsDir      bool
 	Size       uint64 // file only, also directory in ADC
-	TTH        string // file only
+	TTH        TTH // file only
 	Nick       string
 	SlotAvail  uint
 	SlotCount  uint
@@ -698,6 +698,16 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 	if matches == nil {
 		return errorArgsFormat
 	}
+
+	var tth TTH
+	if matches[3] != "" {
+		var err error
+		tth,err = TTHImport(matches[7])
+		if err != nil {
+			return err
+		}
+	}
+
 	m.Nick, m.Path, m.Size, m.SlotAvail, m.SlotCount, m.TTH, m.IsDir, m.HubIp,
 		m.HubPort = matches[1], "/"+strings.Replace(matches[2], "\\", "/", -1),
 		func() uint64 {
@@ -707,14 +717,10 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 			return 0
 		}(),
 		atoui(matches[5]), atoui(matches[6]),
-		func() string {
-			if matches[3] != "" {
-				return matches[7]
-			}
-			return ""
-		}(),
+		tth,
 		(matches[3] == ""),
-		matches[8], atoui(matches[9])
+		matches[8],
+		atoui(matches[9])
 	return nil
 }
 
@@ -733,7 +739,7 @@ func (m *msgNmdcSearchResult) NmdcEncode() string {
 			if m.IsDir == true {
 				return dirTTH
 			}
-			return m.TTH
+			return m.TTH.String()
 		}(),
 		m.HubIp, m.HubPort,
 		func() string {

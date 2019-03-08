@@ -141,9 +141,9 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 				}
 				return 0
 			}(),
-			TTH: func() string {
+			TTH: func() TTH {
 				if f, ok := res.(*shareFile); ok {
-					return string(f.tth)
+					return f.tth
 				}
 				return ""
 			}(),
