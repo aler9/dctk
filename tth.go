@@ -271,6 +271,7 @@ func TTHFromReader(in io.Reader) (TTH, error) {
 	return topLevel.b, nil
 }
 
+// String encodes TTH in a base32 string.
 func (t TTH) String() string {
 	return base32.StdEncoding.EncodeToString(t[:])[:39]
 }
