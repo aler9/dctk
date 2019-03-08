@@ -29,7 +29,7 @@ func TTHLeavesFromBytes(in []byte) TTHLeaves {
 }
 
 // TTHLeavesFromFile computes the TTH leaves of a given file.
-func TTHLeavesFromFile(fpath string) ([]byte, error) {
+func TTHLeavesFromFile(fpath string) (TTHLeaves, error) {
 	f, err := os.Open(fpath)
 	if err != nil {
 		return nil, err
