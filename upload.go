@@ -61,7 +61,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		}
 
 		// upload is file by TTH or its tthl
-		tth,err := TTHDecode(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
+		tth, err := TTHDecode(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
 		if err != nil {
 			return err
 		}

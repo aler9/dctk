@@ -27,7 +27,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKey
 			if val == dirTTH {
 				sr.IsDir = true
 			} else {
-				tth,err := TTHDecode(val)
+				tth, err := TTHDecode(val)
 				if err != nil {
 					return
 				}

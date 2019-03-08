@@ -77,22 +77,22 @@ type TTH [24]byte
 func TTHDecode(in string) (TTH, error) {
 	var ret TTH
 
-    if len(in) != 39 {
-        return ret, fmt.Errorf("invalid TTH size")
-    }
+	if len(in) != 39 {
+		return ret, fmt.Errorf("invalid TTH size")
+	}
 
-    byt,err := base32.StdEncoding.DecodeString(in + "=")
-    if err != nil {
-        return ret, err
-    }
+	byt, err := base32.StdEncoding.DecodeString(in + "=")
+	if err != nil {
+		return ret, err
+	}
 
-    copy(ret[:], byt)
+	copy(ret[:], byt)
 	return ret, nil
 }
 
 // TTHMust is like TTHDecode but panics in case of error.
-func TTHMust(in string) (TTH) {
-	ret,err := TTHDecode(in)
+func TTHMust(in string) TTH {
+	ret, err := TTHDecode(in)
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +276,7 @@ func (t TTH) String() string {
 
 // UnmarshalXMLAttr implements the xml.UnmarshalerAttr interface.
 func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
-	tth,err := TTHDecode(attr.Value)
+	tth, err := TTHDecode(attr.Value)
 	if err != nil {
 		return err
 	}
