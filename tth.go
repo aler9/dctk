@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base32"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/url"
@@ -254,6 +255,21 @@ func TTHFromReader(in io.Reader) (TTH, error) {
 
 	out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
 	return TTH(out), nil
+}
+
+// UnmarshalXMLAttr implements the xml.UnmarshalerAttr interface.
+func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
+	tth,err := TTHImport(attr.Value)
+	if err != nil {
+		return err
+	}
+	*t = tth
+	return nil
+}
+
+// MarshalXMLAttr implements the xml.MarshalerAttr interface.
+func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
+	return xml.Attr{name, string(t)}, nil
 }
 
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
