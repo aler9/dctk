@@ -58,8 +58,11 @@ type searchRequest struct {
 
 // Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
-	if conf.Type == SearchTTH && TTHIsValid(conf.Query) == false {
-		return fmt.Errorf("invalid TTH")
+	if conf.Type == SearchTTH {
+		_, err := TTHImport(conf.Query)
+		if err != nil {
+			return fmt.Errorf("invalid TTH")
+		}
 	}
 
 	if c.protoIsAdc == true {
@@ -73,8 +76,11 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 	if len(req.query) < 3 {
 		return nil, fmt.Errorf("query too short: %s", req.query)
 	}
-	if req.stype == SearchTTH && TTHIsValid(req.query) == false {
-		return nil, fmt.Errorf("invalid TTH: %s", req.query)
+	if req.stype == SearchTTH {
+		_, err := TTHImport(req.query)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TTH: %s", req.query)
+		}
 	}
 
 	// normalize query
@@ -119,7 +125,7 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 	} else {
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			for _, file := range dir.files {
-				if file.tth == req.query {
+				if string(file.tth) == req.query {
 					results = append(results, file)
 				}
 			}

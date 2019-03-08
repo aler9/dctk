@@ -112,7 +112,7 @@ func client2() {
 				panic(err)
 			}
 
-			if tth != d.Conf().TTH {
+			if string(tth) != d.Conf().TTH {
 				panic(fmt.Errorf("TTH of file is wrong (%s) (%s)", paths[d.Conf().TTH], tth))
 			}
 

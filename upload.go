@@ -66,7 +66,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			var scanDir func(dir *shareDirectory) bool
 			scanDir = func(dir *shareDirectory) bool {
 				for _, file := range dir.files {
-					if file.tth == msgTTH {
+					if string(file.tth) == msgTTH {
 						ret = file
 						return true
 					}

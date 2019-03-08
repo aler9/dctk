@@ -11,7 +11,7 @@ import (
 type FileListFile struct {
 	Name string `xml:"Name,attr"`
 	Size uint64 `xml:"Size,attr"`
-	TTH  string `xml:"TTH,attr"`
+	TTH  TTH    `xml:"TTH,attr"`
 }
 
 // FileListDirectory is part of a user file list and represents a shared drectory.

@@ -243,7 +243,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 	rand.Read(c.privateId)
 
 	// generate clientId (hash of privateId)
-	hasher := tigerNew()
+	hasher := newTiger()
 	hasher.Write(c.privateId)
 	c.clientId = hasher.Sum(nil)
 

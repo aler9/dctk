@@ -56,8 +56,8 @@ func dcReadableQuery(request string) string {
 	return "filelist"
 }
 
-// tiger hash used through the library
-func tigerNew() hash.Hash {
+// tiger hash used throughout the library
+func newTiger() hash.Hash {
 	return tiger.New()
 }
 
