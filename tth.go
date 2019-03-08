@@ -306,6 +306,23 @@ func (t TTH) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
 
+// MarshalText implements the encoding.TextMarshaler interface.
+// this is needed when TTH is used as key in a json map.
+func (t TTH) MarshalText() (text []byte, err error) {
+	return []byte(t.String()), nil
+}
+
+// UnmarshalText implements the decoding.TextUnmarshaler interface.
+// this is needed when TTH is used as key in a json map.
+func (t *TTH) UnmarshalText(text []byte) error {
+	tth, err := TTHDecode(string(text))
+	if err != nil {
+		return err
+	}
+	*t = tth
+	return err
+}
+
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
 // and can be opened by most of the available DC clients, starting the download.
 func MagnetLink(name string, size uint64, tth TTH) string {
