@@ -59,7 +59,12 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 		}(),
 		MaxSize: conf.MaxSize,
 		MinSize: conf.MinSize,
-		Query:   conf.Query,
+		Query: func() string {
+			if conf.Type == SearchTTH {
+				return conf.TTH.String()
+			}
+			return conf.Query
+		}(),
 		Ip: func() string {
 			if c.conf.IsPassive == false {
 				return c.ip
@@ -145,7 +150,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 				if f, ok := res.(*shareFile); ok {
 					return f.tth
 				}
-				return ""
+				return TTH{}
 			}(),
 			Nick:      c.conf.Nick,
 			SlotAvail: c.uploadSlotAvail,

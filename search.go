@@ -44,8 +44,10 @@ type SearchConf struct {
 	// the maximum size of the searched file (if type is SearchAny or SearchTTH)
 	MaxSize uint64
 	// part of a file name (if type is SearchAny), part of a directory name
-	// (if type is SearchAny or SearchDirectory) or a TTH (if type is SearchTTH)
+	// (if type is SearchAny or SearchDirectory)
 	Query string
+	// file TTH (if type is SearchTTH)
+	TTH TTH
 }
 
 type searchRequest struct {
@@ -58,13 +60,6 @@ type searchRequest struct {
 
 // Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
-	if conf.Type == SearchTTH {
-		_, err := TTHImport(conf.Query)
-		if err != nil {
-			return fmt.Errorf("invalid TTH")
-		}
-	}
-
 	if c.protoIsAdc == true {
 		return c.handleAdcSearchOutgoingRequest(conf)
 	} else {
@@ -115,7 +110,7 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 
 		// search file by TTH
 	} else {
-		tth, err := TTHImport(req.query)
+		tth, err := TTHDecode(req.query)
 		if err != nil {
 			return nil, fmt.Errorf("invalid TTH: %s", req.query)
 		}

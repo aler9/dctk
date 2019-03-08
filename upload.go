@@ -61,12 +61,16 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		}
 
 		// upload is file by TTH or its tthl
+		tth,err := TTHDecode(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
+		if err != nil {
+			return err
+		}
+
 		sfile := func() (ret *shareFile) {
-			msgTTH := u.query[9:] // skip "file TTH/" or "tthl TTH/"
 			var scanDir func(dir *shareDirectory) bool
 			scanDir = func(dir *shareDirectory) bool {
 				for _, file := range dir.files {
-					if string(file.tth) == msgTTH {
+					if file.tth == tth {
 						ret = file
 						return true
 					}
@@ -100,7 +104,6 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		}
 
 		// open file
-		var err error
 		var f *os.File
 		f, err = os.Open(sfile.realPath)
 		if err != nil {

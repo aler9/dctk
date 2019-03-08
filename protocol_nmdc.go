@@ -702,7 +702,7 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 	var tth TTH
 	if matches[3] != "" {
 		var err error
-		tth,err = TTHImport(matches[7])
+		tth,err = TTHDecode(matches[7])
 		if err != nil {
 			return err
 		}
