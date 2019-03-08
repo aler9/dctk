@@ -70,7 +70,7 @@ func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
 }
 
 // TTH is a Tiger Tree Hash (TTH), the univoque id associated to a specific file.
-// It is a 24-byte sequence, encoded in base32, resulting in a the 39-digits string.
+// It is a 24-byte sequence, encoded in base32, resulting in a 39-digits string.
 type TTH [24]byte
 
 // TTHDecode decodes a Tiger Tree Hash (TTH) in string format.
