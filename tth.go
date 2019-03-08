@@ -257,6 +257,10 @@ func TTHFromReader(in io.Reader) (TTH, error) {
 	return TTH(out), nil
 }
 
+func (t TTH) String() string {
+	return string(t)
+}
+
 // UnmarshalXMLAttr implements the xml.UnmarshalerAttr interface.
 func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
 	tth,err := TTHImport(attr.Value)
