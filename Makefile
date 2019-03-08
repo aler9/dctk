@@ -38,6 +38,7 @@ endif
 test:
 # cleanup
 	@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
+	@docker container rm dctk-hub dctk-test >/dev/null 2>&1 || exit 0
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
 # run tests
 	@echo "building main test image..."
