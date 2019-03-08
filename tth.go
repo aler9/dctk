@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base32"
-	"encoding/xml"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/url"
@@ -292,12 +292,12 @@ func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *TTH) UnmarshalJSON(in []byte) error {
-	tth, err := TTHDecode(string(in[1:len(in)-1]))
+	tth, err := TTHDecode(string(in[1 : len(in)-1]))
 	if err != nil {
 		return err
 	}
 	*t = tth
-    return err
+	return err
 }
 
 // MarshalJSON implements the json.Marshaler interface.
