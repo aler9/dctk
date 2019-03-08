@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base32"
-	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"net/url"
@@ -276,44 +274,14 @@ func (t TTH) String() string {
 	return base32.StdEncoding.EncodeToString(t[:])[:39]
 }
 
-// UnmarshalXMLAttr implements the xml.UnmarshalerAttr interface.
-func (t *TTH) UnmarshalXMLAttr(attr xml.Attr) error {
-	tth, err := TTHDecode(attr.Value)
-	if err != nil {
-		return err
-	}
-	*t = tth
-	return nil
-}
-
-// MarshalXMLAttr implements the xml.MarshalerAttr interface.
-func (t TTH) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
-	return xml.Attr{Name: name, Value: t.String()}, nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (t *TTH) UnmarshalJSON(in []byte) error {
-	tth, err := TTHDecode(string(in[1 : len(in)-1]))
-	if err != nil {
-		return err
-	}
-	*t = tth
-	return err
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (t TTH) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.String())
-}
-
 // MarshalText implements the encoding.TextMarshaler interface.
-// this is needed when TTH is used as key in a json map.
+// this is needed for XML and JSON encoding/decoding.
 func (t TTH) MarshalText() (text []byte, err error) {
 	return []byte(t.String()), nil
 }
 
 // UnmarshalText implements the decoding.TextUnmarshaler interface.
-// this is needed when TTH is used as key in a json map.
+// this is needed for XML and JSON encoding/decoding.
 func (t *TTH) UnmarshalText(text []byte) error {
 	tth, err := TTHDecode(string(text))
 	if err != nil {
