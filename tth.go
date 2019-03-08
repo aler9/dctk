@@ -13,43 +13,22 @@ import (
 
 var reTTH = regexp.MustCompile("^" + reStrTTH + "$")
 
-// TTHIsValid checks the validity of a Tiger Tree Hash (TTH), the 39-digits string
-// associated to a specific shared file.
-func TTHIsValid(in string) bool {
-	return reTTH.MatchString(in)
+type tthLevel struct {
+	b        [24]byte
+	occupied bool
 }
 
-// TTHFromBytes computes the Tiger Tree Hash (TTH) of a given byte sequence.
-func TTHFromBytes(in []byte) string {
-	ret, _ := tthFromReader(bytes.NewReader(in))
+// TTHLeaves is a sequence of concatenated hashes that can be used to validate
+// the single parts of a certain file.
+type TTHLeaves []byte
+
+// TTHLeavesFromBytes computes the TTH leaves of a given byte sequence.
+func TTHLeavesFromBytes(in []byte) TTHLeaves {
+	ret, _ := TTHLeavesFromReader(bytes.NewReader(in))
 	return ret
 }
 
-// TTHFromFile computes the Tiger Tree Hash (TTH) of a given file.
-func TTHFromFile(fpath string) (string, error) {
-	f, err := os.Open(fpath)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	// buffer to optimize disk read
-	buf := bufio.NewReaderSize(f, 1024*1024)
-
-	return tthFromReader(buf)
-}
-
-// TTHLeavesFromBytes computes the TTH leaves of a given byte sequence. The
-// leaves are a sequence of concatenated hashes that can be used to validate
-// the single parts of a certain file.
-func TTHLeavesFromBytes(in []byte) []byte {
-	ret, _ := tthLeavesFromReader(bytes.NewReader(in))
-	return ret
-}
-
-// TTHLeavesFromFile computes the TTH leaves of a given file. The
-// leaves are a sequence of concatenated hashes that can be used to validate
-// the single parts of a certain file.
+// TTHLeavesFromFile computes the TTH leaves of a given file.
 func TTHLeavesFromFile(fpath string) ([]byte, error) {
 	f, err := os.Open(fpath)
 	if err != nil {
@@ -60,16 +39,12 @@ func TTHLeavesFromFile(fpath string) ([]byte, error) {
 	// buffer to optimize disk read
 	buf := bufio.NewReaderSize(f, 1024*1024)
 
-	return tthLeavesFromReader(buf)
+	return TTHLeavesFromReader(buf)
 }
 
-type tthLevel struct {
-	b        [24]byte
-	occupied bool
-}
-
-func tthLeavesFromReader(in io.Reader) ([]byte, error) {
-	hasher := tigerNew()
+// TTHLeavesFromReader computes the tth leaves of data provided by an io.Reader.
+func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
+	hasher := newTiger()
 	var out []byte
 
 	firstHash := true
@@ -93,13 +68,45 @@ func tthLeavesFromReader(in io.Reader) ([]byte, error) {
 
 		out = append(out, sum[:]...)
 	}
-	return out, nil
+	return TTHLeaves(out), nil
+}
+
+// TTH is a Tiger Tree Hash (TTH), the 39-digits string
+// associated to a specific shared file.
+type TTH string
+
+// TTHImport imports a Tiger Tree Hash (TTH) in string format.
+func TTHImport(in string) (TTH, error) {
+	if reTTH.MatchString(in) == false {
+		return "", fmt.Errorf("invalid TTH")
+	}
+	return TTH(in), nil
+}
+
+// TTHFromBytes computes the Tiger Tree Hash (TTH) of a given byte sequence.
+func TTHFromBytes(in []byte) TTH {
+	ret, _ := TTHFromReader(bytes.NewReader(in))
+	return ret
+}
+
+// TTHFromFile computes the Tiger Tree Hash (TTH) of a given file.
+func TTHFromFile(fpath string) (TTH, error) {
+	f, err := os.Open(fpath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	// buffer to optimize disk read
+	buf := bufio.NewReaderSize(f, 1024*1024)
+
+	return TTHFromReader(buf)
 }
 
 // TTHFromLeaves computes the Tiger Tree Hash (TTH) of a given leaves sequence.
-func TTHFromLeaves(leaves []byte) string {
+func TTHFromLeaves(leaves TTHLeaves) TTH {
 	// ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
-	hasher := tigerNew()
+	hasher := newTiger()
 	var levels []*tthLevel
 	levels = append(levels, &tthLevel{}) // add level zero
 
@@ -167,12 +174,13 @@ func TTHFromLeaves(leaves []byte) string {
 	}
 
 	out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
-	return out
+	return TTH(out)
 }
 
-func tthFromReader(in io.Reader) (string, error) {
+// TTHFromReader computes the Tiger Tree Hash (TTH) of data provided by an io.Reader.
+func TTHFromReader(in io.Reader) (TTH, error) {
 	// ref: https://adc.sourceforge.io/draft-jchapweske-thex-02.html
-	hasher := tigerNew()
+	hasher := newTiger()
 	var levels []*tthLevel
 	levels = append(levels, &tthLevel{}) // add level zero
 
@@ -245,12 +253,12 @@ func tthFromReader(in io.Reader) (string, error) {
 	}
 
 	out := base32.StdEncoding.EncodeToString(topLevel.b[:])[:39]
-	return out, nil
+	return TTH(out), nil
 }
 
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
 // and can be opened by most of the available DC clients, starting the download.
-func MagnetLink(name string, size uint64, tth string) string {
+func MagnetLink(name string, size uint64, tth TTH) string {
 	return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%v&dn=%s",
 		tth,
 		size,

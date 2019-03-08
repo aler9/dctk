@@ -261,7 +261,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.protoState = "getpass"
 
-		hasher := tigerNew()
+		hasher := newTiger()
 		hasher.Write([]byte(h.client.conf.Password))
 		hasher.Write(msg.Data)
 		data := hasher.Sum(nil)

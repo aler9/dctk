@@ -171,7 +171,7 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 		switch o := res.(type) {
 		case *shareFile:
 			fields[adcFieldFilePath] = o.aliasPath
-			fields[adcFieldFileTTH] = o.tth
+			fields[adcFieldFileTTH] = string(o.tth)
 			fields[adcFieldSize] = numtoa(o.size)
 
 		case *shareDirectory:

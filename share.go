@@ -14,8 +14,8 @@ import (
 type shareFile struct {
 	size      uint64
 	modTime   time.Time
-	tth       string
-	tthl      []byte
+	tth       TTH
+	tthl      TTHLeaves
 	realPath  string
 	aliasPath string
 }
@@ -88,8 +88,8 @@ func (sm *shareIndexer) index() {
 					dir.dirs[file.Name()] = subdir
 
 				} else {
-					var tthl []byte
-					var tth string
+					var tthl TTHLeaves
+					var tth TTH
 
 					aliasPath := filepath.Join(apath, file.Name())
 					origPath := filepath.Join(dpath, file.Name())

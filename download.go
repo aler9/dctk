@@ -90,7 +90,7 @@ func (c *Client) DownloadFileList(peer *Peer, savePath string) (*Download, error
 func (c *Client) DownloadFLFile(peer *Peer, file *FileListFile, savePath string) (*Download, error) {
 	return c.DownloadFile(DownloadConf{
 		Peer:     peer,
-		TTH:      file.TTH,
+		TTH:      string(file.TTH),
 		SavePath: savePath,
 	})
 }
@@ -125,8 +125,11 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	if conf.Length <= 0 {
 		conf.Length = -1
 	}
-	if conf.filelist == false && TTHIsValid(conf.TTH) == false {
-		return nil, fmt.Errorf("invalid TTH")
+	if conf.filelist == false {
+		_, err := TTHImport(conf.TTH)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TTH")
+		}
 	}
 
 	d := &Download{
@@ -428,7 +431,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 					dolog(LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
 
 					// file in disk
-					var contentTTH string
+					var contentTTH TTH
 					if d.conf.SavePath != "" {
 						var err error
 						contentTTH, err = TTHFromFile(d.conf.SavePath + ".tmp")
@@ -441,7 +444,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 						contentTTH = TTHFromBytes(d.content)
 					}
 
-					if contentTTH != d.conf.TTH {
+					if string(contentTTH) != d.conf.TTH {
 						return fmt.Errorf("validation failed")
 					}
 				}
