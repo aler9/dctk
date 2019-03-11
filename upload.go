@@ -29,7 +29,7 @@ type upload struct {
 func (*upload) isTransfer() {}
 
 func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64,
-	reqLength int64, reqCompressed bool) {
+	reqLength int64, reqCompressed bool) bool {
 
 	u := &upload{
 		client: client,
@@ -162,7 +162,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 				u.pconn.conn.Write(&msgNmdcError{Error: "File Not Available"})
 			}
 		}
-		return
+		return false
 	}
 
 	if u.client.protoIsAdc == true {
@@ -189,6 +189,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 	u.client.uploadSlotAvail -= 1
 	u.pconn.state = "delegated_upload"
 	u.pconn.transfer = u
+	return true
 }
 
 func (u *upload) terminate() {
