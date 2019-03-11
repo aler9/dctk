@@ -20,7 +20,7 @@ type connPeer struct {
 	isEncrypted        bool
 	isActive           bool
 	terminateRequested bool
-	terminate      chan struct{}
+	terminate          chan struct{}
 	state              string
 	conn               protocol
 	tlsConn            *tls.Conn
@@ -40,11 +40,11 @@ type connPeer struct {
 func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 	rawconn net.Conn, ip string, port uint, adcToken string) *connPeer {
 	p := &connPeer{
-		client:        client,
-		isEncrypted:   isEncrypted,
-		isActive:      isActive,
-		terminate: make(chan struct{}, 1),
-		adcToken:      adcToken,
+		client:      client,
+		isEncrypted: isEncrypted,
+		isActive:    isActive,
+		terminate:   make(chan struct{}, 1),
+		adcToken:    adcToken,
 	}
 	p.client.connPeers[p] = struct{}{}
 

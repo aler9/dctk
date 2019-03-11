@@ -25,7 +25,7 @@ var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
 
 type transfer interface {
 	isTransfer()
-	close()
+	Close()
 }
 
 // EncryptionMode contains the options regarding encryption.
@@ -96,7 +96,7 @@ type Client struct {
 	mutex              sync.Mutex
 	wg                 sync.WaitGroup
 	terminateRequested bool
-	terminate      chan struct{}
+	terminate          chan struct{}
 	protoIsAdc         bool
 	hubIsEncrypted     bool
 	hubHostname        string
@@ -221,7 +221,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 	c := &Client{
 		conf:                  conf,
-		terminate:         make(chan struct{}),
+		terminate:             make(chan struct{}),
 		protoIsAdc:            (u.Scheme == "adc" || u.Scheme == "adcs"),
 		hubIsEncrypted:        (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
 		hubHostname:           u.Hostname(),
@@ -330,7 +330,7 @@ func (c *Client) Run() {
 	c.Safe(func() {
 		c.connHub.close()
 		for t := range c.transfers {
-			t.close()
+			t.Close()
 		}
 		for p := range c.connPeers {
 			p.close()

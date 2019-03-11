@@ -34,7 +34,7 @@ type Download struct {
 	conf               DownloadConf
 	client             *Client
 	terminateRequested bool
-	terminate      chan struct{}
+	terminate          chan struct{}
 	state              string
 	activeDlChan       chan struct{}
 	slotChan           chan struct{}
@@ -131,13 +131,13 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	}
 
 	d := &Download{
-		conf:          conf,
-		client:        c,
-		terminate: make(chan struct{}, 1),
-		state:         "uninitialized",
-		activeDlChan:  make(chan struct{}),
-		slotChan:      make(chan struct{}),
-		peerChan:      make(chan struct{}),
+		conf:         conf,
+		client:       c,
+		terminate:    make(chan struct{}, 1),
+		state:        "uninitialized",
+		activeDlChan: make(chan struct{}),
+		slotChan:     make(chan struct{}),
+		peerChan:     make(chan struct{}),
 	}
 	d.client.transfers[d] = struct{}{}
 
@@ -168,7 +168,8 @@ func (d *Download) Content() []byte {
 	return d.content
 }
 
-func (d *Download) close() {
+// Close stops the download. OnDownloadError and OnDownloadSuccessful are not called.
+func (d *Download) Close() {
 	if d.terminateRequested == true {
 		return
 	}

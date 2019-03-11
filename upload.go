@@ -192,7 +192,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 	return true
 }
 
-func (u *upload) close() {
+func (u *upload) Close() {
 	if u.terminateRequested == true {
 		return
 	}
