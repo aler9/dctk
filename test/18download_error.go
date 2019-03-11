@@ -38,7 +38,7 @@ func client2() {
 		panic(err)
 	}
 
-    // request a nonexistent file
+	// request a nonexistent file
 	client.OnPeerConnected = func(p *dctk.Peer) {
 		if p.Nick == "client1" {
 			client.DownloadFile(dctk.DownloadConf{
