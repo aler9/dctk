@@ -2,7 +2,6 @@
 # dctoolkit
 
 [![GoDoc](https://godoc.org/github.com/gswly/dctoolkit?status.svg)](https://godoc.org/github.com/gswly/dctoolkit)
-[![Github Release](https://img.shields.io/github/release/gswly/dctoolkit.svg)](https://github.com/gswly/dctoolkit/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gswly/dctoolkit)](https://goreportcard.com/report/github.com/gswly/dctoolkit)
 
 dctoolkit implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
@@ -22,7 +21,8 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 * **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support, client fingerprint validation
 * Examples provided for every feature
 * Comprehensive test suite
-* Stable public API
+
+Note: this project uses the rolling release development model, as it is used in a production environment which requires the latest updates. The public API may suffer minor changes. The master branch is to be considered stable.
 
 ## Library
 
