@@ -65,7 +65,7 @@ type connHub struct {
 func newConnHub(client *Client) error {
 	client.connHub = &connHub{
 		client: client,
-		// can be called once before HubConnect() or after readDone, so it must be buffered
+		// can be called once before HubConnect() or after <-readDone, so it must be buffered
 		terminateChan: make(chan struct{}, 1),
 		state:         "disconnected",
 		uniqueCmds:    make(map[string]struct{}),
