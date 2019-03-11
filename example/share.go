@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	// configure hub but do not connect automatically. local ports must be opened and accessible (configure your router)
+	// configure hub in active mode but do not connect automatically. local ports must be opened and accessible.
 	client, err := dctk.NewClient(dctk.ClientConf{
 		HubUrl:           "nmdc://hubip:411",
 		Nick:             "mynick",
