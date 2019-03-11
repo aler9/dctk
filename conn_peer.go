@@ -20,7 +20,7 @@ type connPeer struct {
 	isEncrypted        bool
 	isActive           bool
 	terminateRequested bool
-	terminateChan      chan struct{}
+	terminate      chan struct{}
 	state              string
 	conn               protocol
 	tlsConn            *tls.Conn
@@ -43,7 +43,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 		client:        client,
 		isEncrypted:   isEncrypted,
 		isActive:      isActive,
-		terminateChan: make(chan struct{}, 1),
+		terminate: make(chan struct{}, 1),
 		adcToken:      adcToken,
 	}
 	p.client.connPeers[p] = struct{}{}
@@ -86,7 +86,7 @@ func (p *connPeer) close() {
 		return
 	}
 	p.terminateRequested = true
-	p.terminateChan <- struct{}{}
+	p.terminate <- struct{}{}
 }
 
 func (p *connPeer) do() {
@@ -106,7 +106,7 @@ func (p *connPeer) do() {
 				10*time.Second, 3)
 
 			select {
-			case <-p.terminateChan:
+			case <-p.terminate:
 				return errorTerminated
 			case <-ce.Wait:
 			}
@@ -210,7 +210,7 @@ func (p *connPeer) do() {
 		}()
 
 		select {
-		case <-p.terminateChan:
+		case <-p.terminate:
 			p.conn.Close()
 			<-readDone
 			return errorTerminated

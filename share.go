@@ -29,7 +29,7 @@ type shareDirectory struct {
 type shareIndexer struct {
 	client             *Client
 	terminateRequested bool
-	terminateChan      chan struct{}
+	terminate      chan struct{}
 	indexChan          chan struct{}
 	indexRequested     bool
 }
@@ -39,7 +39,7 @@ func newshareIndexer(client *Client) error {
 		client: client,
 		// must be buffered since it could otherwise cause a deadlock:
 		// - after <-indexChan and before Safe()
-		terminateChan: make(chan struct{}, 1),
+		terminate: make(chan struct{}, 1),
 		indexChan:     make(chan struct{}),
 	}
 	client.shareIndexer.index()
@@ -51,7 +51,7 @@ func (sm *shareIndexer) close() {
 		return
 	}
 	sm.terminateRequested = true
-	sm.terminateChan <- struct{}{}
+	sm.terminate <- struct{}{}
 }
 
 func (sm *shareIndexer) do() {
@@ -59,7 +59,7 @@ func (sm *shareIndexer) do() {
 
 	for {
 		select {
-		case <-sm.terminateChan:
+		case <-sm.terminate:
 			return
 		case <-sm.indexChan:
 		}
