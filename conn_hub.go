@@ -497,10 +497,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		if h.state != "preinitialized" && h.state != "initialized" {
 			return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
 		}
-		if _, ok := h.uniqueCmds["HubTopic"]; ok {
-			return fmt.Errorf("HubTopic sent twice")
-		}
-		h.uniqueCmds["HubTopic"] = struct{}{}
 		dolog(LevelInfo, "[hub] [topic] %s", msg.Content)
 
 	case *msgNmdcGetPass:
