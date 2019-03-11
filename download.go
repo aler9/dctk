@@ -462,7 +462,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 }
 
 func (d *Download) handleExit(err error) {
-	if d.terminateRequested != true && d.state != "success" {
+	if d.terminateRequested != true && err != nil {
 		dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
 	}
 
@@ -493,7 +493,7 @@ func (d *Download) handleExit(err error) {
 	}
 
 	// call callbacks
-	if d.state == "success" {
+	if err == nil {
 		dolog(LevelInfo, "[download] [%s] finished %s (s=%d l=%d)",
 			d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
 		if d.client.OnDownloadSuccessful != nil {

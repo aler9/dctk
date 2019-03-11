@@ -243,7 +243,7 @@ func (u *upload) handleUpload() error {
 }
 
 func (u *upload) handleExit(err error) {
-	if u.terminateRequested != true && u.state != "success" {
+	if u.terminateRequested != true && err != nil {
 		dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
 	}
 
@@ -253,7 +253,7 @@ func (u *upload) handleExit(err error) {
 
 	u.client.uploadSlotAvail += 1
 
-	if u.state == "success" {
+	if err == nil {
 		dolog(LevelInfo, "[upload] [%s] finished %s (s=%d l=%d)",
 			u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
 	} else {

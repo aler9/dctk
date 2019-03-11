@@ -180,7 +180,6 @@ func (p *connPeer) do() {
 							if err == errorTerminated {
 								p.transfer = nil
 								p.state = "wait_download"
-								d.state = "success"
 								d.handleExit(nil)
 								err = nil // do not close connection
 							}
@@ -198,7 +197,6 @@ func (p *connPeer) do() {
 						p.client.Safe(func() {
 							p.transfer = nil
 							p.state = "wait_upload"
-							u.state = "success"
 							u.handleExit(nil)
 						})
 
