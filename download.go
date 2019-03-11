@@ -33,8 +33,8 @@ type DownloadConf struct {
 type Download struct {
 	conf               DownloadConf
 	client             *Client
-	terminateChan      chan struct{}
 	terminateRequested bool
+	terminateChan      chan struct{}
 	state              string
 	activeDlChan       chan struct{}
 	slotChan           chan struct{}

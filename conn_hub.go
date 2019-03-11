@@ -191,8 +191,6 @@ func (h *connHub) do() {
 			}
 		}
 
-		h.state = "terminated"
-
 		dolog(LevelInfo, "[hub] disconnected")
 
 		// close client too
