@@ -12,10 +12,10 @@ import (
 )
 
 type listenerTcp struct {
-	client      *Client
-	isEncrypted bool
-	state       string
-	listener    net.Listener
+	client             *Client
+	isEncrypted        bool
+	terminateRequested bool
+	listener           net.Listener
 }
 
 func newListenerTcp(client *Client, isEncrypted bool) error {
@@ -73,7 +73,6 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 	l := &listenerTcp{
 		client:      client,
 		isEncrypted: isEncrypted,
-		state:       "running",
 		listener:    listener,
 	}
 	if isEncrypted == true {
@@ -85,45 +84,25 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 }
 
 func (t *listenerTcp) terminate() {
-	switch t.state {
-	case "terminated":
+	if t.terminateRequested == true {
 		return
-
-	case "running":
-		t.listener.Close()
-
-	default:
-		panic(fmt.Errorf("Terminate() unsupported in state '%s'", t.state))
 	}
-	t.state = "terminated"
+	t.terminateRequested = true
+	t.listener.Close()
 }
 
 func (t *listenerTcp) do() {
 	defer t.client.wg.Done()
 
-	err := func() error {
-		for {
-			rawconn, err := t.listener.Accept()
-			if err != nil {
-				t.client.Safe(func() {
-					if t.state == "terminated" {
-						err = errorTerminated
-					}
-				})
-				return err
-			}
-
-			t.client.Safe(func() {
-				newConnPeer(t.client, t.isEncrypted, true, rawconn, "", 0, "")
-			})
+	for {
+		rawconn, err := t.listener.Accept()
+		// listener closed
+		if err != nil {
+			break
 		}
-	}()
 
-	t.client.Safe(func() {
-		switch t.state {
-		case "terminated":
-		default:
-			dolog(LevelInfo, "ERR: %s", err)
-		}
-	})
+		t.client.Safe(func() {
+			newConnPeer(t.client, t.isEncrypted, true, rawconn, "", 0, "")
+		})
+	}
 }
