@@ -232,7 +232,7 @@ func (p *connPeer) do() {
 
 		if p.terminateRequested == false {
 			// do not mark peer timeouts as errors
-			if p.state != "connected" || (p.state != "wait_upload" && p.state != "wait_download") {
+			if p.state != "wait_upload" && p.state != "wait_download" {
 				dolog(LevelInfo, "ERR (connPeer): %s", err)
 			}
 		}
