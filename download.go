@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	_PEER_WAIT_TIMEOUT = 10 * time.Second
+)
+
 // DownloadConf allows to configure a download.
 type DownloadConf struct {
 	// the peer from which downloading
@@ -248,7 +252,10 @@ func (d *Download) do() {
 			}
 		})
 		if wait == true {
+			timeout := time.NewTimer(_PEER_WAIT_TIMEOUT)
 			select {
+			case <-timeout.C:
+				return fmt.Errorf("timed out")
 			case <-d.terminate:
 				return errorTerminated
 			case <-d.peerChan:
