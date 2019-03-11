@@ -78,7 +78,7 @@ func client2() {
 
 		} else {
 			ok = true
-			client.Terminate()
+			client.Close()
 		}
 	}
 

@@ -51,7 +51,7 @@ func main() {
 		} else {
 			// all files have been downloaded
 			if client.DownloadCount() == 0 {
-				client.Terminate()
+				client.Close()
 			}
 		}
 	}

@@ -24,7 +24,7 @@ func newListenerUdp(client *Client) error {
 	return nil
 }
 
-func (u *listenerUdp) terminate() {
+func (u *listenerUdp) close() {
 	if u.terminateRequested == true {
 		return
 	}

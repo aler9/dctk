@@ -83,7 +83,7 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 	return nil
 }
 
-func (t *listenerTcp) terminate() {
+func (t *listenerTcp) close() {
 	if t.terminateRequested == true {
 		return
 	}

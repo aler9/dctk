@@ -49,7 +49,7 @@ func main() {
 
 			// file has been downloaded
 		} else {
-			client.Terminate()
+			client.Close()
 		}
 	}
 

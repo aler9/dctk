@@ -33,7 +33,7 @@ func main() {
 	// download has finished
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
 		fmt.Printf("downloaded: %d\n", len(d.Content()))
-		client.Terminate()
+		client.Close()
 	}
 
 	client.Run()

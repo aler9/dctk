@@ -47,7 +47,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	return ka
 }
 
-func (ka *hubKeepAliver) Terminate() {
+func (ka *hubKeepAliver) Close() {
 	ka.terminateChan <- struct{}{}
 	<-ka.done
 }
@@ -83,7 +83,7 @@ func (c *Client) HubConnect() {
 	go c.connHub.do()
 }
 
-func (h *connHub) terminate() {
+func (h *connHub) close() {
 	if h.terminateRequested == true {
 		return
 	}
@@ -129,7 +129,7 @@ func (h *connHub) do() {
 
 		if h.client.conf.HubDisableKeepAlive == false {
 			keepaliver := newHubKeepAliver(h)
-			defer keepaliver.Terminate()
+			defer keepaliver.Close()
 		}
 
 		dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
@@ -172,12 +172,12 @@ func (h *connHub) do() {
 
 		select {
 		case <-h.terminateChan:
-			h.conn.Terminate()
+			h.conn.Close()
 			<-readDone
 			return errorTerminated
 
 		case err := <-readDone:
-			h.conn.Terminate()
+			h.conn.Close()
 			return err
 		}
 	}()
@@ -194,7 +194,7 @@ func (h *connHub) do() {
 		dolog(LevelInfo, "[hub] disconnected")
 
 		// close client too
-		h.client.Terminate()
+		h.client.Close()
 	})
 }
 

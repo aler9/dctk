@@ -81,7 +81,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 	return p
 }
 
-func (p *connPeer) terminate() {
+func (p *connPeer) close() {
 	if p.terminateRequested == true {
 		return
 	}
@@ -211,12 +211,12 @@ func (p *connPeer) do() {
 
 		select {
 		case <-p.terminateChan:
-			p.conn.Terminate()
+			p.conn.Close()
 			<-readDone
 			return errorTerminated
 
 		case err := <-readDone:
-			p.conn.Terminate()
+			p.conn.Close()
 			return err
 		}
 	}()
@@ -239,7 +239,7 @@ func (p *connPeer) do() {
 		}
 
 		if p.conn != nil {
-			p.conn.Terminate()
+			p.conn.Close()
 		}
 
 		delete(p.client.connPeers, p)

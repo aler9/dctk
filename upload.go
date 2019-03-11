@@ -192,12 +192,12 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 	return true
 }
 
-func (u *upload) terminate() {
+func (u *upload) close() {
 	if u.terminateRequested == true {
 		return
 	}
 	u.terminateRequested = true
-	u.pconn.terminate()
+	u.pconn.close()
 }
 
 func (u *upload) handleUpload() error {

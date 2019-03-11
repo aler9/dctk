@@ -25,7 +25,7 @@ var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
 
 type transfer interface {
 	isTransfer()
-	terminate()
+	close()
 }
 
 // EncryptionMode contains the options regarding encryption.
@@ -276,7 +276,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 }
 
 // Terminate closes every open connection and stops the client.
-func (c *Client) Terminate() {
+func (c *Client) Close() {
 	if c.terminateRequested == true {
 		return
 	}
@@ -328,23 +328,23 @@ func (c *Client) Run() {
 	<-c.terminateChan
 
 	c.Safe(func() {
-		c.connHub.terminate()
+		c.connHub.close()
 		for t := range c.transfers {
-			t.terminate()
+			t.close()
 		}
 		for p := range c.connPeers {
-			p.terminate()
+			p.close()
 		}
 		if c.listenerUdp != nil {
-			c.listenerUdp.terminate()
+			c.listenerUdp.close()
 		}
 		if c.tcpTlsListener != nil {
-			c.tcpTlsListener.terminate()
+			c.tcpTlsListener.close()
 		}
 		if c.listenerTcp != nil {
-			c.listenerTcp.terminate()
+			c.listenerTcp.close()
 		}
-		c.shareIndexer.terminate()
+		c.shareIndexer.close()
 	})
 
 	c.wg.Wait()

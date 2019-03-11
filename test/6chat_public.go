@@ -50,7 +50,7 @@ func client2() {
 		if p.Nick == "client1" {
 			if content == "hi client2" {
 				ok = true
-				client.Terminate()
+				client.Close()
 			}
 		}
 	}

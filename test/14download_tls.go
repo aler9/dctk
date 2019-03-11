@@ -65,7 +65,7 @@ func client2() {
 
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
 		ok = true
-		client.Terminate()
+		client.Close()
 	}
 
 	client.Run()

@@ -42,7 +42,7 @@ func main() {
 	// download has finished
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
 		fmt.Println("file downloaded and available in d.Content()")
-		client.Terminate()
+		client.Close()
 	}
 
 	client.Run()

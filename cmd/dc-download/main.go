@@ -84,7 +84,7 @@ func main() {
 
 		} else {
 			if client.DownloadCount() == 0 {
-				client.Terminate()
+				client.Close()
 			}
 		}
 	}
