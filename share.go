@@ -2,7 +2,6 @@ package dctoolkit
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/dsnet/compress/bzip2"
 	"io"
 	"io/ioutil"
@@ -28,27 +27,51 @@ type shareDirectory struct {
 }
 
 type shareIndexer struct {
-	client            *Client
-	state             string
-	wakeUp            chan struct{}
-	indexingRequested bool
+	client             *Client
+	terminateRequested bool
+	terminateChan      chan struct{}
+	indexChan          chan struct{}
+	indexRequested     bool
 }
 
 func newshareIndexer(client *Client) error {
 	client.shareIndexer = &shareIndexer{
 		client: client,
-		state:  "running",
-		wakeUp: make(chan struct{}, 1),
+		// must be buffered since it could otherwise cause a deadlock:
+		// - after <-indexChan and before Safe()
+		terminateChan: make(chan struct{}, 1),
+		indexChan:     make(chan struct{}),
 	}
 	client.shareIndexer.index()
 	return nil
 }
 
+func (sm *shareIndexer) terminate() {
+	if sm.terminateRequested == true {
+		return
+	}
+	sm.terminateRequested = true
+	sm.terminateChan <- struct{}{}
+}
+
+func (sm *shareIndexer) do() {
+	defer sm.client.wg.Done()
+
+	for {
+		select {
+		case <-sm.terminateChan:
+			return
+		case <-sm.indexChan:
+		}
+
+		sm.index()
+	}
+}
+
 func (sm *shareIndexer) index() {
 	copyRoots := make(map[string]string)
 	sm.client.Safe(func() {
-		// disable flag
-		sm.indexingRequested = false
+		sm.indexRequested = false
 
 		// create a copy of shareRoots
 		for k, v := range sm.client.shareRoots {
@@ -229,42 +252,6 @@ func (sm *shareIndexer) index() {
 	})
 }
 
-func (sm *shareIndexer) terminate() {
-	switch sm.state {
-	case "terminated":
-		return
-
-	case "running":
-		sm.wakeUp <- struct{}{}
-
-	default:
-		panic(fmt.Errorf("Terminate() unsupported in state '%s'", sm.state))
-	}
-	sm.state = "terminated"
-}
-
-func (sm *shareIndexer) do() {
-	defer sm.client.wg.Done()
-
-	for {
-		// wait for wake up
-		<-sm.wakeUp
-
-		exit := false
-		sm.client.Safe(func() {
-			if sm.state == "terminated" {
-				exit = true
-				return
-			}
-		})
-		if exit {
-			break
-		}
-
-		sm.index()
-	}
-}
-
 // ShareAdd adds a given directory (dpath) to the client share, with the given
 // alias, and starts indexing its subdirectories and files.
 // if a directory with the same alias was added previously, it is replaced with
@@ -273,9 +260,9 @@ func (c *Client) ShareAdd(alias string, dpath string) {
 	c.shareRoots[alias] = dpath
 
 	// always schedule indexing
-	if c.shareIndexer.indexingRequested == false {
-		c.shareIndexer.indexingRequested = true
-		c.shareIndexer.wakeUp <- struct{}{}
+	if c.shareIndexer.indexRequested == false {
+		c.shareIndexer.indexRequested = true
+		c.shareIndexer.indexChan <- struct{}{}
 	}
 }
 
@@ -289,8 +276,8 @@ func (c *Client) ShareDel(alias string) {
 	delete(c.shareRoots, alias)
 
 	// always schedule indexing
-	if c.shareIndexer.indexingRequested == false {
-		c.shareIndexer.indexingRequested = true
-		c.shareIndexer.wakeUp <- struct{}{}
+	if c.shareIndexer.indexRequested == false {
+		c.shareIndexer.indexRequested = true
+		c.shareIndexer.indexChan <- struct{}{}
 	}
 }
