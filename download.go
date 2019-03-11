@@ -168,7 +168,7 @@ func (d *Download) Content() []byte {
 	return d.content
 }
 
-func (d *Download) terminate() {
+func (d *Download) close() {
 	if d.terminateRequested == true {
 		return
 	}
@@ -177,7 +177,7 @@ func (d *Download) terminate() {
 	if d.state != "processing" {
 		d.terminateChan <- struct{}{}
 	} else {
-		d.pconn.terminate()
+		d.pconn.close()
 	}
 }
 

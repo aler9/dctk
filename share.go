@@ -46,7 +46,7 @@ func newshareIndexer(client *Client) error {
 	return nil
 }
 
-func (sm *shareIndexer) terminate() {
+func (sm *shareIndexer) close() {
 	if sm.terminateRequested == true {
 		return
 	}

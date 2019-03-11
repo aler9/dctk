@@ -29,7 +29,7 @@ func main() {
 			time.Sleep(1 * time.Second)
 			client.Safe(func() {
 				ok = true
-				client.Terminate()
+				client.Close()
 			})
 		}()
 	}

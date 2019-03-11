@@ -45,7 +45,7 @@ func main() {
 
 		} else {
 			ok = true
-			client.Terminate()
+			client.Close()
 		}
 	}
 

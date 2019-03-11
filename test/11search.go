@@ -109,7 +109,7 @@ func client2() {
 				panic("wrong result (3)")
 			}
 			ok = true
-			client.Terminate()
+			client.Close()
 		}
 	}
 

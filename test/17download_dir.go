@@ -120,7 +120,7 @@ func client2() {
 			fmt.Printf("COUNT: %d\n", count)
 
 			if client.DownloadCount() == 0 {
-				client.Terminate()
+				client.Close()
 			}
 		}
 	}

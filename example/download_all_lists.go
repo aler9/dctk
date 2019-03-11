@@ -32,7 +32,7 @@ func main() {
 	// a file list has been downloaded. When there are none remaining, close connection
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
 		if client.DownloadCount() == 0 {
-			client.Terminate()
+			client.Close()
 		}
 	}
 

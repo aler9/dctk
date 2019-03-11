@@ -32,7 +32,7 @@ func main() {
 
 	// download has finished: close
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
-		client.Terminate()
+		client.Close()
 	}
 
 	client.Run()

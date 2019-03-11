@@ -29,7 +29,7 @@ type zlibSwitchableConnIntf interface {
 }
 
 type protocol interface {
-	Terminate()
+	Close()
 	SetSyncMode(val bool)
 	SetReadBinary(val bool)
 	Read() (msgDecodable, error)
@@ -291,7 +291,7 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	return p
 }
 
-func (p *protocolBase) Terminate() {
+func (p *protocolBase) Close() {
 	if p.terminated == true {
 		return
 	}
@@ -328,7 +328,7 @@ func (p *protocolBase) SetReadBinary(val bool) {
 }
 
 func (p *protocolBase) ReadMessage() (string, error) {
-	// Terminate() was called in a previous run
+	// Close() was called in a previous run
 	if p.terminated == true {
 		return "", errorTerminated
 	}
@@ -344,7 +344,7 @@ func (p *protocolBase) ReadMessage() (string, error) {
 }
 
 func (p *protocolBase) ReadBinary() ([]byte, error) {
-	// Terminate() was called in a previous run
+	// Close() was called in a previous run
 	if p.terminated == true {
 		return nil, errorTerminated
 	}
