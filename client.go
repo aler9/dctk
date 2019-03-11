@@ -247,6 +247,10 @@ func NewClient(conf ClientConf) (*Client, error) {
 	hasher.Write(c.privateId)
 	c.clientId = hasher.Sum(nil)
 
+	if err := newConnHub(c); err != nil {
+		return nil, err
+	}
+
 	if err := newshareIndexer(c); err != nil {
 		return nil, err
 	}
@@ -267,10 +271,6 @@ func NewClient(conf ClientConf) (*Client, error) {
 		if err := newListenerUdp(c); err != nil {
 			return nil, err
 		}
-	}
-
-	if err := newConnHub(c); err != nil {
-		return nil, err
 	}
 
 	return c, nil
