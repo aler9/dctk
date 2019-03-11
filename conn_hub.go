@@ -153,21 +153,21 @@ func (h *connHub) do() {
 
 		readDone := make(chan error)
 		go func() {
-			for {
-				msg, err := h.conn.Read()
-				if err != nil {
-					readDone <- err
-					return
-				}
+			readDone <- func() error {
+				for {
+					msg, err := h.conn.Read()
+					if err != nil {
+						return err
+					}
 
-				h.client.Safe(func() {
-					err = h.handleMessage(msg)
-				})
-				if err != nil {
-					readDone <- err
-					return
+					h.client.Safe(func() {
+						err = h.handleMessage(msg)
+					})
+					if err != nil {
+						return err
+					}
 				}
-			}
+			}()
 		}()
 
 		select {
@@ -182,24 +182,20 @@ func (h *connHub) do() {
 		}
 	}()
 
-	if err != errorTerminated {
-		dolog(LevelInfo, "ERR: %s", err)
+	h.client.Safe(func() {
+		if h.terminateRequested != true {
+			dolog(LevelInfo, "ERR: %s", err)
 
-		h.client.Safe(func() {
 			if h.client.OnHubError != nil {
 				h.client.OnHubError(err)
 			}
-		})
-	}
+		}
 
-	h.client.Safe(func() {
 		h.state = "terminated"
-	})
 
-	dolog(LevelInfo, "[hub] disconnected")
+		dolog(LevelInfo, "[hub] disconnected")
 
-	// close client too
-	h.client.Safe(func() {
+		// close client too
 		h.client.Terminate()
 	})
 }

@@ -8,41 +8,43 @@ import (
 	"time"
 )
 
+var errorDelegatedUpload = fmt.Errorf("delegated upload")
+
 type nickDirectionPair struct {
 	nick      string
 	direction string
 }
 
 type connPeer struct {
-	client          *Client
-	isEncrypted     bool
-	isActive        bool
-	wakeUp          chan struct{}
-	state           string
-	protoState      string
-	conn            protocol
-	tlsConn         *tls.Conn
-	adcToken        string
-	passiveIp       string
-	passivePort     uint
-	peer            *Peer
-	remoteLock      []byte
-	localDirection  string
-	localBet        uint
-	remoteDirection string
-	remoteBet       uint
-	direction       string
-	transfer        transfer
+	client             *Client
+	isEncrypted        bool
+	isActive           bool
+	terminateRequested bool
+	terminateChan      chan struct{}
+	state              string
+	conn               protocol
+	tlsConn            *tls.Conn
+	adcToken           string
+	passiveIp          string
+	passivePort        uint
+	peer               *Peer
+	remoteLock         []byte
+	localDirection     string
+	localBet           uint
+	remoteDirection    string
+	remoteBet          uint
+	direction          string
+	transfer           transfer
 }
 
 func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 	rawconn net.Conn, ip string, port uint, adcToken string) *connPeer {
 	p := &connPeer{
-		client:      client,
-		isEncrypted: isEncrypted,
-		isActive:    isActive,
-		wakeUp:      make(chan struct{}, 1),
-		adcToken:    adcToken,
+		client:        client,
+		isEncrypted:   isEncrypted,
+		isActive:      isActive,
+		terminateChan: make(chan struct{}, 1),
+		adcToken:      adcToken,
 	}
 	p.client.connPeers[p] = struct{}{}
 
@@ -53,7 +55,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 			}
 			return ""
 		}())
-		p.state = "pre_connected"
+		p.state = "connected"
 		if p.isEncrypted == true {
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
@@ -69,7 +71,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 			}
 			return ""
 		}())
-		p.state = "pre_connecting"
+		p.state = "connecting"
 		p.passiveIp = ip
 		p.passivePort = port
 	}
@@ -80,149 +82,142 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 }
 
 func (p *connPeer) terminate() {
-	switch p.state {
-	case "terminated":
+	if p.terminateRequested == true {
 		return
-
-	case "pre_connecting", "pre_connected":
-
-	case "connecting":
-		p.wakeUp <- struct{}{}
-
-	case "connected":
-		p.conn.Terminate()
-
-	default:
-		panic(fmt.Errorf("terminate() unsupported in state '%s'", p.state))
 	}
-	p.state = "terminated"
+	p.terminateRequested = true
+	p.terminateChan <- struct{}{}
 }
 
 func (p *connPeer) do() {
 	defer p.client.wg.Done()
 
 	err := func() error {
-		var msg msgDecodable
+		// connect to peer
+		connect := false
+		p.client.Safe(func() {
+			if p.state == "connecting" {
+				connect = true
+			}
+		})
+		if connect == true {
+			ce := newConnEstablisher(
+				fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort),
+				10*time.Second, 3)
 
-		for {
-			safeState, err := func() (string, error) {
-				p.client.mutex.Lock()
-				defer p.client.mutex.Unlock()
+			select {
+			case <-p.terminateChan:
+				return errorTerminated
+			case <-ce.Wait:
+			}
 
-				switch p.state {
-				case "terminated":
-					return "", errorTerminated
+			if ce.Error != nil {
+				return ce.Error
+			}
 
-				case "pre_connecting":
-					p.state = "connecting"
+			rawconn := ce.Conn
+			if p.isEncrypted == true {
+				p.tlsConn = tls.Client(rawconn, &tls.Config{InsecureSkipVerify: true})
+				rawconn = p.tlsConn
+			}
 
-				case "connecting", "pre_connected":
-					p.state = "connected"
-					p.protoState = "connected"
+			if p.client.protoIsAdc == true {
+				p.conn = newProtocolAdc("p", rawconn, true, true)
+			} else {
+				p.conn = newProtocolNmdc("p", rawconn, true, true)
+			}
 
-				case "connected":
-					err := p.handleMessage(msg)
+			p.client.Safe(func() {
+				p.state = "connected"
+			})
+
+			dolog(LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
+				func() string {
+					if p.isEncrypted == true {
+						return " (secure)"
+					}
+					return ""
+				}())
+
+			// if transfer is passive, we are the first to talk
+			if p.client.protoIsAdc == true {
+				p.conn.Write(&msgAdcCSupports{
+					msgAdcTypeC{},
+					msgAdcKeySupports{map[string]struct{}{
+						adcFeatureBas0:         {},
+						adcFeatureBase:         {},
+						adcFeatureTiger:        {},
+						adcFeatureFileListBzip: {},
+						adcFeatureZlibGet:      {},
+					}},
+				})
+
+			} else {
+				p.conn.Write(&msgNmdcMyNick{Nick: p.client.conf.Nick})
+				p.conn.Write(&msgNmdcLock{
+					Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
+					Pk:   p.client.conf.PkValue,
+					Ref:  fmt.Sprintf("%s:%d", p.client.hubSolvedIp, p.client.hubPort),
+				})
+			}
+		}
+
+		readDone := make(chan error)
+		go func() {
+			readDone <- func() error {
+				for {
+					msg, err := p.conn.Read()
 					if err != nil {
-						return "", err
+						return err
 					}
 
-				case "delegated_upload":
-					u := p.transfer.(*upload)
-					p.transfer = nil
-					p.state = "connected"
-					u.state = "success"
-					u.handleExit(nil)
+					p.client.Safe(func() {
+						if p.state != "delegated_download" {
+							err = p.handleMessage(msg)
+						} else {
+							d := p.transfer.(*Download)
+							err = d.handleDownload(msg)
+							if err == errorTerminated {
+								p.transfer = nil
+								p.state = "wait_download"
+								d.state = "success"
+								d.handleExit(nil)
+								err = nil // do not close connection
+							}
+						}
+					})
 
-				case "delegated_download":
-					d := p.transfer.(*Download)
-					err := d.handleDownload(msg)
-					if err == errorTerminated {
-						p.transfer = nil
-						p.state = "connected"
-						d.state = "success"
-						d.handleExit(nil)
+					if err == errorDelegatedUpload {
+						u := p.transfer.(*upload)
+
+						err := u.handleUpload()
+						if err != nil {
+							return err
+						}
+
+						p.client.Safe(func() {
+							p.transfer = nil
+							p.state = "wait_upload"
+							u.state = "success"
+							u.handleExit(nil)
+						})
 
 					} else if err != nil {
-						return "", err
+						return err
 					}
 				}
-				return p.state, nil
 			}()
+		}()
 
-			switch safeState {
-			case "":
-				return err
+		select {
+		case <-p.terminateChan:
+			p.conn.Terminate()
+			<-readDone
+			return errorTerminated
 
-			case "connecting":
-				ce := newConnEstablisher(
-					fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort),
-					10*time.Second, 3)
-
-				select {
-				case <-p.wakeUp:
-					return errorTerminated
-
-				case <-ce.Wait:
-					if ce.Error != nil {
-						return ce.Error
-					}
-				}
-
-				rawconn := ce.Conn
-				if p.isEncrypted == true {
-					p.tlsConn = tls.Client(rawconn, &tls.Config{InsecureSkipVerify: true})
-					rawconn = p.tlsConn
-				}
-
-				if p.client.protoIsAdc == true {
-					p.conn = newProtocolAdc("p", rawconn, true, true)
-				} else {
-					p.conn = newProtocolNmdc("p", rawconn, true, true)
-				}
-
-				dolog(LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
-					func() string {
-						if p.isEncrypted == true {
-							return " (secure)"
-						}
-						return ""
-					}())
-
-				// if transfer is passive, we are the first to talk
-				if p.client.protoIsAdc == true {
-					p.conn.Write(&msgAdcCSupports{
-						msgAdcTypeC{},
-						msgAdcKeySupports{map[string]struct{}{
-							adcFeatureBas0:         {},
-							adcFeatureBase:         {},
-							adcFeatureTiger:        {},
-							adcFeatureFileListBzip: {},
-							adcFeatureZlibGet:      {},
-						}},
-					})
-
-				} else {
-					p.conn.Write(&msgNmdcMyNick{Nick: p.client.conf.Nick})
-					p.conn.Write(&msgNmdcLock{
-						Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
-						Pk:   p.client.conf.PkValue,
-						Ref:  fmt.Sprintf("%s:%d", p.client.hubSolvedIp, p.client.hubPort),
-					})
-				}
-
-			case "delegated_upload":
-				err := p.transfer.(*upload).handleUpload()
-				if err != nil {
-					return err
-				}
-
-			case "connected", "delegated_download":
-				var err error
-				msg, err = p.conn.Read()
-				if err != nil {
-					return err
-				}
-			}
+		case err := <-readDone:
+			p.conn.Terminate()
+			return err
 		}
 	}()
 
@@ -236,11 +231,9 @@ func (p *connPeer) do() {
 			p.transfer.(*Download).handleExit(err)
 		}
 
-		switch p.state {
-		case "terminated":
-		default:
+		if p.terminateRequested == false {
 			// do not mark peer timeouts as errors
-			if p.state != "connected" || (p.protoState != "wait_upload" && p.protoState != "wait_download") {
+			if p.state != "connected" || (p.state != "wait_upload" && p.state != "wait_download") {
 				dolog(LevelInfo, "ERR (connPeer): %s", err)
 			}
 		}
@@ -267,10 +260,10 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgAdcCSupports:
-		if p.protoState != "connected" {
-			return fmt.Errorf("[Supports] invalid state: %s", p.protoState)
+		if p.state != "connected" {
+			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
-		p.protoState = "supports"
+		p.state = "supports"
 		if p.isActive == true {
 			p.conn.Write(&msgAdcCSupports{
 				msgAdcTypeC{},
@@ -294,10 +287,10 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgAdcCInfos:
-		if p.protoState != "supports" {
-			return fmt.Errorf("[Infos] invalid state: %s", p.protoState)
+		if p.state != "supports" {
+			return fmt.Errorf("[Infos] invalid state: %s", p.state)
 		}
-		p.protoState = "infos"
+		p.state = "infos"
 
 		clientId, ok := msg.Fields[adcFieldClientId]
 		if ok == false {
@@ -350,7 +343,6 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.client.connPeersByKey[key] = p
 
 			p.direction = "download"
-			p.protoState = "wait_download"
 			p.state = "delegated_download"
 			p.transfer = dl
 			dl.pconn = p
@@ -365,30 +357,33 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.client.connPeersByKey[key] = p
 
 			p.direction = "upload"
-			p.protoState = "wait_upload"
+			p.state = "wait_upload"
 		}
 
 	case *msgAdcCGetFile:
-		if p.protoState != "wait_upload" {
-			return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
+		if p.state != "wait_upload" {
+			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
-		newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		ok := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		if ok {
+			return errorDelegatedUpload
+		}
 
 	case *msgNmdcMyNick:
-		if p.protoState != "connected" {
-			return fmt.Errorf("[MyNick] invalid state: %s", p.protoState)
+		if p.state != "connected" {
+			return fmt.Errorf("[MyNick] invalid state: %s", p.state)
 		}
-		p.protoState = "mynick"
+		p.state = "mynick"
 		p.peer = p.client.peerByNick(msg.Nick)
 		if p.peer == nil {
 			return fmt.Errorf("peer not connected to hub (%s)", msg.Nick)
 		}
 
 	case *msgNmdcLock:
-		if p.protoState != "mynick" {
-			return fmt.Errorf("[Lock] invalid state: %s", p.protoState)
+		if p.state != "mynick" {
+			return fmt.Errorf("[Lock] invalid state: %s", p.state)
 		}
-		p.protoState = "lock"
+		p.state = "lock"
 		p.remoteLock = []byte(msg.Lock)
 
 		// if transfer is active, wait remote before sending MyNick and Lock
@@ -433,24 +428,24 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		p.conn.Write(&msgNmdcKey{Key: nmdcComputeKey(p.remoteLock)})
 
 	case *msgNmdcSupports:
-		if p.protoState != "lock" {
-			return fmt.Errorf("[Supports] invalid state: %s", p.protoState)
+		if p.state != "lock" {
+			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
-		p.protoState = "supports"
+		p.state = "supports"
 
 	case *msgNmdcDirection:
-		if p.protoState != "supports" {
-			return fmt.Errorf("[Direction] invalid state: %s", p.protoState)
+		if p.state != "supports" {
+			return fmt.Errorf("[Direction] invalid state: %s", p.state)
 		}
-		p.protoState = "direction"
+		p.state = "direction"
 		p.remoteDirection = strings.ToLower(msg.Direction)
 		p.remoteBet = msg.Bet
 
 	case *msgNmdcKey:
-		if p.protoState != "direction" {
-			return fmt.Errorf("[Key] invalid state: %s", p.protoState)
+		if p.state != "direction" {
+			return fmt.Errorf("[Key] invalid state: %s", p.state)
 		}
-		p.protoState = "key"
+		p.state = "key"
 
 		var direction string
 		if p.localDirection == "upload" && p.remoteDirection == "download" {
@@ -491,28 +486,30 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 
 		// upload
 		if p.direction == "upload" {
-			p.protoState = "wait_upload"
+			p.state = "wait_upload"
 
 			// download
 		} else {
 			dl := p.client.downloadPendingByPeer(p.peer)
-			if dl != nil {
-				p.protoState = "wait_download"
-				p.state = "delegated_download"
-				p.transfer = dl
-				dl.pconn = p
-				dl.state = "waited_peer"
-				dl.peerChan <- struct{}{}
-			} else {
+			if dl == nil {
 				return fmt.Errorf("download connection but cannot find download")
 			}
+
+			p.state = "delegated_download"
+			p.transfer = dl
+			dl.pconn = p
+			dl.state = "waited_peer"
+			dl.peerChan <- struct{}{}
 		}
 
 	case *msgNmdcGetFile:
-		if p.protoState != "wait_upload" {
-			return fmt.Errorf("[AdcGet] invalid state: %s", p.protoState)
+		if p.state != "wait_upload" {
+			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
-		newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		ok := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		if ok {
+			return errorDelegatedUpload
+		}
 
 	default:
 		return fmt.Errorf("unhandled: %T %+v", msgi, msgi)
