@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	// automatically connect to hub. local ports must be opened and accessible (configure your router)
+	// connect to hub in active mode. local ports must be opened and accessible.
 	client, err := dctk.NewClient(dctk.ClientConf{
 		HubUrl:     "nmdc://hubip:411",
 		Nick:       "mynick",
@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	// when hub is connected, start searching
+	// hub is connected, start searching
 	client.OnHubConnected = func() {
 		// search by name
 		client.Search(dctk.SearchConf{
