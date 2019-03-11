@@ -92,27 +92,27 @@ type ClientConf struct {
 
 // Client represents a local client.
 type Client struct {
-	conf           ClientConf
-	state          string
-	mutex          sync.Mutex
-	wg             sync.WaitGroup
-	wakeUp         chan struct{}
-	protoIsAdc     bool
-	hubIsEncrypted bool
-	hubHostname    string
-	hubPort        uint
-	hubSolvedIp    string
-	ip             string
-	shareIndexer   *shareIndexer
-	shareRoots     map[string]string
-	shareTree      map[string]*shareDirectory
-	shareCount     uint
-	shareSize      uint64
-	fileList       []byte
-	listenerTcp    *listenerTcp
-	tcpTlsListener *listenerTcp
-	listenerUdp    *listenerUdp
-	connHub        *connHub
+	conf               ClientConf
+	mutex              sync.Mutex
+	wg                 sync.WaitGroup
+	terminateRequested bool
+	terminateChan      chan struct{}
+	protoIsAdc         bool
+	hubIsEncrypted     bool
+	hubHostname        string
+	hubPort            uint
+	hubSolvedIp        string
+	ip                 string
+	shareIndexer       *shareIndexer
+	shareRoots         map[string]string
+	shareTree          map[string]*shareDirectory
+	shareCount         uint
+	shareSize          uint64
+	fileList           []byte
+	listenerTcp        *listenerTcp
+	tcpTlsListener     *listenerTcp
+	listenerUdp        *listenerUdp
+	connHub            *connHub
 	// we follow the ADC way to handle IDs, even when using NMDC
 	privateId             []byte
 	clientId              []byte
@@ -221,8 +221,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 	c := &Client{
 		conf:                  conf,
-		state:                 "running",
-		wakeUp:                make(chan struct{}, 1),
+		terminateChan:         make(chan struct{}),
 		protoIsAdc:            (u.Scheme == "adc" || u.Scheme == "adcs"),
 		hubIsEncrypted:        (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
 		hubHostname:           u.Hostname(),
@@ -278,14 +277,11 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 // Terminate closes every open connection and stops the client.
 func (c *Client) Terminate() {
-	switch c.state {
-	case "terminated":
-
-	default:
-		dolog(LevelInfo, "[terminating]")
-		c.wakeUp <- struct{}{}
+	if c.terminateRequested == true {
+		return
 	}
-	c.state = "terminated"
+	c.terminateRequested = true
+	c.terminateChan <- struct{}{}
 }
 
 // Run starts the client and waits until the client has been terminated.
@@ -329,7 +325,7 @@ func (c *Client) Run() {
 		}
 	})
 
-	<-c.wakeUp
+	<-c.terminateChan
 
 	c.Safe(func() {
 		c.connHub.terminate()
