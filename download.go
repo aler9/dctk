@@ -194,6 +194,7 @@ func (d *Download) do() {
 				wait = true
 			} else {
 				d.state = "waited_activedl"
+				d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
 			}
 		})
 		if wait == true {
@@ -207,13 +208,12 @@ func (d *Download) do() {
 		// check if there is a download slot available and eventually wait
 		wait = false
 		d.client.Safe(func() {
-			d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
-
 			if d.client.downloadSlotAvail <= 0 {
 				d.state = "waiting_slot"
 				wait = true
 			} else {
 				d.state = "waited_slot"
+				d.client.downloadSlotAvail -= 1
 			}
 		})
 		if wait == true {
@@ -227,7 +227,6 @@ func (d *Download) do() {
 		// check if there is a connection with peer and eventually wait
 		wait = false
 		d.client.Safe(func() {
-			d.client.downloadSlotAvail -= 1
 			if pconn, ok := d.client.connPeersByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
 				dolog(LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
 
@@ -474,6 +473,7 @@ func (d *Download) handleExit(err error) {
 		if od, ok := rot.(*Download); ok {
 			if od.terminateRequested == false && od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
 				od.state = "waited_activedl"
+				od.client.activeDownloadsByPeer[od.conf.Peer.Nick] = d
 				od.activeDlChan <- struct{}{}
 				break
 			}
@@ -486,6 +486,7 @@ func (d *Download) handleExit(err error) {
 		if od, ok := rot.(*Download); ok {
 			if od.terminateRequested == false && od.state == "waiting_slot" {
 				od.state = "waited_slot"
+				od.client.downloadSlotAvail -= 1
 				od.slotChan <- struct{}{}
 				break
 			}
