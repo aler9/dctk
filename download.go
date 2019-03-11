@@ -248,7 +248,7 @@ func (d *Download) do() {
 				pconn.state = "delegated_download"
 				pconn.transfer = d
 				d.pconn = pconn
-				d.state = "waited_peer"
+				d.state = "processing"
 			}
 		})
 		if wait == true {
@@ -263,9 +263,6 @@ func (d *Download) do() {
 		}
 
 		// process download
-		d.client.Safe(func() {
-			d.state = "processing"
-		})
 		dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
 
 		if d.client.protoIsAdc == true {
