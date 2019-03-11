@@ -31,18 +31,22 @@ type DownloadConf struct {
 
 // Download represents an in-progress file download.
 type Download struct {
-	conf          DownloadConf
-	client        *Client
-	state         string
-	wakeUp        chan struct{}
-	pconn         *connPeer
-	query         string
-	adcToken      string
-	writer        io.WriteCloser
-	content       []byte
-	offset        uint64
-	length        uint64
-	lastPrintTime time.Time
+	conf               DownloadConf
+	client             *Client
+	terminateChan      chan struct{}
+	terminateRequested bool
+	state              string
+	activeDlChan       chan struct{}
+	slotChan           chan struct{}
+	peerChan           chan struct{}
+	pconn              *connPeer
+	query              string
+	adcToken           string
+	writer             io.WriteCloser
+	content            []byte
+	offset             uint64
+	length             uint64
+	lastPrintTime      time.Time
 }
 
 func (*Download) isTransfer() {}
@@ -127,10 +131,13 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	}
 
 	d := &Download{
-		conf:   conf,
-		client: c,
-		wakeUp: make(chan struct{}, 1),
-		state:  "uninitialized",
+		conf:          conf,
+		client:        c,
+		terminateChan: make(chan struct{}, 1),
+		state:         "uninitialized",
+		activeDlChan:  make(chan struct{}),
+		slotChan:      make(chan struct{}),
+		peerChan:      make(chan struct{}),
 	}
 	d.client.transfers[d] = struct{}{}
 
@@ -162,128 +169,121 @@ func (d *Download) Content() []byte {
 }
 
 func (d *Download) terminate() {
-	switch d.state {
-	case "terminated":
+	if d.terminateRequested == true {
 		return
-
-	case "waiting_activedl", "waiting_slot", "waiting_peer":
-		d.wakeUp <- struct{}{}
-
-	case "waited_activedl", "waited_slot", "waited_peer":
-
-	case "processing":
-		d.pconn.terminate()
-
-	default:
-		panic(fmt.Errorf("Terminate() unsupported in state '%s'", d.state))
 	}
-	d.state = "terminated"
+	d.terminateRequested = true
+
+	if d.state != "processing" {
+		d.terminateChan <- struct{}{}
+	} else {
+		d.pconn.terminate()
+	}
 }
 
 func (d *Download) do() {
 	defer d.client.wg.Done()
 
 	err := func() error {
-		for {
-			safeState, err := func() (string, error) {
-				d.client.mutex.Lock()
-				defer d.client.mutex.Unlock()
-
-				for {
-					switch d.state {
-					case "terminated":
-						return "", errorTerminated
-
-					case "uninitialized":
-						if _, ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
-							d.state = "waiting_activedl"
-						} else {
-							d.state = "waited_activedl"
-							continue
-						}
-
-					case "waited_activedl":
-						d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
-						if d.client.downloadSlotAvail <= 0 {
-							d.state = "waiting_slot"
-						} else {
-							d.state = "waited_slot"
-							continue
-						}
-
-					case "waited_slot":
-						d.client.downloadSlotAvail -= 1
-						if pconn, ok := d.client.connPeersByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
-							dolog(LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
-
-							// generate new token
-							if d.client.protoIsAdc == true {
-								d.adcToken = adcRandomToken()
-							}
-
-							d.client.peerRequestConnection(d.conf.Peer, d.adcToken)
-							d.state = "waiting_peer"
-
-						} else {
-							dolog(LevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
-							pconn.state = "delegated_download"
-							pconn.transfer = d
-							d.pconn = pconn
-							d.state = "waited_peer"
-							continue
-						}
-
-					case "waited_peer":
-						dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
-						d.state = "processing"
-					}
-					break
-				}
-				return d.state, nil
-			}()
-
-			switch safeState {
-			case "":
-				return err
-
-			case "waiting_activedl", "waiting_slot":
-				<-d.wakeUp
-
-			case "waiting_peer":
-				timeout := time.NewTimer(10 * time.Second)
-				select {
-				case <-timeout.C:
-					return fmt.Errorf("download timed out")
-				case <-d.wakeUp:
-				}
-
-			case "processing":
-				if d.client.protoIsAdc == true {
-					d.pconn.conn.Write(&msgAdcCGetFile{
-						msgAdcTypeC{},
-						msgAdcKeyGetFile{
-							Query:  d.query,
-							Start:  d.conf.Start,
-							Length: d.conf.Length,
-							Compressed: (d.client.conf.PeerDisableCompression == false &&
-								(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
-						},
-					})
-
-				} else {
-					d.pconn.conn.Write(&msgNmdcGetFile{
-						Query:  d.query,
-						Start:  d.conf.Start,
-						Length: d.conf.Length,
-						Compressed: (d.client.conf.PeerDisableCompression == false &&
-							(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
-					})
-				}
-
-				// exit this routine and do the work in the peer routine
-				return nil
+		// check if there are other downloads active on peer and eventually wait
+		wait := false
+		d.client.Safe(func() {
+			if _, ok := d.client.activeDownloadsByPeer[d.conf.Peer.Nick]; ok {
+				d.state = "waiting_activedl"
+				wait = true
+			} else {
+				d.state = "waited_activedl"
+			}
+		})
+		if wait == true {
+			select {
+			case <-d.terminateChan:
+				return errorTerminated
+			case <-d.activeDlChan:
 			}
 		}
+
+		// check if there is a download slot available and eventually wait
+		wait = false
+		d.client.Safe(func() {
+			d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
+
+			if d.client.downloadSlotAvail <= 0 {
+				d.state = "waiting_slot"
+				wait = true
+			} else {
+				d.state = "waited_slot"
+			}
+		})
+		if wait == true {
+			select {
+			case <-d.terminateChan:
+				return errorTerminated
+			case <-d.slotChan:
+			}
+		}
+
+		// check if there is a connection with peer and eventually wait
+		wait = false
+		d.client.Safe(func() {
+			d.client.downloadSlotAvail -= 1
+			if pconn, ok := d.client.connPeersByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
+				dolog(LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
+
+				// generate new token
+				if d.client.protoIsAdc == true {
+					d.adcToken = adcRandomToken()
+				}
+
+				d.client.peerRequestConnection(d.conf.Peer, d.adcToken)
+				d.state = "waiting_peer"
+				wait = true
+
+			} else {
+				dolog(LevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
+				pconn.state = "delegated_download"
+				pconn.transfer = d
+				d.pconn = pconn
+				d.state = "waited_peer"
+			}
+		})
+		if wait == true {
+			select {
+			case <-d.terminateChan:
+				return errorTerminated
+			case <-d.peerChan:
+			}
+		}
+
+		d.client.Safe(func() {
+			d.state = "processing"
+		})
+		dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
+
+		if d.client.protoIsAdc == true {
+			d.pconn.conn.Write(&msgAdcCGetFile{
+				msgAdcTypeC{},
+				msgAdcKeyGetFile{
+					Query:  d.query,
+					Start:  d.conf.Start,
+					Length: d.conf.Length,
+					Compressed: (d.client.conf.PeerDisableCompression == false &&
+						(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
+				},
+			})
+
+		} else {
+			d.pconn.conn.Write(&msgNmdcGetFile{
+				Query:  d.query,
+				Start:  d.conf.Start,
+				Length: d.conf.Length,
+				Compressed: (d.client.conf.PeerDisableCompression == false &&
+					(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
+			})
+		}
+
+		// exit this routine and do the work in the peer routine
+		return nil
 	}()
 
 	if err != nil {
@@ -461,10 +461,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 }
 
 func (d *Download) handleExit(err error) {
-	switch d.state {
-	case "terminated":
-	case "success":
-	default:
+	if d.terminateRequested != true && d.state != "success" {
 		dolog(LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
 	}
 
@@ -476,7 +473,7 @@ func (d *Download) handleExit(err error) {
 		if od, ok := rot.(*Download); ok {
 			if od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
 				od.state = "waited_activedl"
-				od.wakeUp <- struct{}{}
+				od.activeDlChan <- struct{}{}
 				break
 			}
 		}
@@ -488,7 +485,7 @@ func (d *Download) handleExit(err error) {
 		if od, ok := rot.(*Download); ok {
 			if od.state == "waiting_slot" {
 				od.state = "waited_slot"
-				od.wakeUp <- struct{}{}
+				od.slotChan <- struct{}{}
 				break
 			}
 		}

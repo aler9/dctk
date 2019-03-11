@@ -13,16 +13,17 @@ import (
 var errorNoSlots = fmt.Errorf("no slots available")
 
 type upload struct {
-	client        *Client
-	state         string
-	pconn         *connPeer
-	reader        io.ReadCloser
-	compressed    bool
-	query         string
-	start         uint64
-	length        uint64
-	offset        uint64
-	lastPrintTime time.Time
+	client             *Client
+	terminateRequested bool
+	state              string
+	pconn              *connPeer
+	reader             io.ReadCloser
+	compressed         bool
+	query              string
+	start              uint64
+	length             uint64
+	offset             uint64
+	lastPrintTime      time.Time
 }
 
 func (*upload) isTransfer() {}
@@ -191,17 +192,11 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 }
 
 func (u *upload) terminate() {
-	switch u.state {
-	case "terminated":
+	if u.terminateRequested == true {
 		return
-
-	case "processing":
-		u.pconn.terminate()
-
-	default:
-		panic(fmt.Errorf("terminate() unsupported in state '%s'", u.state))
 	}
-	u.state = "terminated"
+	u.terminateRequested = true
+	u.pconn.terminate()
 }
 
 func (u *upload) handleUpload() error {
@@ -247,10 +242,7 @@ func (u *upload) handleUpload() error {
 }
 
 func (u *upload) handleExit(err error) {
-	switch u.state {
-	case "terminated":
-	case "success":
-	default:
+	if u.terminateRequested != true && u.state != "success" {
 		dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
 	}
 
