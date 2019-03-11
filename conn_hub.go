@@ -95,12 +95,14 @@ func (h *connHub) do() {
 	defer h.client.wg.Done()
 
 	err := func() error {
+		// resolve hub ip
 		ips, err := net.LookupIP(h.client.hubHostname)
 		if err != nil {
 			return err
 		}
 		h.client.hubSolvedIp = ips[0].String()
 
+		// connect to hub
 		ce := newConnEstablisher(
 			fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort),
 			10*time.Second, h.client.conf.HubConnTries)
@@ -115,6 +117,7 @@ func (h *connHub) do() {
 			return ce.Error
 		}
 
+		// hub connected
 		rawconn := ce.Conn
 		if h.client.hubIsEncrypted == true {
 			rawconn = tls.Client(rawconn, &tls.Config{InsecureSkipVerify: true})
