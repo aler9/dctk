@@ -26,6 +26,7 @@ var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
 type transfer interface {
 	isTransfer()
 	Close()
+	handleExit(error)
 }
 
 // EncryptionMode contains the options regarding encryption.

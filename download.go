@@ -256,6 +256,7 @@ func (d *Download) do() {
 			}
 		}
 
+		// process download
 		d.client.Safe(func() {
 			d.state = "processing"
 		})
@@ -272,7 +273,6 @@ func (d *Download) do() {
 						(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
 				},
 			})
-
 		} else {
 			d.pconn.conn.Write(&msgNmdcGetFile{
 				Query:  d.query,

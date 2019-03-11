@@ -172,8 +172,11 @@ func (p *connPeer) do() {
 					}
 
 					p.client.Safe(func() {
+						// pre-transfer
 						if p.state != "delegated_download" {
 							err = p.handleMessage(msg)
+
+							// download
 						} else {
 							d := p.transfer.(*Download)
 							err = d.handleDownload(msg)
@@ -186,6 +189,7 @@ func (p *connPeer) do() {
 						}
 					})
 
+					// upload
 					if err == errorDelegatedUpload {
 						u := p.transfer.(*upload)
 
@@ -222,11 +226,8 @@ func (p *connPeer) do() {
 	p.client.Safe(func() {
 		// transfer abruptly interrupted
 		switch p.state {
-		case "delegated_upload":
-			p.transfer.(*upload).handleExit(err)
-
-		case "delegated_download":
-			p.transfer.(*Download).handleExit(err)
+		case "delegated_upload", "delegated_download":
+			p.transfer.handleExit(err)
 		}
 
 		if p.terminateRequested == false {
