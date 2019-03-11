@@ -355,7 +355,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.transfer = dl
 			dl.pconn = p
 			dl.state = "waited_peer"
-			dl.wakeUp <- struct{}{}
+			dl.peerChan <- struct{}{}
 
 		} else {
 			key := nickDirectionPair{p.peer.Nick, "upload"}
@@ -502,7 +502,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 				p.transfer = dl
 				dl.pconn = p
 				dl.state = "waited_peer"
-				dl.wakeUp <- struct{}{}
+				dl.peerChan <- struct{}{}
 			} else {
 				return fmt.Errorf("download connection but cannot find download")
 			}

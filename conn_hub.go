@@ -19,7 +19,7 @@ type hubKeepAliver struct {
 
 func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	ka := &hubKeepAliver{
-		terminateChan: make(chan struct{}),
+		terminateChan: make(chan struct{}, 1),
 		done:          make(chan struct{}),
 	}
 
@@ -64,11 +64,7 @@ type connHub struct {
 
 func newConnHub(client *Client) error {
 	client.connHub = &connHub{
-		client: client,
-		// must be buffered since it could otherwise cause a deadlock:
-		// - before HubConnect()
-		// - after Read() and before Safe()
-		// - after <-readDone
+		client:        client,
 		terminateChan: make(chan struct{}, 1),
 		state:         "disconnected",
 		uniqueCmds:    make(map[string]struct{}),
