@@ -13,13 +13,13 @@ const (
 )
 
 type hubKeepAliver struct {
-	terminateChan chan struct{}
+	terminate chan struct{}
 	done          chan struct{}
 }
 
 func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	ka := &hubKeepAliver{
-		terminateChan: make(chan struct{}, 1),
+		terminate: make(chan struct{}, 1),
 		done:          make(chan struct{}),
 	}
 
@@ -39,7 +39,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 						h.conn.Write(&msgNmdcKeepAlive{})
 					}
 				})
-			case <-ka.terminateChan:
+			case <-ka.terminate:
 				return
 			}
 		}
@@ -48,14 +48,14 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 }
 
 func (ka *hubKeepAliver) Close() {
-	ka.terminateChan <- struct{}{}
+	ka.terminate <- struct{}{}
 	<-ka.done
 }
 
 type connHub struct {
 	client             *Client
 	terminateRequested bool
-	terminateChan      chan struct{}
+	terminate      chan struct{}
 	state              string
 	conn               protocol
 	passwordSent       bool
@@ -65,7 +65,7 @@ type connHub struct {
 func newConnHub(client *Client) error {
 	client.connHub = &connHub{
 		client:        client,
-		terminateChan: make(chan struct{}, 1),
+		terminate: make(chan struct{}, 1),
 		state:         "disconnected",
 		uniqueCmds:    make(map[string]struct{}),
 	}
@@ -88,7 +88,7 @@ func (h *connHub) close() {
 		return
 	}
 	h.terminateRequested = true
-	h.terminateChan <- struct{}{}
+	h.terminate <- struct{}{}
 }
 
 func (h *connHub) do() {
@@ -106,7 +106,7 @@ func (h *connHub) do() {
 			10*time.Second, h.client.conf.HubConnTries)
 
 		select {
-		case <-h.terminateChan:
+		case <-h.terminate:
 			return errorTerminated
 		case <-ce.Wait:
 		}
@@ -171,7 +171,7 @@ func (h *connHub) do() {
 		}()
 
 		select {
-		case <-h.terminateChan:
+		case <-h.terminate:
 			h.conn.Close()
 			<-readDone
 			return errorTerminated

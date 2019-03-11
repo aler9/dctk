@@ -34,7 +34,7 @@ type Download struct {
 	conf               DownloadConf
 	client             *Client
 	terminateRequested bool
-	terminateChan      chan struct{}
+	terminate      chan struct{}
 	state              string
 	activeDlChan       chan struct{}
 	slotChan           chan struct{}
@@ -133,7 +133,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	d := &Download{
 		conf:          conf,
 		client:        c,
-		terminateChan: make(chan struct{}, 1),
+		terminate: make(chan struct{}, 1),
 		state:         "uninitialized",
 		activeDlChan:  make(chan struct{}),
 		slotChan:      make(chan struct{}),
@@ -175,7 +175,7 @@ func (d *Download) close() {
 	d.terminateRequested = true
 
 	if d.state != "processing" {
-		d.terminateChan <- struct{}{}
+		d.terminate <- struct{}{}
 	} else {
 		d.pconn.close()
 	}
@@ -197,7 +197,7 @@ func (d *Download) do() {
 		})
 		if wait == true {
 			select {
-			case <-d.terminateChan:
+			case <-d.terminate:
 				return errorTerminated
 			case <-d.activeDlChan:
 			}
@@ -217,7 +217,7 @@ func (d *Download) do() {
 		})
 		if wait == true {
 			select {
-			case <-d.terminateChan:
+			case <-d.terminate:
 				return errorTerminated
 			case <-d.slotChan:
 			}
@@ -249,7 +249,7 @@ func (d *Download) do() {
 		})
 		if wait == true {
 			select {
-			case <-d.terminateChan:
+			case <-d.terminate:
 				return errorTerminated
 			case <-d.peerChan:
 			}

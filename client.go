@@ -96,7 +96,7 @@ type Client struct {
 	mutex              sync.Mutex
 	wg                 sync.WaitGroup
 	terminateRequested bool
-	terminateChan      chan struct{}
+	terminate      chan struct{}
 	protoIsAdc         bool
 	hubIsEncrypted     bool
 	hubHostname        string
@@ -221,7 +221,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 	c := &Client{
 		conf:                  conf,
-		terminateChan:         make(chan struct{}),
+		terminate:         make(chan struct{}),
 		protoIsAdc:            (u.Scheme == "adc" || u.Scheme == "adcs"),
 		hubIsEncrypted:        (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
 		hubHostname:           u.Hostname(),
@@ -281,7 +281,7 @@ func (c *Client) Close() {
 		return
 	}
 	c.terminateRequested = true
-	c.terminateChan <- struct{}{}
+	c.terminate <- struct{}{}
 }
 
 // Run starts the client and waits until the client has been terminated.
@@ -325,7 +325,7 @@ func (c *Client) Run() {
 		}
 	})
 
-	<-c.terminateChan
+	<-c.terminate
 
 	c.Safe(func() {
 		c.connHub.close()
