@@ -14,13 +14,13 @@ const (
 
 type hubKeepAliver struct {
 	terminate chan struct{}
-	done          chan struct{}
+	done      chan struct{}
 }
 
 func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	ka := &hubKeepAliver{
 		terminate: make(chan struct{}, 1),
-		done:          make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 
 	go func() {
@@ -55,7 +55,7 @@ func (ka *hubKeepAliver) Close() {
 type connHub struct {
 	client             *Client
 	terminateRequested bool
-	terminate      chan struct{}
+	terminate          chan struct{}
 	state              string
 	conn               protocol
 	passwordSent       bool
@@ -64,10 +64,10 @@ type connHub struct {
 
 func newConnHub(client *Client) error {
 	client.connHub = &connHub{
-		client:        client,
-		terminate: make(chan struct{}, 1),
-		state:         "disconnected",
-		uniqueCmds:    make(map[string]struct{}),
+		client:     client,
+		terminate:  make(chan struct{}, 1),
+		state:      "disconnected",
+		uniqueCmds: make(map[string]struct{}),
 	}
 	return nil
 }
