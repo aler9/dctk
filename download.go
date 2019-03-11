@@ -75,7 +75,7 @@ func (c *Client) downloadByAdcToken(adcToken string) *Download {
 
 func (c *Client) downloadPendingByPeer(peer *Peer) *Download {
 	dl, ok := c.activeDownloadsByPeer[peer.Nick]
-	if ok && dl.state == "waiting_peer" {
+	if ok && dl.terminateRequested == false && dl.state == "waiting_peer" {
 		return dl
 	}
 	return nil
@@ -471,7 +471,7 @@ func (d *Download) handleExit(err error) {
 	delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
 	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
-			if od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
+			if od.terminateRequested == false && od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
 				od.state = "waited_activedl"
 				od.activeDlChan <- struct{}{}
 				break
@@ -483,7 +483,7 @@ func (d *Download) handleExit(err error) {
 	d.client.downloadSlotAvail += 1
 	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
-			if od.state == "waiting_slot" {
+			if od.terminateRequested == false && od.state == "waiting_slot" {
 				od.state = "waited_slot"
 				od.slotChan <- struct{}{}
 				break
