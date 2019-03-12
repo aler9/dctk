@@ -43,20 +43,20 @@ go get github.com/gswly/dctoolkit
 
 #### Examples
 
-* [connection_active](example/connection_active.go)
-* [connection_passive](example/connection_passive.go)
-* [chat_public](example/chat_public.go)
-* [chat_private](example/chat_private.go)
-* [search](example/search.go)
-* [share](example/share.go)
-* [magnet](example/magnet.go)
-* [download_list](example/download_list.go)
-* [download_all_lists](example/download_all_lists.go)
-* [download_file](example/download_file.go)
-* [download_file_on_disk](example/download_file_on_disk.go)
-* [download_file_from_search](example/download_file_from_search.go)
-* [download_file_from_list](example/download_file_from_list.go)
-* [download_directory_from_list](example/download_directory_from_list.go)
+* [connection_active](example/1connection_active.go)
+* [connection_passive](example/2connection_passive.go)
+* [chat_public](example/3chat_public.go)
+* [chat_private](example/4chat_private.go)
+* [search](example/5search.go)
+* [share](example/6share.go)
+* [magnet](example/7magnet.go)
+* [download_list](example/8download_list.go)
+* [download_all_lists](example/9download_all_lists.go)
+* [download_file](example/10download_file.go)
+* [download_file_on_disk](example/11download_file_on_disk.go)
+* [download_file_from_search](example/12download_file_from_search.go)
+* [download_file_from_list](example/13download_file_from_list.go)
+* [download_directory_from_list](example/14download_directory_from_list.go)
 
 #### Documentation
 
