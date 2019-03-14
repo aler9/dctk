@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"encoding/base32"
 	"fmt"
+	"github.com/direct-connect/go-dc/tiger"
 	"io"
 	"net/url"
 	"os"
-	"github.com/direct-connect/go-dc/tiger"
 )
 
 type tthLevel struct {
