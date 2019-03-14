@@ -38,7 +38,7 @@ func main() {
 		panic(fmt.Errorf("wrong hash (7): %s", hash))
 	}
 
-	hash = dctk.TTHFromLeaves(dctk.TTHLeavesFromBytes([]byte(strings.Repeat("A", 10000))))
+	hash = dctk.TTHLeavesFromBytes([]byte(strings.Repeat("A", 10000))).TreeHash()
 	if hash != tiger.MustParseBase32("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") {
 		panic(fmt.Errorf("wrong hash (8): %s", hash))
 	}
