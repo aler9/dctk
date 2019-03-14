@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/direct-connect/go-dc/tiger"
 	dctk "github.com/gswly/dctoolkit"
 	"os"
 )
@@ -43,7 +44,7 @@ func client2() {
 		if p.Nick == "client1" {
 			client.DownloadFile(dctk.DownloadConf{
 				Peer: p,
-				TTH:  dctk.TTHMust("UAUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+				TTH:  tiger.MustParseBase32("UAUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 			})
 		}
 	}
