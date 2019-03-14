@@ -147,7 +147,7 @@ func (sm *shareIndexer) index() {
 							return nil, err
 						}
 
-						tth = TTHFromLeaves(tthl)
+						tth = tthl.TreeHash()
 					}
 
 					dir.files[file.Name()] = &shareFile{

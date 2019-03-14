@@ -55,32 +55,6 @@ func TTHFromFile(fpath string) (tiger.Hash, error) {
 	return tiger.TreeHash(buf)
 }
 
-// TODO: move into go-dc
-func TTHFromLeaves(in tiger.Leaves) tiger.Hash {
-	// deep copy leaves since the slice is modified in order to compute the hash
-	lvl := append(in[:0:0], in...)
-	buf := make([]byte, 2*tiger.Size+1)
-
-	for len(lvl) > 1 {
-		for i := 0; i < len(lvl); i += 2 {
-			if i+1 >= len(lvl) {
-				lvl[i/2] = lvl[i]
-			} else {
-				buf[0] = 0x01
-				copy(buf[1:], lvl[i][:])
-				copy(buf[1+tiger.Size:], lvl[i+1][:])
-				lvl[i/2] = tiger.HashBytes(buf)
-			}
-		}
-		n := len(lvl) / 2
-		if len(lvl)%2 != 0 {
-			n++
-		}
-		lvl = lvl[:n]
-	}
-	return lvl[0]
-}
-
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
 // and can be opened by most of the available DC clients, starting the download.
 func MagnetLink(name string, size uint64, tth tiger.Hash) string {
