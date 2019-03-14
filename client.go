@@ -14,7 +14,6 @@ Basic example (more are available at https://github.com/gswly/dctoolkit/tree/mas
   )
 
   func main() {
-  	// connect to hub in active mode. ports must be opened and accessible.
   	client, err := dctk.NewClient(dctk.ClientConf{
   		HubUrl:     "nmdc://hubip:411",
   		Nick:       "mynick",
@@ -26,7 +25,6 @@ Basic example (more are available at https://github.com/gswly/dctoolkit/tree/mas
   		panic(err)
   	}
 
-  	// we are connected to the hub
   	client.OnHubConnected = func() {
   		fmt.Println("connected to hub")
   	}
