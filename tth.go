@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"github.com/direct-connect/go-dc/tiger"
 )
 
 type tthLevel struct {
@@ -70,7 +71,7 @@ func TTHLeavesFromReader(in io.Reader) (TTHLeaves, error) {
 
 // TTH is a Tiger Tree Hash, the univoque id associated to a specific file.
 // It is a 24-byte sequence, encoded in base32, resulting in a 39-digits string.
-type TTH [24]byte
+type TTH tiger.Hash
 
 // TTHDecode decodes a Tiger Tree Hash (TTH) in string format.
 func TTHDecode(in string) (TTH, error) {
