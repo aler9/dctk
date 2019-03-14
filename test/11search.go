@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/direct-connect/go-dc/tiger"
 	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
@@ -72,7 +73,7 @@ func client2() {
 	client.OnSearchResult = func(res *dctk.SearchResult) {
 		switch step {
 		case 0:
-			var zeroTTH dctk.TTH
+			var zeroTTH tiger.Hash
 			if res.IsDir != true ||
 				res.Path != "/aliasname/inner folder" ||
 				res.TTH != zeroTTH ||
@@ -89,7 +90,7 @@ func client2() {
 		case 1:
 			if res.IsDir != false ||
 				res.Path != "/aliasname/inner folder/test file.txt" ||
-				res.TTH != dctk.TTHMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+				res.TTH != tiger.MustParseBase32("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				res.IsActive != true {
 				panic("wrong result (2)")
@@ -97,13 +98,13 @@ func client2() {
 			step++
 			client.Search(dctk.SearchConf{
 				Type: dctk.SearchTTH,
-				TTH:  dctk.TTHMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+				TTH:  tiger.MustParseBase32("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 			})
 
 		case 2:
 			if res.IsDir != false ||
 				res.Path != "/aliasname/inner folder/test file.txt" ||
-				res.TTH != dctk.TTHMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+				res.TTH != tiger.MustParseBase32("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				res.IsActive != true {
 				panic("wrong result (3)")

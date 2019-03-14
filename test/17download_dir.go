@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/direct-connect/go-dc/tiger"
 	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
@@ -63,20 +64,20 @@ func client2() {
 		}
 	}
 
-	paths := map[dctk.TTH]string{
-		dctk.TTHMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/share/folder/first file.txt",
-		dctk.TTHMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/share/folder/second file.txt",
-		dctk.TTHMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/share/folder/third file.txt",
-		dctk.TTHMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/share/folder/subdir/fourth file.txt",
-		dctk.TTHMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/share/folder/subdir/fifth file.txt",
+	paths := map[tiger.Hash]string{
+		tiger.MustParseBase32("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/share/folder/first file.txt",
+		tiger.MustParseBase32("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/share/folder/second file.txt",
+		tiger.MustParseBase32("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/share/folder/third file.txt",
+		tiger.MustParseBase32("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/share/folder/subdir/fourth file.txt",
+		tiger.MustParseBase32("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/share/folder/subdir/fifth file.txt",
 	}
 
-	downloaded := map[dctk.TTH]bool{
-		dctk.TTHMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): false,
-		dctk.TTHMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): false,
-		dctk.TTHMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): false,
-		dctk.TTHMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): false,
-		dctk.TTHMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): false,
+	downloaded := map[tiger.Hash]bool{
+		tiger.MustParseBase32("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): false,
+		tiger.MustParseBase32("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): false,
+		tiger.MustParseBase32("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): false,
+		tiger.MustParseBase32("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): false,
+		tiger.MustParseBase32("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): false,
 	}
 
 	count := 0

@@ -3,8 +3,6 @@ package dctoolkit
 import (
 	"encoding/base32"
 	"fmt"
-	"github.com/cxmcc/tiger"
-	"hash"
 	"io"
 	"math/rand"
 	"net"
@@ -54,11 +52,6 @@ func dcReadableQuery(request string) string {
 		return "tth/" + strings.TrimPrefix(request, "file TTH/")
 	}
 	return "filelist"
-}
-
-// tiger hash used throughout the library
-func newTiger() hash.Hash {
-	return tiger.New()
 }
 
 func randomInt(min, max int) int {

@@ -3,6 +3,7 @@ package dctoolkit
 import (
 	"bytes"
 	"fmt"
+	"github.com/direct-connect/go-dc/tiger"
 	"io"
 	"io/ioutil"
 	"os"
@@ -62,7 +63,8 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		}
 
 		// upload is file by TTH or its tthl
-		tth, err := TTHDecode(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
+		tth := new(tiger.Hash)
+		err := tth.FromBase32(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
 		if err != nil {
 			return err
 		}
@@ -71,7 +73,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			var scanDir func(dir *shareDirectory) bool
 			scanDir = func(dir *shareDirectory) bool {
 				for _, file := range dir.files {
-					if file.tth == tth {
+					if file.tth == *tth {
 						ret = file
 						return true
 					}
@@ -99,8 +101,12 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			if u.start != 0 || reqLength != -1 {
 				return fmt.Errorf("tthl seeking is not supported")
 			}
-			u.reader = ioutil.NopCloser(bytes.NewReader(sfile.tthl))
-			u.length = uint64(len(sfile.tthl))
+			buf := bytes.NewBuffer(nil)
+			for _, leaf := range sfile.tthl {
+				buf.Write(leaf[:])
+			}
+			u.reader = ioutil.NopCloser(buf)
+			u.length = uint64(buf.Len())
 			return nil
 		}
 

@@ -2,6 +2,7 @@ package dctoolkit
 
 import (
 	"bytes"
+	"github.com/direct-connect/go-dc/tiger"
 	"github.com/dsnet/compress/bzip2"
 	"io"
 	"io/ioutil"
@@ -13,8 +14,8 @@ import (
 type shareFile struct {
 	size      uint64
 	modTime   time.Time
-	tth       TTH
-	tthl      TTHLeaves
+	tth       tiger.Hash
+	tthl      tiger.Leaves
 	realPath  string
 	aliasPath string
 }
@@ -111,8 +112,8 @@ func (sm *shareIndexer) index() {
 					dir.dirs[file.Name()] = subdir
 
 				} else {
-					var tthl TTHLeaves
-					var tth TTH
+					var tthl tiger.Leaves
+					var tth tiger.Hash
 
 					aliasPath := filepath.Join(apath, file.Name())
 					origPath := filepath.Join(dpath, file.Name())
