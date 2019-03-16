@@ -56,7 +56,7 @@ func client2() {
 		if p.Nick == "client1" {
 			client.DownloadFile(dctk.DownloadConf{
 				Peer:     p,
-				TTH:      tiger.MustParseBase32("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+				TTH:      dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 				SavePath: "/tmp/outfile",
 			})
 		}

@@ -2,7 +2,6 @@ package dctoolkit
 
 import (
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
 	"net"
 	"regexp"
 	"strings"
@@ -684,8 +683,8 @@ func (m *msgNmdcSearchRequest) NmdcEncode() string {
 type msgNmdcSearchResult struct {
 	Path       string
 	IsDir      bool
-	Size       uint64     // file only, also directory in ADC
-	TTH        tiger.Hash // file only
+	Size       uint64    // file only, also directory in ADC
+	TTH        TigerHash // file only
 	Nick       string
 	SlotAvail  uint
 	SlotCount  uint
@@ -700,9 +699,10 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 		return errorArgsFormat
 	}
 
-	var tth tiger.Hash
+	var tth TigerHash
 	if matches[3] != "" {
-		err := tth.FromBase32(matches[7])
+		var err error
+		tth, err = TigerHashFromBase32(matches[7])
 		if err != nil {
 			return err
 		}

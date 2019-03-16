@@ -2,7 +2,6 @@ package dctoolkit
 
 import (
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
 	"strings"
 )
 
@@ -31,7 +30,7 @@ type SearchResult struct {
 	// size (file only in NMDC, both files and directories in ADC)
 	Size uint64
 	// TTH (file only)
-	TTH tiger.Hash
+	TTH TigerHash
 	// the available upload slots of the peer
 	SlotAvail uint
 }
@@ -48,7 +47,7 @@ type SearchConf struct {
 	// (if type is SearchAny or SearchDirectory)
 	Query string
 	// file TTH (if type is SearchTTH)
-	TTH tiger.Hash
+	TTH TigerHash
 }
 
 type searchRequest struct {
@@ -111,15 +110,14 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 
 		// search file by TTH
 	} else {
-		tth := new(tiger.Hash)
-		err := tth.FromBase32(req.query)
+		tth, err := TigerHashFromBase32(req.query)
 		if err != nil {
 			return nil, fmt.Errorf("invalid TTH: %s", req.query)
 		}
 
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			for _, file := range dir.files {
-				if file.tth == *tth {
+				if file.tth == tth {
 					results = append(results, file)
 				}
 			}

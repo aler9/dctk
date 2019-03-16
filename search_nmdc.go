@@ -2,7 +2,6 @@ package dctoolkit
 
 import (
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
 	"net"
 	"strings"
 )
@@ -147,11 +146,11 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 				}
 				return 0
 			}(),
-			TTH: func() tiger.Hash {
+			TTH: func() TigerHash {
 				if f, ok := res.(*shareFile); ok {
 					return f.tth
 				}
-				return tiger.Hash{}
+				return TigerHash{}
 			}(),
 			Nick:      c.conf.Nick,
 			SlotAvail: c.uploadSlotAvail,
