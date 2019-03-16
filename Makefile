@@ -62,7 +62,7 @@ test:
 				-e TESTNAME=$$TESTNAME \
 				-e PROTO=$$PROTO \
 				dctk-test >$(OUT); \
-				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAILED"; \
+				[ "$$?" -eq 0 ] && echo "SUCCESS" || echo "FAIL"; \
 			docker container kill dctk-hub >/dev/null 2>&1; \
 		done \
 	done

@@ -27,10 +27,11 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKey
 			if val == dirTTH {
 				sr.IsDir = true
 			} else {
-				err := sr.TTH.FromBase32(val)
+				tth, err := TigerHashFromBase32(val)
 				if err != nil {
 					return
 				}
+				sr.TTH = tth
 			}
 		case adcFieldUploadSlotCount:
 			sr.SlotAvail = atoui(val)

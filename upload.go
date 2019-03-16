@@ -3,7 +3,6 @@ package dctoolkit
 import (
 	"bytes"
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
 	"io"
 	"io/ioutil"
 	"os"
@@ -62,9 +61,11 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			return nil
 		}
 
+		// skip "file TTH/" or "tthl TTH/"
+		tthString := u.query[9:]
+
 		// upload is file by TTH or its tthl
-		tth := new(tiger.Hash)
-		err := tth.FromBase32(u.query[9:]) // skip "file TTH/" or "tthl TTH/"
+		tth, err := TigerHashFromBase32(tthString)
 		if err != nil {
 			return err
 		}
@@ -73,7 +74,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			var scanDir func(dir *shareDirectory) bool
 			scanDir = func(dir *shareDirectory) bool {
 				for _, file := range dir.files {
-					if file.tth == *tth {
+					if file.tth == tth {
 						ret = file
 						return true
 					}

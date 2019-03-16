@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,7 +20,7 @@ type DownloadConf struct {
 	// the peer from which downloading
 	Peer *Peer
 	// the TTH of the file to download
-	TTH tiger.Hash
+	TTH TigerHash
 	// the starting point of the file part to download, in bytes
 	Start uint64
 	// the length of the file part. Leave zero to download the entire file
@@ -430,7 +429,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 					dolog(LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
 
 					// file in disk
-					var contentTTH tiger.Hash
+					var contentTTH TigerHash
 					if d.conf.SavePath != "" {
 						var err error
 						contentTTH, err = TTHFromFile(d.conf.SavePath + ".tmp")
