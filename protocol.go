@@ -1,9 +1,8 @@
 package dctoolkit
 
 import (
-	"bufio"
 	"compress/zlib"
-	"fmt"
+	"github.com/gswly/go-dc/lineproto"
 	"io"
 	"net"
 	"time"
@@ -23,11 +22,6 @@ type monitoredConnIntf interface {
 	PullWriteCounter() uint
 }
 
-type zlibSwitchableConnIntf interface {
-	SetReadCompressionTrue() error
-	SetWriteCompression(val bool)
-}
-
 type protocol interface {
 	Close()
 	SetSyncMode(val bool)
@@ -36,7 +30,8 @@ type protocol interface {
 	Write(msg msgEncodable)
 	WriteSync(in []byte) error
 	monitoredConnIntf
-	zlibSwitchableConnIntf
+	ReaderActivateZlib() error
+	WriterSetZlib(val bool)
 }
 
 // timedConn forces net.Conn to use timeouts.
@@ -75,8 +70,8 @@ func (c *timedConn) Write(buf []byte) (int, error) {
 	return c.conn.Write(buf)
 }
 
-// monitoredConn implements a read and a writer counter, that is used to
-// compute the connection speed.
+// monitoredConn implements a read and a writer counter, that provides the
+// connection speed.
 type monitoredConn struct {
 	io.Closer
 	in           io.ReadWriteCloser
@@ -115,90 +110,26 @@ func (c *monitoredConn) PullWriteCounter() uint {
 	return ret
 }
 
-// readBufferedConn buffer the readings. This is done for two reasons:
-// 1) in this way SetReadDeadline() is called only when buffer is refilled, and
-//    not every time Read() or ReadByte() is called, improving efficiency;
-// 2) we must provide a io.ByteReader interface to zlib.NewReader(), otherwise
-//    it automatically adds a bufio layer that messes up the zlib on/off phase.
-type readBufferedConn struct {
-	io.WriteCloser
-	*bufio.Reader
-}
-
-func newReadBufferedConn(in io.ReadWriteCloser) io.ReadWriteCloser {
-	return &readBufferedConn{
-		WriteCloser: in,
-		Reader:      bufio.NewReaderSize(in, 2048), // TCP MTU is 1460 bytes
-	}
-}
-
-// zlibSwitchableConn implements a read/write compression that can be switched
+// zlibSwitchableWriter implements a write compression that can be switched
 // on or off at any time.
-type zlibSwitchableConn struct {
-	in           io.ReadWriteCloser
-	zlibReader   io.ReadCloser
+type zlibSwitchableWriter struct {
+	in           io.Writer
 	zlibWriter   io.WriteCloser
-	activeReader io.Reader
 	activeWriter io.Writer
 }
 
-func newZlibSwitchableConn(in io.ReadWriteCloser) *zlibSwitchableConn {
-	return &zlibSwitchableConn{
+func newZlibSwitchableWriter(in io.Writer) *zlibSwitchableWriter {
+	return &zlibSwitchableWriter{
 		in:           in,
-		activeReader: in,
 		activeWriter: in,
 	}
 }
 
-func (c *zlibSwitchableConn) Close() error {
-	if c.activeReader == c.zlibReader {
-		c.zlibReader.Close()
-	}
-	if c.activeWriter == c.zlibWriter {
-		c.zlibWriter.Close()
-	}
-	return c.in.Close()
-}
-
-func (c *zlibSwitchableConn) Read(buf []byte) (int, error) {
-	for {
-		n, err := c.activeReader.Read(buf)
-
-		// zlib EOF: disable and read again
-		if n == 0 && err == io.EOF && c.activeReader == c.zlibReader {
-			dolog(LevelDebug, "[read zlib off]")
-			c.zlibReader.Close()
-			c.activeReader = c.in
-			continue
-		}
-		return n, err
-	}
-}
-
-func (c *zlibSwitchableConn) Write(buf []byte) (int, error) {
+func (c *zlibSwitchableWriter) Write(buf []byte) (int, error) {
 	return c.activeWriter.Write(buf)
 }
 
-func (c *zlibSwitchableConn) SetReadCompressionTrue() error {
-	if c.activeReader == c.zlibReader {
-		return fmt.Errorf("zlib already activated")
-	}
-	dolog(LevelDebug, "[read zlib on]")
-
-	var err error
-	if c.zlibReader == nil {
-		c.zlibReader, err = zlib.NewReader(c.in)
-	} else {
-		err = c.zlibReader.(zlib.Resetter).Reset(c.in, nil)
-	}
-	if err != nil {
-		return err
-	}
-	c.activeReader = c.zlibReader
-	return nil
-}
-
-func (c *zlibSwitchableConn) SetWriteCompression(val bool) {
+func (c *zlibSwitchableWriter) SetZlib(val bool) {
 	if (val && c.activeWriter == c.zlibWriter) ||
 		(!val && c.activeWriter != c.zlibWriter) {
 		return
@@ -219,41 +150,18 @@ func (c *zlibSwitchableConn) SetWriteCompression(val bool) {
 	}
 }
 
-// this is like bufio.ReadSlice(), except it does not buffer
-// anything, to allow the zlib on/off phase
-// and it also strips the delimiter
-func readUntilDelim(in io.Reader, delim byte) (string, error) {
-	var buffer [_MAX_MESSAGE_SIZE]byte
-	offset := 0
-	for {
-		// read one character at a time
-		read, err := in.Read(buffer[offset : offset+1])
-		if read == 0 {
-			return "", err
-		}
-		offset++
-
-		if buffer[offset-1] == delim {
-			return string(buffer[:offset-1]), nil
-		}
-
-		if offset >= len(buffer) {
-			return "", fmt.Errorf("message buffer exhausted")
-		}
-	}
-}
-
 type protocolBase struct {
-	remoteLabel   string
-	msgDelim      byte
-	sendChan      chan []byte
-	terminated    bool
-	readBinary    bool
-	syncMode      bool
-	netReadWriter io.ReadWriteCloser
-	writerJoined  chan struct{}
+	remoteLabel string
+	msgDelim    byte
+	sendChan    chan []byte
+	terminated  bool
+	closer      io.Closer
 	monitoredConnIntf
-	zlibSwitchableConnIntf
+	reader       *lineproto.Reader
+	writer       *zlibSwitchableWriter
+	readBinary   bool
+	syncMode     bool
+	writerJoined chan struct{}
 }
 
 func newProtocolBase(remoteLabel string, nconn net.Conn,
@@ -274,20 +182,20 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 
 	tc := newTimedConn(nconn, readTimeout, writeTimeout)
 	mc := newMonitoredConn(tc)
-	rbc := newReadBufferedConn(mc)
-	zsc := newZlibSwitchableConn(rbc)
+	rdr := lineproto.NewReader(mc, msgDelim)
+	wri := newZlibSwitchableWriter(mc)
 
 	p := &protocolBase{
-		remoteLabel:            remoteLabel,
-		msgDelim:               msgDelim,
-		writerJoined:           make(chan struct{}),
-		readBinary:             false,
-		netReadWriter:          zsc,
-		sendChan:               make(chan []byte),
-		monitoredConnIntf:      mc,
-		zlibSwitchableConnIntf: zsc,
+		remoteLabel:       remoteLabel,
+		msgDelim:          msgDelim,
+		writerJoined:      make(chan struct{}),
+		closer:            mc,
+		monitoredConnIntf: mc,
+		reader:            rdr,
+		writer:            wri,
+		sendChan:          make(chan []byte),
 	}
-	go p.writer()
+	go p.writeReceiver()
 	return p
 }
 
@@ -296,7 +204,7 @@ func (p *protocolBase) Close() {
 		return
 	}
 	p.terminated = true
-	p.netReadWriter.Close()
+	p.closer.Close()
 
 	if p.syncMode == false {
 		close(p.sendChan)
@@ -316,7 +224,7 @@ func (p *protocolBase) SetSyncMode(val bool) {
 
 	} else {
 		p.sendChan = make(chan []byte)
-		go p.writer()
+		go p.writeReceiver()
 	}
 }
 
@@ -333,14 +241,14 @@ func (p *protocolBase) ReadMessage() (string, error) {
 		return "", errorTerminated
 	}
 
-	msg, err := readUntilDelim(p.netReadWriter, p.msgDelim)
+	msg, err := p.reader.ReadLine()
 	if err != nil {
 		if p.terminated == true {
 			return "", errorTerminated
 		}
 		return "", err
 	}
-	return msg, nil
+	return string(msg[:len(msg)-1]), nil
 }
 
 func (p *protocolBase) ReadBinary() ([]byte, error) {
@@ -349,8 +257,9 @@ func (p *protocolBase) ReadBinary() ([]byte, error) {
 		return nil, errorTerminated
 	}
 
+	// TODO: move buf out or make static
 	var buf [2048]byte
-	read, err := p.netReadWriter.Read(buf[:])
+	read, err := p.reader.Read(buf[:])
 	if read == 0 {
 		if p.terminated == true {
 			return nil, errorTerminated
@@ -360,7 +269,7 @@ func (p *protocolBase) ReadBinary() ([]byte, error) {
 	return buf[:read], nil
 }
 
-func (p *protocolBase) writer() {
+func (p *protocolBase) writeReceiver() {
 	for buf := range p.sendChan {
 		// do not handle errors here
 		p.WriteSync(buf)
@@ -369,7 +278,7 @@ func (p *protocolBase) writer() {
 }
 
 func (p *protocolBase) WriteSync(in []byte) error {
-	_, err := p.netReadWriter.Write(in)
+	_, err := p.writer.Write(in)
 	return err
 }
 
@@ -378,6 +287,14 @@ func (p *protocolBase) Write(in []byte) {
 		return
 	}
 	p.sendChan <- in
+}
+
+func (p *protocolBase) ReaderActivateZlib() error {
+	return p.reader.ActivateZlib()
+}
+
+func (p *protocolBase) WriterSetZlib(val bool) {
+	p.writer.SetZlib(val)
 }
 
 type msgBinary struct {
