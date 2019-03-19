@@ -325,7 +325,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 
 	d.pconn.conn.SetReadBinary(true)
 	if reqCompressed == true {
-		d.pconn.conn.SetReadCompressionTrue()
+		d.pconn.conn.ReaderActivateZlib()
 	}
 
 	// save in file
