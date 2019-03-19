@@ -2,7 +2,7 @@
 .PHONY: help
 help:
 	@echo "usage: make [action] [args...]"
-	@echo " "
+	@echo ""
 	@echo "available actions:"
 	@echo ""
 	@echo "  format                      format source files."
