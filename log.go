@@ -5,6 +5,11 @@ import (
 	"os"
 )
 
+// set up log once
+func init() {
+	log.SetOutput(os.Stdout)
+}
+
 // LogLevel contains the available log levels.
 type LogLevel int
 
@@ -27,8 +32,6 @@ func SetLogLevel(level LogLevel) {
 
 func dolog(level LogLevel, text string, args ...interface{}) {
 	if level >= logLevel {
-		log.SetOutput(os.Stdout)
-		log.SetFlags(log.LstdFlags)
 		log.Printf(text, args...)
 	}
 }
