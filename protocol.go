@@ -2,7 +2,7 @@ package dctoolkit
 
 import (
 	"compress/zlib"
-	"github.com/gswly/go-dc/lineproto"
+	"github.com/direct-connect/go-dc/lineproto"
 	"io"
 	"net"
 	"time"
