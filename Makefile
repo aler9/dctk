@@ -6,19 +6,20 @@ help:
 	@echo "available actions:"
 	@echo ""
 	@echo "  format                      format source files."
-	@echo ""
 	@echo "  test [proto] [testname]     run available tests. by default all"
 	@echo "                              tests are run, but they can be"
 	@echo "                              filtered by protocol or name."
 	@echo "                              add V=1 to increase verbosity."
-	@echo ""
 	@echo "  run-example [name]          run an example by name."
-	@echo ""
 	@echo "  run-command '[name] [args]' run a command by name."
 	@echo ""
 
+# do not treat arguments as targets
+%:
+	@[ "$(word 1, $(MAKECMDGOALS))" != "$@" ] || { echo "unrecognized command."; exit 1; }
 
-.PHONY: format
+ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+
 format:
 	@docker run --rm -it \
 		-v $(PWD):/src \
@@ -26,21 +27,16 @@ format:
 		sh -c "cd /src \
 		&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
-
 .PHONY: test
-ifeq (test, $(firstword $(MAKECMDGOALS)))
-  $(eval %:;@:) # do not treat arguments as targets
-  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-  PROTOCOLS := $(if $(word 1, $(ARGS)), $(word 1, $(ARGS)), nmdc adc)
-  TESTNAMES := $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//'))
-  OUT := $(if $(V), /dev/stdout, /dev/null)
-endif
 test:
-# cleanup
+	$(eval PROTOCOLS := $(if $(word 1, $(ARGS)), $(word 1, $(ARGS)), nmdc adc))
+	$(eval TESTNAMES := $(if $(word 2, $(ARGS)), $(word 2, $(ARGS)), $(shell cd test && ls -v *.go | sed 's/\.go$$//')))
+	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
+
 	@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
 	@docker container rm dctk-hub dctk-test >/dev/null 2>&1 || exit 0
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
-# run tests
+
 	@echo "building main test image..."
 	@docker build . -f test/Dockerfile -t dctk-test >$(OUT)
 	@docker network create dctk-test >/dev/null
@@ -68,14 +64,8 @@ test:
 	done
 	@docker network rm dctk-test >/dev/null 2>&1 || exit 0
 
-
-.PHONY: run-example
-ifeq (run-example, $(firstword $(MAKECMDGOALS)))
-  $(eval %:;@:) # do not treat arguments as targets
-  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-  EXAMPLE := $(word 1, $(ARGS))
-endif
 run-example:
+	$(eval EXAMPLE := $(word 1, $(ARGS)))
 	@test -f "./example/$(EXAMPLE).go" || ( echo "example file not found"; exit 1 )
 	@docker run --rm -it \
 		-v $(PWD):/src \
@@ -85,23 +75,13 @@ run-example:
 		amd64/golang:1.11-stretch sh -c "\
 		cd /src && go run example/$(EXAMPLE).go"
 
-
-.PHONY: run-command
-ifeq (run-command, $(firstword $(MAKECMDGOALS)))
-  $(eval %:;@:) # do not treat arguments as targets
-  ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
-endif
-define COMMAND_DOCKERFILE
-FROM amd64/golang:1.11-stretch
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . ./
-RUN go install ./...
-endef
-export COMMAND_DOCKERFILE
 run-command:
-	@echo "$$COMMAND_DOCKERFILE" | docker build . -f - -t dctk-runcmd >/dev/null
+	@echo "FROM amd64/golang:1.11-stretch
+		WORKDIR /src
+		COPY go.mod go.sum ./
+		RUN go mod download
+		COPY . ./
+		RUN go install ./..." | docker build . -q -f - -t dctk-runcmd
 	@docker run --rm -it \
 		-p 3009:3009 \
 		-p 3009:3009/udp \
