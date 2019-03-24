@@ -1,10 +1,10 @@
 
-.PHONY: help
 help:
 	@echo "usage: make [action] [args...]"
 	@echo ""
 	@echo "available actions:"
 	@echo ""
+	@echo "  mod-tidy                    run go mod tidy."
 	@echo "  format                      format source files."
 	@echo "  test [proto] [testname]     run available tests. by default all"
 	@echo "                              tests are run, but they can be"
@@ -19,6 +19,10 @@ help:
 	@[ "$(word 1, $(MAKECMDGOALS))" != "$@" ] || { echo "unrecognized command."; exit 1; }
 
 ARGS := $(wordlist 2, $(words $(MAKECMDGOALS)), $(MAKECMDGOALS))
+
+mod-tidy:
+	docker run --rm -it -v $(PWD):/src amd64/golang:1.11 \
+		sh -c "cd /src && go get -m ./... && go mod tidy"
 
 format:
 	@docker run --rm -it \
