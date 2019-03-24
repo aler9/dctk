@@ -73,22 +73,18 @@ run-example:
 	@test -f "./example/$(EXAMPLE).go" || ( echo "example file not found"; exit 1 )
 	@docker run --rm -it \
 		-v $(PWD):/src \
-		-p 3009:3009 \
-		-p 3009:3009/udp \
-		-p 3010:3010 \
+		--network=host \
 		amd64/golang:1.11-stretch sh -c "\
 		cd /src && go run example/$(EXAMPLE).go"
 
 run-command:
-	@echo "FROM amd64/golang:1.11-stretch
-		WORKDIR /src
-		COPY go.mod go.sum ./
-		RUN go mod download
-		COPY . ./
+	@echo "FROM amd64/golang:1.11-stretch \n\
+		WORKDIR /src \n\
+		COPY go.mod go.sum ./ \n\
+		RUN go mod download \n\
+		COPY . ./ \n\
 		RUN go install ./..." | docker build . -q -f - -t dctk-runcmd
 	@docker run --rm -it \
-		-p 3009:3009 \
-		-p 3009:3009/udp \
-		-p 3010:3010 \
+		--network=host \
 		-e COLUMNS=$(shell tput cols) \
 		dctk-runcmd $(ARGS)
