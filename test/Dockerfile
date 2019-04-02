@@ -13,9 +13,10 @@ RUN go mod download
 # wait for hub before execution
 RUN echo '#!/bin/sh \n\
 while true; do \n\
-    nc -z -v -w1 dctk-hub ${HUBURL##*:} 2>/dev/null && break \n\
+    HOST_IP=${HUBURL##*://} \n\
+    nc -z -v -w1 ${HOST_IP%:*} ${HOST_IP##*:} 2>/dev/null && break \n\
 done \n\
-go run test/$TESTNAME.go $PROTO \n\
+go run test/$TNAME.go $PROTO \n\
 ' > /start.sh && chmod +x /start.sh
 
 ENTRYPOINT [ "/start.sh" ]
