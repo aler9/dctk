@@ -44,11 +44,10 @@ test-example-nodocker:
 	$(foreach f, $(wildcard example/*), go build -o /dev/null $(f)$(NL))
 
 define TEST_LIB_INIT
-@docker container kill dctk-hub dctk-test >/dev/null 2>&1 || exit 0
-@docker container rm dctk-hub dctk-test >/dev/null 2>&1 || exit 0
-@docker network rm dctk-test >/dev/null 2>&1 || exit 0
+@docker container kill $$(docker container ps -a -q --filter='name=dctk-*') \
+	>/dev/null 2>&1 || exit 0
 docker build . -f test/Dockerfile -t dctk-test >$(OUT)
-docker network create dctk-test >/dev/null
+docker network create dctk-test >/dev/null 2>&1 || exit 0
 endef
 
 define TEST_LIB_CLEANUP
@@ -56,34 +55,34 @@ define TEST_LIB_CLEANUP
 endef
 
 define TEST_UNIT
-@[ -f test/$(TESTNAME).go ] || { echo "test not found"; exit 1; }
-@echo "testing $(PROTO) -> $(TESTNAME)"
-@docker run --rm -d --network=dctk-test --name=dctk-hub \
-	dctk-hub $(TESTNAME) >/dev/null
+@[ -f test/$(TNAME).go ] || { echo "test not found"; exit 1; }
+@echo "testing $(PROTO) -> $(TNAME)"
+@docker run --rm -d --network=dctk-test --name=dctk-hub-$(PROTO)-$(TNAME) \
+	dctk-hub $(TNAME) >/dev/null
 @docker run --rm -it --network=dctk-test --name=dctk-test \
 	-v $(PWD):/src \
-	-e HUBURL=$(HUBURL) \
-	-e TESTNAME=$(TESTNAME) \
+	-e HUBURL=$(subst addr,dctk-hub-$(PROTO)-$(TNAME),$(HUBURL)) \
+	-e TNAME=$(TNAME) \
 	-e PROTO=$(PROTO) \
 	dctk-test >$(OUT)
-@docker container kill dctk-hub >/dev/null 2>&1
+@docker container kill dctk-hub-$(PROTO)-$(TNAME) >/dev/null 2>&1
 endef
 
 define TEST_LIB_PROTO_nmdc
 docker build test/verlihub -t dctk-hub >$(OUT)
-$(eval HUBURL = "nmdc://dctk-hub:4111")
-$(foreach TESTNAME, $(TESTNAMES), $(call TEST_UNIT)$(NL))
+$(eval HUBURL = "nmdc://addr:4111")
+$(foreach TNAME, $(TNAMES), $(call TEST_UNIT)$(NL))
 endef
 
 define TEST_LIB_PROTO_adc
 docker build test/luadch -t dctk-hub >$(OUT)
-$(eval HUBURL = "adcs://dctk-hub:5001")
-$(foreach TESTNAME, $(TESTNAMES), $(call TEST_UNIT)$(NL))
+$(eval HUBURL = "adcs://addr:5001")
+$(foreach TNAME, $(TNAMES), $(call TEST_UNIT)$(NL))
 endef
 
 test-lib:
 	$(eval PROTOCOLS := $(if $(P), $(P), example nmdc adc))
-	$(eval TESTNAMES := $(if $(T), $(T), $(shell cd test && ls -v *.go | sed 's/\.go$$//')))
+	$(eval TNAMES := $(if $(T), $(T), $(shell cd test && ls -v *.go | sed 's/\.go$$//')))
 	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
 	$(TEST_LIB_INIT)
 	$(foreach PROTO, $(PROTOCOLS), $(call TEST_LIB_PROTO_$(PROTO))$(NL))
