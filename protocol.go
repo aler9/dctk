@@ -30,7 +30,7 @@ type protocol interface {
 	Write(msg msgEncodable)
 	WriteSync(in []byte) error
 	monitoredConnIntf
-	ReaderActivateZlib() error
+	ReaderEnableZlib() error
 	WriterSetZlib(val bool)
 }
 
@@ -289,8 +289,8 @@ func (p *protocolBase) Write(in []byte) {
 	p.sendChan <- in
 }
 
-func (p *protocolBase) ReaderActivateZlib() error {
-	return p.reader.ActivateZlib()
+func (p *protocolBase) ReaderEnableZlib() error {
+	return p.reader.EnableZlib()
 }
 
 func (p *protocolBase) WriterSetZlib(val bool) {
