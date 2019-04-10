@@ -106,7 +106,7 @@ func TTHFromFile(fpath string) (TigerHash, error) {
 // MagnetLink generates a link to a shared file. The link can be shared anywhere
 // and can be opened by most of the available DC clients, starting the download.
 func MagnetLink(name string, size uint64, tth TigerHash) string {
-	return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%v&dn=%s",
+	return fmt.Sprintf("magnet:?xt=urn:tree:tiger:%s&xl=%d&dn=%s",
 		tth,
 		size,
 		url.QueryEscape(name))
