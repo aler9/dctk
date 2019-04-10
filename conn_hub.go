@@ -484,7 +484,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		if h.client.conf.HubDisableCompression == true {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
-		if err := h.conn.ReaderActivateZlib(); err != nil {
+		if err := h.conn.ReaderEnableZlib(); err != nil {
 			return err
 		}
 
