@@ -210,7 +210,7 @@ func (u *upload) Close() {
 func (u *upload) handleUpload() error {
 	u.pconn.conn.SetSyncMode(true)
 	if u.compressed == true {
-		u.pconn.conn.WriterSetZlib(true)
+		u.pconn.conn.WriterEnableZlib()
 	}
 
 	// setup time to correctly compute speed
@@ -242,7 +242,7 @@ func (u *upload) handleUpload() error {
 	}
 
 	if u.compressed == true {
-		u.pconn.conn.WriterSetZlib(false)
+		u.pconn.conn.WriterDisableZlib()
 	}
 	u.pconn.conn.SetSyncMode(false)
 

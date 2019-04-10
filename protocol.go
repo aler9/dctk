@@ -1,7 +1,6 @@
 package dctoolkit
 
 import (
-	"compress/zlib"
 	"github.com/direct-connect/go-dc/lineproto"
 	"io"
 	"net"
@@ -31,7 +30,8 @@ type protocol interface {
 	WriteSync(in []byte) error
 	monitoredConnIntf
 	ReaderEnableZlib() error
-	WriterSetZlib(val bool)
+	WriterEnableZlib()
+	WriterDisableZlib()
 }
 
 // timedConn forces net.Conn to use timeouts.
@@ -110,46 +110,6 @@ func (c *monitoredConn) PullWriteCounter() uint {
 	return ret
 }
 
-// zlibSwitchableWriter implements a write compression that can be switched
-// on or off at any time.
-type zlibSwitchableWriter struct {
-	in           io.Writer
-	zlibWriter   io.WriteCloser
-	activeWriter io.Writer
-}
-
-func newZlibSwitchableWriter(in io.Writer) *zlibSwitchableWriter {
-	return &zlibSwitchableWriter{
-		in:           in,
-		activeWriter: in,
-	}
-}
-
-func (c *zlibSwitchableWriter) Write(buf []byte) (int, error) {
-	return c.activeWriter.Write(buf)
-}
-
-func (c *zlibSwitchableWriter) SetZlib(val bool) {
-	if (val && c.activeWriter == c.zlibWriter) ||
-		(!val && c.activeWriter != c.zlibWriter) {
-		return
-	}
-
-	if val == true {
-		dolog(LevelDebug, "[write zlib on]")
-		if c.zlibWriter == nil {
-			c.zlibWriter = zlib.NewWriter(c.in)
-		} else {
-			c.zlibWriter.(*zlib.Writer).Reset(c.in)
-		}
-		c.activeWriter = c.zlibWriter
-	} else {
-		dolog(LevelDebug, "[write zlib off]")
-		c.zlibWriter.Close()
-		c.activeWriter = c.in
-	}
-}
-
 type protocolBase struct {
 	remoteLabel string
 	msgDelim    byte
@@ -158,7 +118,7 @@ type protocolBase struct {
 	closer      io.Closer
 	monitoredConnIntf
 	reader       *lineproto.Reader
-	writer       *zlibSwitchableWriter
+	writer       *lineproto.Writer
 	readBinary   bool
 	syncMode     bool
 	writerJoined chan struct{}
@@ -183,7 +143,7 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	tc := newTimedConn(nconn, readTimeout, writeTimeout)
 	mc := newMonitoredConn(tc)
 	rdr := lineproto.NewReader(mc, msgDelim)
-	wri := newZlibSwitchableWriter(mc)
+	wri := lineproto.NewWriter(mc)
 
 	p := &protocolBase{
 		remoteLabel:       remoteLabel,
@@ -278,8 +238,7 @@ func (p *protocolBase) writeReceiver() {
 }
 
 func (p *protocolBase) WriteSync(in []byte) error {
-	_, err := p.writer.Write(in)
-	return err
+	return p.writer.WriteLine(in)
 }
 
 func (p *protocolBase) Write(in []byte) {
@@ -293,8 +252,12 @@ func (p *protocolBase) ReaderEnableZlib() error {
 	return p.reader.EnableZlib()
 }
 
-func (p *protocolBase) WriterSetZlib(val bool) {
-	p.writer.SetZlib(val)
+func (p *protocolBase) WriterEnableZlib() {
+	p.writer.EnableZlib()
+}
+
+func (p *protocolBase) WriterDisableZlib() {
+	p.writer.EnableZlib()
 }
 
 type msgBinary struct {
