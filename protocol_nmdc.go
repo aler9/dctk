@@ -648,7 +648,7 @@ func (m *msgNmdcSearchRequest) NmdcEncode() string {
 	// <sizeRestricted>?<isMaxSize>?<size>?<fileType>?<searchPattern>
 	return nmdcCommandEncode("Search", fmt.Sprintf("%s %s?%s?%d?%d?%s",
 		func() string {
-			if m.Ip != "" {
+			if m.IsActive {
 				return fmt.Sprintf("%s:%d", m.Ip, m.UdpPort)
 			}
 			return fmt.Sprintf("Hub:%s", m.Nick)

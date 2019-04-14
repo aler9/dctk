@@ -65,24 +65,10 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 			}
 			return conf.Query
 		}(),
-		Ip: func() string {
-			if c.conf.IsPassive == false {
-				return c.ip
-			}
-			return ""
-		}(),
-		UdpPort: func() uint {
-			if c.conf.IsPassive == false {
-				return c.conf.UdpPort
-			}
-			return 0
-		}(),
-		Nick: func() string {
-			if c.conf.IsPassive == true {
-				return c.conf.Nick
-			}
-			return ""
-		}(),
+		IsActive: !c.conf.IsPassive,
+		Ip:       c.ip,
+		UdpPort:  c.conf.UdpPort,
+		Nick:     c.conf.Nick,
 	})
 	return nil
 }

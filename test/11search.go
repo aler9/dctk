@@ -3,10 +3,10 @@
 package main
 
 import (
+	"fmt"
 	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
-	"fmt"
 	"strings"
 	"time"
 )
