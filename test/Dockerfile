@@ -16,7 +16,7 @@ while true; do \n\
     HOST_IP=${HUBURL##*://} \n\
     nc -z -v -w1 ${HOST_IP%:*} ${HOST_IP##*:} 2>/dev/null && break \n\
 done \n\
-go run test/$TNAME.go $PROTO \n\
+go run test/$UNIT.go \n\
 ' > /start.sh && chmod +x /start.sh
 
 ENTRYPOINT [ "/start.sh" ]

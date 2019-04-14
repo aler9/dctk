@@ -42,6 +42,7 @@ func client1() {
 }
 
 func client2() {
+	isAdc := strings.HasPrefix(os.Getenv("HUBURL"), "adc")
 	client, err := dctk.NewClient(dctk.ClientConf{
 		HubUrl:     os.Getenv("HUBURL"),
 		Nick:       "client2",
@@ -77,7 +78,7 @@ func client2() {
 				res.Path != "/aliasname/inner folder" ||
 				res.TTH != zeroTTH ||
 				// res.Size for folders is provided by ADC, not provided by NMDC
-				((os.Args[1] == "nmdc" && res.Size != 0) || (os.Args[1] == "adc" && res.Size != 10000)) ||
+				((!isAdc && res.Size != 0) || (isAdc && res.Size != 10000)) ||
 				res.IsActive != true {
 				panic("wrong result (1)")
 			}

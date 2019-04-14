@@ -6,8 +6,8 @@ help:
 	@echo ""
 	@echo "  mod-tidy                      run go mod tidy"
 	@echo "  format                        format source files"
-	@echo "  test P=[proto] T=[testname]   run available tests. tests can be"
-	@echo "                                filtered by protocol or name."
+	@echo "  test H=[hub] T=[name]         run available tests. tests can be"
+	@echo "                                filtered by hub or name."
 	@echo "                                add V=1 to increase verbosity"
 	@echo "  run-example E=[name]          run an example by name"
 	@echo "  run-command N=[name] A=[args] run a command by name"
@@ -43,50 +43,38 @@ test-example:
 test-example-nodocker:
 	$(foreach f, $(wildcard example/*), go build -o /dev/null $(f)$(NL))
 
-define TEST_LIB_INIT
-@docker container kill $$(docker container ps -a -q --filter='name=dctk-*') \
-	>/dev/null 2>&1 || exit 0
-docker build . -f test/Dockerfile -t dctk-test >$(OUT)
-docker network create dctk-test >/dev/null 2>&1 || exit 0
-endef
-
-define TEST_LIB_CLEANUP
-@docker network rm dctk-test >/dev/null 2>&1 || exit 0
-endef
-
-define TEST_UNIT
-@[ -f test/$(TNAME).go ] || { echo "test not found"; exit 1; }
-@echo "testing $(PROTO) -> $(TNAME)"
-@docker run --rm -d --network=dctk-test --name=dctk-hub-$(PROTO)-$(TNAME) \
-	dctk-hub $(TNAME) >/dev/null
+define TEST_LIB_UNIT
+@[ -f test/$(UNIT).go ] || { echo "test not found"; exit 1; }
+@echo "testing $(HUB) -> $(UNIT)"
+@docker run --rm -d --network=dctk-test --name=dctk-hub-$(HUB)-$(UNIT) \
+	dctk-hub-$(HUB) $(UNIT) >/dev/null
 @docker run --rm -it --network=dctk-test --name=dctk-test \
 	-v $(PWD):/src \
-	-e HUBURL=$(subst addr,dctk-hub-$(PROTO)-$(TNAME),$(HUBURL)) \
-	-e TNAME=$(TNAME) \
-	-e PROTO=$(PROTO) \
-	dctk-test >$(OUT)
-@docker container kill dctk-hub-$(PROTO)-$(TNAME) >/dev/null 2>&1
-endef
-
-define TEST_LIB_PROTO_nmdc
-docker build test/verlihub -t dctk-hub >$(OUT)
-$(eval HUBURL = "nmdc://addr:4111")
-$(foreach TNAME, $(TNAMES), $(call TEST_UNIT)$(NL))
-endef
-
-define TEST_LIB_PROTO_adc
-docker build test/luadch -t dctk-hub >$(OUT)
-$(eval HUBURL = "adcs://addr:5001")
-$(foreach TNAME, $(TNAMES), $(call TEST_UNIT)$(NL))
+	-e HUBURL=$(subst addr,dctk-hub-$(HUB)-$(UNIT),${URLS.${HUB}}) \
+	-e UNIT=$(UNIT) \
+	dctk-unit >$(OUT)
+@docker container kill dctk-hub-$(HUB)-$(UNIT) >/dev/null 2>&1
 endef
 
 test-lib:
-	$(eval PROTOCOLS := $(if $(P), $(P), example nmdc adc))
-	$(eval TNAMES := $(if $(T), $(T), $(shell cd test && ls -v *.go | sed 's/\.go$$//')))
+	$(eval HUBS := $(if $(H), $(H), verlihub luadch))
+	$(eval URLS.verlihub := nmdc://addr:4111)
+	$(eval URLS.luadch := adc://addr:5001)
+	$(eval UNITS := $(if $(T), $(T), $(shell ls test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
 	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
-	$(TEST_LIB_INIT)
-	$(foreach PROTO, $(PROTOCOLS), $(call TEST_LIB_PROTO_$(PROTO))$(NL))
-	$(TEST_LIB_CLEANUP)
+
+  # cleanup
+	@docker container kill $$(docker ps -a -q --filter='name=dctk-*') >/dev/null 2>&1 || exit 0
+	docker network rm dctk-test >/dev/null 2>&1 || exit 0
+
+  # build images
+	docker build . -f test/Dockerfile -t dctk-unit >$(OUT)
+	$(foreach HUB, $(HUBS), docker build test/$(HUB) -t dctk-hub-$(HUB) >$(OUT)$(NL))
+
+  # run units
+	docker network create dctk-test >/dev/null
+	$(foreach HUB, $(HUBS), $(foreach UNIT, $(UNITS), $(TEST_LIB_UNIT)$(NL))$(NL))
+	docker network rm dctk-test
 
 .PHONY: test
 test: test-example test-lib
