@@ -26,7 +26,7 @@ func main() {
 	fileTTH := dctk.TigerHash{}
 	fileCurPos := uint64(0)
 	dlStarted := false
-	const chunkLen = uint64(1024 * 1024)
+	const chunkMaxLen = uint64(1024 * 1024)
 
 	downloadNextChunk := func() {
 		if fileCurPos >= fileSize {
@@ -35,17 +35,17 @@ func main() {
 			return
 		}
 
-		downloadLen := chunkLen
-		if (fileCurPos + downloadLen) > fileSize {
-			downloadLen = fileSize - fileCurPos
+		chunkLen := chunkMaxLen
+		if (fileCurPos + chunkLen) > fileSize {
+			chunkLen = fileSize - fileCurPos
 		}
 		client.DownloadFile(dctk.DownloadConf{
 			Peer:   filePeer,
 			TTH:    fileTTH,
 			Start:  fileCurPos,
-			Length: int64(downloadLen),
+			Length: int64(chunkLen),
 		})
-		fileCurPos += downloadLen
+		fileCurPos += chunkLen
 	}
 
 	client.OnHubConnected = func() {
