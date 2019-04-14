@@ -6,6 +6,7 @@ import (
 	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -80,7 +81,7 @@ func client2() {
 				// res.Size for folders is provided by ADC, not provided by NMDC
 				((!isAdc && res.Size != 0) || (isAdc && res.Size != 10000)) ||
 				res.IsActive != true {
-				panic("wrong result (1)")
+				panic(fmt.Errorf("wrong result (1): %+v", res))
 			}
 			step++
 			client.Search(dctk.SearchConf{
@@ -93,7 +94,7 @@ func client2() {
 				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				res.IsActive != true {
-				panic("wrong result (2)")
+				panic(fmt.Errorf("wrong result (2): %+v", res))
 			}
 			step++
 			client.Search(dctk.SearchConf{
@@ -107,7 +108,7 @@ func client2() {
 				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				res.IsActive != true {
-				panic("wrong result (3)")
+				panic(fmt.Errorf("wrong result (3): %+v", res))
 			}
 			ok = true
 			client.Close()
