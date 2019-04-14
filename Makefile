@@ -50,17 +50,15 @@ define TEST_LIB_UNIT
 	dctk-hub-$(HUB) $(UNIT) >/dev/null
 @docker run --rm -it --network=dctk-test --name=dctk-test \
 	-v $(PWD):/src \
-	-e HUBURL=$(subst addr,dctk-hub-$(HUB)-$(UNIT),${URLS.${HUB}}) \
+	-e HUBURL=$(subst addr,dctk-hub-$(HUB)-$(UNIT),$(shell cat test/$(HUB)/URL)) \
 	-e UNIT=$(UNIT) \
 	dctk-unit >$(OUT)
 @docker container kill dctk-hub-$(HUB)-$(UNIT) >/dev/null 2>&1
 endef
 
 test-lib:
-	$(eval HUBS := $(if $(H), $(H), verlihub luadch))
-	$(eval URLS.verlihub := nmdc://addr:4111)
-	$(eval URLS.luadch := adc://addr:5001)
-	$(eval UNITS := $(if $(T), $(T), $(shell ls test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
+	$(eval HUBS := $(if $(H), $(H), $(shell echo test/*/ | xargs -n1 basename)))
+	$(eval UNITS := $(if $(T), $(T), $(shell echo test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
 	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
 
   # cleanup
