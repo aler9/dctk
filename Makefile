@@ -6,8 +6,8 @@ help:
 	@echo ""
 	@echo "  mod-tidy                      run go mod tidy"
 	@echo "  format                        format source files"
-	@echo "  test H=[hub] T=[name]         run available tests. tests can be"
-	@echo "                                filtered by hub or name."
+	@echo "  test H=[hub] U=[unit]         run available tests. tests can be"
+	@echo "                                filtered by hub or unit."
 	@echo "                                add V=1 to increase verbosity"
 	@echo "  run-example E=[name]          run an example by name"
 	@echo "  run-command N=[name] A=[args] run a command by name"
@@ -31,6 +31,9 @@ format:
 		sh -c "cd /src \
 		&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
+.PHONY: test
+test: test-example test-command test-lib
+
 test-example:
 	echo "FROM amd64/golang:1.11-stretch \n\
 		WORKDIR /src \n\
@@ -42,6 +45,18 @@ test-example:
 
 test-example-nodocker:
 	$(foreach f, $(wildcard example/*), go build -o /dev/null $(f)$(NL))
+
+test-command:
+	echo "FROM amd64/golang:1.11-stretch \n\
+		WORKDIR /src \n\
+		COPY go.mod go.sum ./ \n\
+		RUN go mod download \n\
+		COPY Makefile *.go ./ \n\
+		COPY cmd ./cmd" | docker build . -f - -t dctoolkit-test-command >/dev/null
+	docker run --rm -it dctoolkit-test-command make test-command-nodocker
+
+test-command-nodocker:
+	$(foreach d, $(wildcard cmd/*/), go build -o /dev/null ./$(d)$(NL))
 
 define TEST_LIB_UNIT
 @[ -f test/$(UNIT).go ] || { echo "test not found"; exit 1; }
@@ -58,7 +73,7 @@ endef
 
 test-lib:
 	$(eval HUBS := $(if $(H), $(H), $(shell echo test/*/ | xargs -n1 basename)))
-	$(eval UNITS := $(if $(T), $(T), $(shell echo test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
+	$(eval UNITS := $(if $(U), $(U), $(shell echo test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
 	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
 
   # cleanup
@@ -73,9 +88,6 @@ test-lib:
 	docker network create dctk-test >/dev/null
 	$(foreach HUB, $(HUBS), $(foreach UNIT, $(UNITS), $(TEST_LIB_UNIT)$(NL))$(NL))
 	docker network rm dctk-test
-
-.PHONY: test
-test: test-example test-lib
 
 run-example:
 	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )
