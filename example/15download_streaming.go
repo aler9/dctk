@@ -51,7 +51,7 @@ func main() {
 	client.OnHubConnected = func() {
 		client.Search(dctk.SearchConf{
 			Type: dctk.SearchTTH,
-			TTH:  dctk.TigerHashMust("myTTH"),
+			TTH:  fileTTH,
 		})
 	}
 
