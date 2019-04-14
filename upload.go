@@ -18,7 +18,7 @@ type upload struct {
 	state              string
 	pconn              *connPeer
 	reader             io.ReadCloser
-	compressed         bool
+	isCompressed       bool
 	query              string
 	start              uint64
 	length             uint64
@@ -37,7 +37,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		pconn:  pconn,
 		query:  reqQuery,
 		start:  reqStart,
-		compressed: (client.conf.PeerDisableCompression == false &&
+		isCompressed: (client.conf.PeerDisableCompression == false &&
 			reqCompressed == true),
 	}
 
@@ -179,7 +179,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 				Query:      u.query,
 				Start:      u.start,
 				Length:     u.length,
-				Compressed: u.compressed,
+				Compressed: u.isCompressed,
 			},
 		})
 
@@ -188,7 +188,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			Query:      u.query,
 			Start:      u.start,
 			Length:     u.length,
-			Compressed: u.compressed,
+			Compressed: u.isCompressed,
 		})
 	}
 
@@ -209,7 +209,7 @@ func (u *upload) Close() {
 
 func (u *upload) handleUpload() error {
 	u.pconn.conn.SetSyncMode(true)
-	if u.compressed == true {
+	if u.isCompressed == true {
 		u.pconn.conn.WriterEnableZlib()
 	}
 
@@ -241,7 +241,7 @@ func (u *upload) handleUpload() error {
 		}
 	}
 
-	if u.compressed == true {
+	if u.isCompressed == true {
 		u.pconn.conn.WriterDisableZlib()
 	}
 	u.pconn.conn.SetSyncMode(false)
