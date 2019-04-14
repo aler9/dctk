@@ -30,7 +30,7 @@ type DownloadConf struct {
 	// after download, do not attempt to validate the file through its TTH
 	SkipValidation bool
 
-	filelist bool
+	isFilelist bool
 }
 
 // Download represents an in-progress file download.
@@ -88,9 +88,9 @@ func (c *Client) downloadPendingByPeer(peer *Peer) *Download {
 // DownloadFileList starts downloading the file list of a given peer.
 func (c *Client) DownloadFileList(peer *Peer, savePath string) (*Download, error) {
 	return c.DownloadFile(DownloadConf{
-		Peer:     peer,
-		SavePath: savePath,
-		filelist: true,
+		Peer:       peer,
+		SavePath:   savePath,
+		isFilelist: true,
 	})
 }
 
@@ -147,7 +147,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 
 	// build query
 	d.query = func() string {
-		if d.conf.filelist == true {
+		if d.conf.isFilelist == true {
 			return "file files.xml.bz2"
 		}
 		return "file TTH/" + d.conf.TTH.String()
@@ -390,7 +390,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 			d.writer.Close()
 
 			// file list: unzip in final path
-			if d.conf.filelist {
+			if d.conf.isFilelist {
 				if d.conf.SavePath != "" {
 					srcf, err := os.Open(d.conf.SavePath + ".tmp")
 					if err != nil {
