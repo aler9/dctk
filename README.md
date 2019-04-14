@@ -59,6 +59,7 @@ go get github.com/gswly/dctoolkit
 * [download_file_from_search](example/12download_file_from_search.go)
 * [download_file_from_list](example/13download_file_from_list.go)
 * [download_directory_from_list](example/14download_directory_from_list.go)
+* [download_streaming](example/15download_streaming.go)
 
 #### Documentation
 
