@@ -37,7 +37,7 @@ var reNmdcCmdLock = regexp.MustCompile("^([^ ]+)( Pk=(.+?)(Ref=(.+?))?)?$")
 var reNmdcCmdRevConnectToMe = regexp.MustCompile("^(" + reStrNick + ") (" + reStrNick + ")$")
 var reNmdcCmdSearchReqActive = regexp.MustCompile("^(" + reStrIp + "):(" + reStrPort + ") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
 var reNmdcCmdSearchReqPassive = regexp.MustCompile("^Hub:(" + reStrNick + ") (F|T)\\?(F|T)\\?([0-9]+)\\?([0-9])\\?(.+)$")
-var reNmdcCmdSearchResult = regexp.MustCompile("^(" + reStrNick + ") ([^\x05]+?)(\x05([0-9]+))? ([0-9]+)/([0-9]+)\x05TTH:(" + reStrTTH + ") \\((" + reStrIp + "):(" + reStrPort + ")\\)$")
+var reNmdcCmdSearchResult = regexp.MustCompile("^(" + reStrNick + ") ([^\x05]+?)(\x05([0-9]+))? ([0-9]+)/([0-9]+)\x05(TTH:(" + reStrTTH + ")|(.+?)) \\((" + reStrIp + "):(" + reStrPort + ")\\)$")
 var reNmdcCmdUserCommand = regexp.MustCompile("^([0-9]{1,3}) ([0-9]{1,2}) (.*?)$")
 var reNmdcCmdUserIP = regexp.MustCompile("^(" + reStrNick + ") (" + reStrIp + ")$")
 
@@ -681,13 +681,14 @@ func (m *msgNmdcSearchRequest) NmdcEncode() string {
 }
 
 type msgNmdcSearchResult struct {
+	Nick       string
 	Path       string
 	IsDir      bool
-	Size       uint64    // file only, also directory in ADC
-	TTH        TigerHash // file only
-	Nick       string
+	Size       uint64 // file only, also directory in ADC
 	SlotAvail  uint
 	SlotCount  uint
+	TTH        TigerHash // file only
+	HubName    string    // sometimes provided instead of TTH
 	HubIp      string
 	HubPort    uint
 	TargetNick string // send only, passive only
@@ -699,28 +700,31 @@ func (m *msgNmdcSearchResult) NmdcDecode(args string) error {
 		return errorArgsFormat
 	}
 
-	var tth TigerHash
-	if matches[3] != "" {
-		var err error
-		tth, err = TigerHashFromBase32(matches[7])
+	if matches[8] != "" {
+		tth, err := TigerHashFromBase32(matches[8])
 		if err != nil {
 			return err
 		}
+		m.TTH = tth
+	} else {
+		m.HubName = matches[9]
 	}
 
-	m.Nick, m.Path, m.Size, m.SlotAvail, m.SlotCount, m.TTH, m.IsDir, m.HubIp,
-		m.HubPort = matches[1], "/"+strings.Replace(matches[2], "\\", "/", -1),
+	m.IsDir = (matches[3] == "")
+
+	m.Nick, m.Path, m.Size, m.SlotAvail, m.SlotCount, m.HubIp, m.HubPort =
+		matches[1],
+		"/"+strings.Replace(matches[2], "\\", "/", -1),
 		func() uint64 {
 			if matches[3] != "" {
 				return atoui64(matches[4])
 			}
 			return 0
 		}(),
-		atoui(matches[5]), atoui(matches[6]),
-		tth,
-		(matches[3] == ""),
-		matches[8],
-		atoui(matches[9])
+		atoui(matches[5]),
+		atoui(matches[6]),
+		matches[10],
+		atoui(matches[11])
 	return nil
 }
 
