@@ -83,11 +83,9 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 		}[req.Type]; !ok {
 			return nil, fmt.Errorf("unsupported search type: %v", req.Type)
 		}
-		if req.Type == nmdcSearchTypeTTH && strings.HasPrefix(req.Query, "TTH:") == false {
-			return nil, fmt.Errorf("invalid TTH: %v", req.Query)
-		}
 
-		return c.handleSearchIncomingRequest(&searchRequest{
+		sr := &searchIncomingRequest{
+			isActive: req.IsActive,
 			stype: func() SearchType {
 				switch req.Type {
 				case nmdcSearchTypeAny:
@@ -97,16 +95,26 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 				}
 				return SearchTTH
 			}(),
-			query: func() string {
-				if req.Type == nmdcSearchTypeTTH {
-					return req.Query[4:]
-				}
-				return req.Query
-			}(),
-			minSize:  req.MinSize,
-			maxSize:  req.MaxSize,
-			isActive: req.IsActive,
-		})
+			minSize: req.MinSize,
+			maxSize: req.MaxSize,
+		}
+
+		if req.Type == nmdcSearchTypeTTH {
+			if strings.HasPrefix(req.Query, "TTH:") == false {
+				return nil, fmt.Errorf("invalid TTH (1): %v", req.Query)
+			}
+
+			var err error
+			sr.tth, err = TigerHashFromBase32(req.Query[4:])
+			if err != nil {
+				return nil, fmt.Errorf("invalid TTH (2): %v", req.Query[4:])
+			}
+
+		} else {
+			sr.query = req.Query
+		}
+
+		return c.handleSearchIncomingRequest(sr)
 	}()
 	if err != nil {
 		dolog(LevelDebug, "[search] error: %s", err)
