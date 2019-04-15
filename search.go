@@ -50,12 +50,13 @@ type SearchConf struct {
 	TTH TigerHash
 }
 
-type searchRequest struct {
+type searchIncomingRequest struct {
+	isActive bool
 	stype    SearchType
 	minSize  uint64
 	maxSize  uint64
-	query    string
-	isActive bool
+	query    string    // if type is SearchAny or SearchDirectory
+	tth      TigerHash // if type is SearchTTH
 }
 
 // Search starts a file search asynchronously. See SearchConf for the available options.
@@ -67,7 +68,7 @@ func (c *Client) Search(conf SearchConf) error {
 	}
 }
 
-func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{}, error) {
+func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]interface{}, error) {
 	var results []interface{}
 	var scanDir func(dname string, dir *shareDirectory, dirAddToResults bool)
 
@@ -110,14 +111,9 @@ func (c *Client) handleSearchIncomingRequest(req *searchRequest) ([]interface{},
 
 		// search file by TTH
 	} else {
-		tth, err := TigerHashFromBase32(req.query)
-		if err != nil {
-			return nil, fmt.Errorf("invalid TTH: %s", req.query)
-		}
-
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			for _, file := range dir.files {
-				if file.tth == tth {
+				if file.tth == req.tth {
 					results = append(results, file)
 				}
 			}

@@ -128,7 +128,8 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 			}
 		}
 
-		return c.handleSearchIncomingRequest(&searchRequest{
+		sr := &searchIncomingRequest{
+			isActive: (peer.IsPassive == false),
 			stype: func() SearchType {
 				if _, ok := req.Fields[adcFieldFileTTH]; ok {
 					return SearchTTH
@@ -139,12 +140,6 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 					}
 				}
 				return SearchAny
-			}(),
-			query: func() string {
-				if _, ok := req.Fields[adcFieldFileTTH]; ok {
-					return req.Fields[adcFieldFileTTH]
-				}
-				return req.Fields[adcFieldQueryAnd]
 			}(),
 			minSize: func() uint64 {
 				if val, ok := req.Fields[adcFieldMinSize]; ok {
@@ -158,8 +153,20 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 				}
 				return 0
 			}(),
-			isActive: (peer.IsPassive == false),
-		})
+		}
+
+		if _, ok := req.Fields[adcFieldFileTTH]; ok {
+			var err error
+			sr.tth, err = TigerHashFromBase32(req.Fields[adcFieldFileTTH])
+			if err != nil {
+				return nil, fmt.Errorf("invalid TTH: %v", req.Fields[adcFieldFileTTH])
+			}
+
+		} else {
+			sr.query = req.Fields[adcFieldQueryAnd]
+		}
+
+		return c.handleSearchIncomingRequest(sr)
 	}()
 	if err != nil {
 		dolog(LevelDebug, "[search] error: %s", err)
