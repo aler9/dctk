@@ -238,7 +238,11 @@ func (p *protocolBase) writeReceiver() {
 }
 
 func (p *protocolBase) WriteSync(in []byte) error {
-	return p.writer.WriteLine(in)
+	err := p.writer.WriteLine(in)
+	if err != nil {
+		return err
+	}
+	return p.writer.Flush()
 }
 
 func (p *protocolBase) Write(in []byte) {
