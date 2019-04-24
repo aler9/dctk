@@ -220,6 +220,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.state = "sessionid"
 		h.client.sessionId = msg.Sid
+		h.client.sendInfos(true)
 
 	case *msgAdcIInfos:
 		if h.state != "sessionid" {
@@ -237,8 +238,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 				dolog(LevelInfo, "[hub] [%s] %s", desc, val)
 			}
 		}
-
-		h.client.sendInfos(true)
 
 	case *msgAdcIGetPass:
 		if h.state != "hubinfos" {
