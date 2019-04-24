@@ -219,6 +219,8 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 					return &msgAdcIGetPass{}
 				case "IINF":
 					return &msgAdcIInfos{}
+				case "IMSG":
+					return &msgAdcIMsg{}
 				case "IQUI":
 					return &msgAdcIQuit{}
 				case "ISID":
@@ -771,6 +773,11 @@ type msgAdcIGetPass struct {
 type msgAdcIInfos struct {
 	msgAdcTypeI
 	msgAdcKeyInfos
+}
+
+type msgAdcIMsg struct {
+	msgAdcTypeI
+	msgAdcKeyMessage
 }
 
 type msgAdcIQuit struct {

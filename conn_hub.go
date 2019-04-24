@@ -239,6 +239,9 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			}
 		}
 
+	case *msgAdcIMsg:
+		dolog(LevelInfo, "[hub] %s", msg.Content)
+
 	case *msgAdcIGetPass:
 		if h.state != "hubinfos" {
 			return fmt.Errorf("[Sup] invalid state: %s", h.state)
