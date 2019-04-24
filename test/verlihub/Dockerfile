@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -L https://github.com/Verlihub/verlihub/archive/1.1.0.0.tar.gz | tar xvfz - \
+RUN curl -L https://github.com/Verlihub/verlihub/archive/1.2.0.0.tar.gz | tar xvfz - \
     && cd /verlihub* \
     && cmake . \
     && make -j$(nproc) \
