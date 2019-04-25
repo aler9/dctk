@@ -181,15 +181,21 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.client.sendInfos(true)
 
 	case *msgAdcIInfos:
-		for key, desc := range map[string]string{
-			adcFieldName:        "name",
-			adcFieldSoftware:    "software",
-			adcFieldVersion:     "version",
-			adcFieldDescription: "description",
-		} {
-			if val, ok := msg.Fields[key]; ok {
-				dolog(LevelInfo, "[hub] [%s] %s", desc, val)
+		for key, val := range msg.Fields {
+			var klabel string
+			switch key {
+			case adcFieldName:
+				klabel = "name"
+			case adcFieldSoftware:
+				klabel = "software"
+			case adcFieldVersion:
+				klabel = "version"
+			case adcFieldDescription:
+				klabel = "description"
+			default:
+				klabel = key
 			}
+			dolog(LevelInfo, "[hub] [%s] %s", klabel, val)
 		}
 
 	case *msgAdcIMsg:
