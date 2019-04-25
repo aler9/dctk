@@ -1,7 +1,7 @@
 package dctoolkit
 
 import (
-    "time"
+	"time"
 )
 
 const (
@@ -31,6 +31,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 				h.client.Safe(func() {
 					if h.client.protoIsAdc == true {
 						// ADC uses the TCP keepalive feature or empty packets
+						h.conn.Write(&msgAdcKeepAlive{})
 					} else {
 						h.conn.Write(&msgNmdcKeepAlive{})
 					}

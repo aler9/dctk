@@ -177,6 +177,10 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 		}
 
 		msg, err := func() (msgDecodable, error) {
+			if len(msgStr) == 0 {
+				return &msgAdcKeepAlive{}, nil
+			}
+
 			if len(msgStr) < 5 {
 				return nil, fmt.Errorf("message too short")
 			}
@@ -271,6 +275,16 @@ func (p *protocolAdc) Write(msg msgEncodable) {
 	}
 	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
 	p.protocolBase.Write([]byte(adc.AdcTypeEncode(adc.AdcKeyEncode())))
+}
+
+type msgAdcKeepAlive struct{}
+
+func (*msgAdcKeepAlive) AdcKeyEncode() string {
+	return ""
+}
+
+func (*msgAdcKeepAlive) AdcTypeEncode(keyEncoded string) string {
+	return ""
 }
 
 type msgAdcTypeDecodable interface {
