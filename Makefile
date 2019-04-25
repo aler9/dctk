@@ -44,7 +44,7 @@ test-example:
 	docker run --rm -it dctoolkit-test-example make test-example-nodocker
 
 test-example-nodocker:
-	$(foreach f, $(shell echo example/*), go build -o /dev/null $(f)$(NL))
+	$(foreach f,$(shell echo example/*),go build -o /dev/null $(f)$(NL))
 
 test-command:
 	echo "FROM amd64/golang:1.11-stretch \n\
@@ -56,7 +56,7 @@ test-command:
 	docker run --rm -it dctoolkit-test-command make test-command-nodocker
 
 test-command-nodocker:
-	$(foreach d, $(shell echo cmd/*/), go build -o /dev/null ./$(d)$(NL))
+	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
 
 define TEST_LIB_UNIT
 @[ -f test/$(UNIT).go ] || { echo "test not found"; exit 1; }
@@ -82,11 +82,11 @@ test-lib:
 
   # build images
 	docker build . -f test/Dockerfile -t dctk-unit >$(OUT)
-	$(foreach HUB, $(HUBS), docker build test/$(HUB) -t dctk-hub-$(HUB) >$(OUT)$(NL))
+	$(foreach HUB,$(HUBS),docker build test/$(HUB) -t dctk-hub-$(HUB) >$(OUT)$(NL))
 
   # run units
 	docker network create dctk-test >/dev/null
-	$(foreach HUB, $(HUBS), $(foreach UNIT, $(UNITS), $(TEST_LIB_UNIT)$(NL))$(NL))
+	$(foreach HUB,$(HUBS),$(foreach UNIT,$(UNITS),$(TEST_LIB_UNIT)$(NL))$(NL))
 	docker network rm dctk-test
 
 run-example:
