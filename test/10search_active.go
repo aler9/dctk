@@ -43,7 +43,8 @@ func client1() {
 }
 
 func client2() {
-	isGodcpp := strings.HasSuffix(os.Getenv("HUBURL"), ":1411")
+	isGodcppNmdc := strings.HasPrefix(os.Getenv("HUBURL"), "nmdc://") &&
+		strings.HasSuffix(os.Getenv("HUBURL"), ":1411")
 	isAdc := strings.HasPrefix(os.Getenv("HUBURL"), "adc")
 	client, err := dctk.NewClient(dctk.ClientConf{
 		HubUrl:     os.Getenv("HUBURL"),
@@ -81,7 +82,7 @@ func client2() {
 				res.TTH != zeroTTH ||
 				// res.Size for folders is provided by ADC, not provided by NMDC
 				((!isAdc && res.Size != 0) || (isAdc && res.Size != 10000)) ||
-				((!isGodcpp && res.IsActive != true) || (isGodcpp && res.IsActive != false)) {
+				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
 				panic(fmt.Errorf("wrong result (1): %+v", res))
 			}
 			step++
@@ -94,7 +95,7 @@ func client2() {
 				res.Path != "/aliasname/inner folder/test file.txt" ||
 				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
-				((!isGodcpp && res.IsActive != true) || (isGodcpp && res.IsActive != false)) {
+				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
 				panic(fmt.Errorf("wrong result (2): %+v", res))
 			}
 			step++
@@ -108,7 +109,7 @@ func client2() {
 				res.Path != "/aliasname/inner folder/test file.txt" ||
 				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
-				((!isGodcpp && res.IsActive != true) || (isGodcpp && res.IsActive != false)) {
+				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
 				panic(fmt.Errorf("wrong result (3): %+v", res))
 			}
 			ok = true
