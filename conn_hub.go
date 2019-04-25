@@ -159,6 +159,8 @@ func (h *connHub) do() {
 
 func (h *connHub) handleMessage(msgi msgDecodable) error {
 	switch msg := msgi.(type) {
+	case *msgAdcKeepAlive:
+
 	case *msgAdcIStatus:
 		if msg.Type != adcStatusOk {
 			return fmt.Errorf("error: %+v", msg)
