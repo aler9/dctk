@@ -181,11 +181,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.client.sendInfos(true)
 
 	case *msgAdcIInfos:
-		if h.state != "sessionid" {
-			return fmt.Errorf("[Infos] invalid state: %s", h.state)
-		}
-		h.state = "hubinfos"
-
 		for key, desc := range map[string]string{
 			adcFieldName:        "name",
 			adcFieldSoftware:    "software",
@@ -201,7 +196,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		dolog(LevelInfo, "[hub] %s", msg.Content)
 
 	case *msgAdcIGetPass:
-		if h.state != "hubinfos" {
+		if h.state != "sessionid" {
 			return fmt.Errorf("[Sup] invalid state: %s", h.state)
 		}
 		h.state = "getpass"
