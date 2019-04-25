@@ -102,8 +102,9 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 		msg, err := func() (msgDecodable, error) {
 			if len(msgStr) == 0 {
 				return &msgNmdcKeepAlive{}, nil
+			}
 
-			} else if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
+			if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
 				key, args := matches[1], matches[3]
 
 				cmd := func() msgNmdcCommandDecodable {
@@ -178,16 +179,17 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 					return nil, fmt.Errorf("unable to decode arguments")
 				}
 				return cmd, nil
-
-			} else if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
-				return &msgNmdcPublicChat{Author: matches[1], Content: matches[2]}, nil
-
-			} else if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
-				return &msgNmdcPrivateChat{Author: matches[3], Content: matches[4]}, nil
-
-			} else {
-				return nil, fmt.Errorf("unknown sequence")
 			}
+
+			if matches := reNmdcPublicChat.FindStringSubmatch(msgStr); matches != nil {
+				return &msgNmdcPublicChat{Author: matches[1], Content: matches[2]}, nil
+			}
+
+			if matches := reNmdcPrivateChat.FindStringSubmatch(msgStr); matches != nil {
+				return &msgNmdcPrivateChat{Author: matches[3], Content: matches[4]}, nil
+			}
+
+			return nil, fmt.Errorf("unknown sequence")
 		}()
 		if err != nil {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
