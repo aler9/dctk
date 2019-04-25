@@ -440,7 +440,7 @@ type msgAdcKeyConnectToMe struct {
 }
 
 func (m *msgAdcKeyConnectToMe) AdcKeyEncode() string {
-	return "CTM" + " " + m.Protocol + " " + numtoa(m.TcpPort) + " " + m.Token
+	return "CTM" + m.Protocol + " " + numtoa(m.TcpPort) + " " + m.Token
 }
 
 func (m *msgAdcKeyConnectToMe) AdcKeyDecode(args string) error {
@@ -567,7 +567,7 @@ type msgAdcKeyRevConnectToMe struct {
 }
 
 func (m *msgAdcKeyRevConnectToMe) AdcKeyEncode() string {
-	return "RCM" + " " + m.Protocol + " " + m.Token
+	return "RCM" + m.Protocol + " " + m.Token
 }
 
 func (m *msgAdcKeyRevConnectToMe) AdcKeyDecode(args string) error {
