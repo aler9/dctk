@@ -181,12 +181,8 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 				return &msgAdcKeepAlive{}, nil
 			}
 
-			if len(msgStr) < 5 {
+			if len(msgStr) < 4 {
 				return nil, fmt.Errorf("message too short")
-			}
-
-			if msgStr[4] != ' ' {
-				return nil, fmt.Errorf("invalid message")
 			}
 
 			msg := func() msgAdcTypeKeyDecodable {
@@ -233,11 +229,25 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 					return &msgAdcIStatus{}
 				case "ISUP":
 					return &msgAdcISupports{}
+				case "IZON":
+					return &msgAdcIZon{}
 				}
 				return nil
 			}()
 			if msg == nil {
 				return nil, fmt.Errorf("unrecognized message")
+			}
+
+			if len(msgStr) == 4 {
+				return msg, nil
+			}
+
+			if len(msgStr) < 6 {
+				return nil, fmt.Errorf("message too short")
+			}
+
+			if msgStr[4] != ' ' {
+				return nil, fmt.Errorf("invalid message")
 			}
 
 			n, err := msg.AdcTypeDecode(msgStr[5:])
@@ -694,6 +704,16 @@ func (m *msgAdcKeySupports) AdcKeyEncode() string {
 	return "SUP" + strings.Join(out, " ")
 }
 
+type msgAdcKeyZon struct{}
+
+func (*msgAdcKeyZon) AdcKeyEncode() string {
+	return ""
+}
+
+func (m *msgAdcKeyZon) AdcKeyDecode(args string) error {
+	return fmt.Errorf("Zon should not have arguments")
+}
+
 type msgAdcBInfos struct {
 	msgAdcTypeB
 	msgAdcKeyInfos
@@ -812,6 +832,11 @@ type msgAdcIStatus struct {
 type msgAdcISupports struct {
 	msgAdcTypeI
 	msgAdcKeySupports
+}
+
+type msgAdcIZon struct {
+	msgAdcTypeI
+	msgAdcKeyZon
 }
 
 type msgAdcUSearchResult struct {

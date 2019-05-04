@@ -94,15 +94,18 @@ func (h *connHub) do() {
 		dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
 		if h.client.protoIsAdc == true {
+			features := map[string]struct{}{
+				adcFeatureBas0:         {},
+				adcFeatureBase:         {},
+				adcFeatureTiger:        {},
+				adcFeatureUserCommands: {},
+			}
+			if h.client.conf.HubDisableCompression == false {
+				features[adcFeatureZlibFull] = struct{}{}
+			}
 			h.conn.Write(&msgAdcHSupports{
 				msgAdcTypeH{},
-				msgAdcKeySupports{map[string]struct{}{
-					adcFeatureBas0:         {},
-					adcFeatureBase:         {},
-					adcFeatureTiger:        {},
-					adcFeatureUserCommands: {},
-					adcFeatureZlibFull:     {},
-				}},
+				msgAdcKeySupports{features},
 			})
 		}
 
@@ -160,6 +163,14 @@ func (h *connHub) do() {
 func (h *connHub) handleMessage(msgi msgDecodable) error {
 	switch msg := msgi.(type) {
 	case *msgAdcKeepAlive:
+
+	case *msgAdcIZon:
+		if h.client.conf.HubDisableCompression == true {
+			return fmt.Errorf("zlib requested but zlib is disabled")
+		}
+		if err := h.conn.ReaderEnableZlib(); err != nil {
+			return err
+		}
 
 	case *msgAdcIStatus:
 		if msg.Type != adcStatusOk {
@@ -402,6 +413,14 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	case *msgNmdcKeepAlive:
 
+	case *msgNmdcZon:
+		if h.client.conf.HubDisableCompression == true {
+			return fmt.Errorf("zlib requested but zlib is disabled")
+		}
+		if err := h.conn.ReaderEnableZlib(); err != nil {
+			return err
+		}
+
 	case *msgNmdcLock:
 		if h.state != "connected" {
 			return fmt.Errorf("[Lock] invalid state: %s", h.state)
@@ -437,17 +456,6 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
 		h.state = "preinitialized"
-
-	case *msgNmdcZon:
-		if h.state != "initialized" && h.state != "preinitialized" {
-			return fmt.Errorf("[ZOn] invalid state: %s", h.state)
-		}
-		if h.client.conf.HubDisableCompression == true {
-			return fmt.Errorf("zlib requested but zlib is disabled")
-		}
-		if err := h.conn.ReaderEnableZlib(); err != nil {
-			return err
-		}
 
 	// flexhub sends HubName just after lock
 	// HubName can also be sent twice
