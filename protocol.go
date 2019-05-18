@@ -4,6 +4,7 @@ import (
 	"github.com/direct-connect/go-dc/lineproto"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -112,9 +113,9 @@ func (c *monitoredConn) PullWriteCounter() uint {
 
 type protocolBase struct {
 	remoteLabel string
+	terminated  uint32 // atomic
 	msgDelim    byte
 	sendChan    chan []byte
-	terminated  bool
 	closer      io.Closer
 	monitoredConnIntf
 	reader       *lineproto.Reader
@@ -159,11 +160,14 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	return p
 }
 
+func (p *protocolBase) isTerminated() bool {
+	return atomic.LoadUint32(&p.terminated) != 0
+}
+
 func (p *protocolBase) Close() error {
-	if p.terminated == true {
-		return nil
+	if !atomic.CompareAndSwapUint32(&p.terminated, 0, 1) {
+		return nil // already closing
 	}
-	p.terminated = true
 	p.closer.Close()
 
 	if p.syncMode == false {
@@ -198,13 +202,13 @@ func (p *protocolBase) SetReadBinary(val bool) {
 
 func (p *protocolBase) ReadMessage() (string, error) {
 	// Close() was called in a previous run
-	if p.terminated == true {
+	if p.isTerminated() {
 		return "", errorTerminated
 	}
 
 	msg, err := p.reader.ReadLine()
 	if err != nil {
-		if p.terminated == true {
+		if p.isTerminated() {
 			return "", errorTerminated
 		}
 		return "", err
@@ -214,7 +218,7 @@ func (p *protocolBase) ReadMessage() (string, error) {
 
 func (p *protocolBase) ReadBinary() ([]byte, error) {
 	// Close() was called in a previous run
-	if p.terminated == true {
+	if p.isTerminated() {
 		return nil, errorTerminated
 	}
 
@@ -222,7 +226,7 @@ func (p *protocolBase) ReadBinary() ([]byte, error) {
 	var buf [2048]byte
 	read, err := p.reader.Read(buf[:])
 	if read == 0 {
-		if p.terminated == true {
+		if p.isTerminated() {
 			return nil, errorTerminated
 		}
 		return nil, err
@@ -247,7 +251,7 @@ func (p *protocolBase) WriteSync(in []byte) error {
 }
 
 func (p *protocolBase) Write(in []byte) {
-	if p.terminated == true {
+	if p.isTerminated() {
 		return
 	}
 	p.sendChan <- in
