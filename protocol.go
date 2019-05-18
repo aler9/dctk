@@ -22,7 +22,7 @@ type monitoredConnIntf interface {
 }
 
 type protocol interface {
-	Close()
+	Close() error
 	SetSyncMode(val bool)
 	SetReadBinary(val bool)
 	Read() (msgDecodable, error)
@@ -159,9 +159,9 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	return p
 }
 
-func (p *protocolBase) Close() {
+func (p *protocolBase) Close() error {
 	if p.terminated == true {
-		return
+		return nil
 	}
 	p.terminated = true
 	p.closer.Close()
@@ -170,6 +170,7 @@ func (p *protocolBase) Close() {
 		close(p.sendChan)
 		<-p.writerJoined
 	}
+	return nil
 }
 
 func (p *protocolBase) SetSyncMode(val bool) {
