@@ -261,7 +261,7 @@ func (p *protocolBase) WriterEnableZlib() {
 }
 
 func (p *protocolBase) WriterDisableZlib() {
-	p.writer.EnableZlib()
+	p.writer.DisableZlib()
 }
 
 type msgBinary struct {
