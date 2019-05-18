@@ -306,13 +306,14 @@ func NewClient(conf ClientConf) (*Client, error) {
 	return c, nil
 }
 
-// Terminate closes every open connection and stops the client.
-func (c *Client) Close() {
+// Close every open connection and stop the client.
+func (c *Client) Close() error {
 	if c.terminateRequested == true {
-		return
+		return nil
 	}
 	c.terminateRequested = true
 	c.terminate <- struct{}{}
+	return nil
 }
 
 // Run starts the client and waits until the client has been terminated.
