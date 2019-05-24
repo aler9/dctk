@@ -157,29 +157,29 @@ type Client struct {
 	transfers             map[transfer]struct{}
 	activeDownloadsByPeer map[string]*Download
 
-	// called just after client initialization, before connecting to the hub
+	// OnInitialized is called just after client initialization, before connecting to the hub
 	OnInitialized func()
-	// called every time the share indexer has finished indexing the client share
+	// OnShareIndexed is called every time the share indexer has finished indexing the client share
 	OnShareIndexed func()
-	// called when the connection between client and hub has been established
+	// OnHubConnected is called when the connection between client and hub has been established
 	OnHubConnected func()
-	// called when a critical error happens
+	// OnHubError is called when a critical error happens
 	OnHubError func(err error)
-	// called when a peer connects to the hub
+	// OnPeerConnected is called when a peer connects to the hub
 	OnPeerConnected func(p *Peer)
-	// called when a peer has just updated its informations
+	// OnPeerUpdated is called when a peer has just updated its informations
 	OnPeerUpdated func(p *Peer)
-	// called when a peer disconnects from the hub
+	// OnPeerDisconnected is called when a peer disconnects from the hub
 	OnPeerDisconnected func(p *Peer)
-	// called when someone has written in the hub public chat
+	// OnMessagePublic is called when someone has written in the hub public chat
 	OnMessagePublic func(p *Peer, content string)
-	// called when a private message has been received
+	// OnMessagePrivate is called when a private message has been received
 	OnMessagePrivate func(p *Peer, content string)
-	// called when a search result has been received
+	// OnSearchResult is called when a search result has been received
 	OnSearchResult func(r *SearchResult)
-	// called when a given download has finished
+	// OnDownloadSuccessful is called when a given download has finished
 	OnDownloadSuccessful func(d *Download)
-	// called when a given download has failed
+	// OnDownloadError is called when a given download has failed
 	OnDownloadError func(d *Download)
 }
 
