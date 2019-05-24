@@ -72,6 +72,16 @@ const (
 	ForceEncryption
 )
 
+// PID is a private ID of the client.
+type PID []byte
+
+// NewPID creates a new random private ID.
+func NewPID() PID {
+	pid := make([]byte, 24)
+	rand.Read(pid)
+	return PID(pid)
+}
+
 // ClientConf allows to configure a client.
 type ClientConf struct {
 	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
@@ -103,6 +113,8 @@ type ClientConf struct {
 	Nick string
 	// the password associated with the nick, if requested by the hub
 	Password string
+	// the private ID of the user (ADC only)
+	PID PID
 	// an email, optional
 	Email string
 	// a description, optional
@@ -145,7 +157,7 @@ type Client struct {
 	listenerUdp        *listenerUdp
 	connHub            *connHub
 	// we follow the ADC way to handle IDs, even when using NMDC
-	privateId             []byte
+	privateId             PID
 	clientId              []byte
 	sessionId             string // we save it encoded since it is 20 bits and cannot be decoded easily
 	adcFingerprint        string
@@ -255,6 +267,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 	c := &Client{
 		conf:                  conf,
+		privateId:             conf.PID,
 		terminate:             make(chan struct{}),
 		protoIsAdc:            u.Scheme == "adc" || u.Scheme == "adcs",
 		hubIsEncrypted:        u.Scheme == "adcs" || u.Scheme == "nmdcs",
@@ -271,9 +284,10 @@ func NewClient(conf ClientConf) (*Client, error) {
 		activeDownloadsByPeer: make(map[string]*Download),
 	}
 
-	// generate privateId (random)
-	c.privateId = make([]byte, 24)
-	rand.Read(c.privateId)
+	if c.privateId == nil {
+		// generate privateId (random)
+		c.privateId = NewPID()
+	}
 
 	// generate clientId (hash of privateId)
 	hasher := newTiger()
