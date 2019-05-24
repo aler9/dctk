@@ -88,7 +88,14 @@ func (h *connHub) do() {
 		// hub connected
 		rawconn := ce.Conn
 		if h.client.hubIsEncrypted == true {
-			rawconn = tls.Client(rawconn, &tls.Config{InsecureSkipVerify: true})
+			next := []string{"adc"}
+			if !h.client.protoIsAdc {
+				next = []string{"nmdc"}
+			}
+			rawconn = tls.Client(rawconn, &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         next,
+			})
 		}
 
 		// do not use read timeout since hub does not send data continuously
