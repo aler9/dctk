@@ -21,6 +21,7 @@ const (
 
 type connHub struct {
 	client             *Client
+	name               string
 	terminateRequested bool
 	terminate          chan struct{}
 	state              string
@@ -208,6 +209,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			switch key {
 			case adcFieldName:
 				klabel = HubName
+				h.name = val
 			case adcFieldSoftware:
 				klabel = HubSoftware
 			case adcFieldVersion:
@@ -224,6 +226,9 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgAdcIMsg:
+		if h.client.OnMessagePublic != nil {
+			h.client.OnMessagePublic(&Peer{Nick: h.name}, msg.Content)
+		}
 		dolog(LevelInfo, "[hub] %s", msg.Content)
 
 	case *msgAdcIGetPass:
