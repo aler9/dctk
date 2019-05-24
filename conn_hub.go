@@ -8,6 +8,17 @@ import (
 	"time"
 )
 
+// HubField is a name of a hub information field.
+type HubField string
+
+const (
+	HubName        = HubField("name")
+	HubTopic       = HubField("topic")
+	HubSoftware    = HubField("software")
+	HubVersion     = HubField("version")
+	HubDescription = HubField("description")
+)
+
 type connHub struct {
 	client             *Client
 	terminateRequested bool
@@ -193,18 +204,21 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	case *msgAdcIInfos:
 		for key, val := range msg.Fields {
-			var klabel string
+			var klabel HubField
 			switch key {
 			case adcFieldName:
-				klabel = "name"
+				klabel = HubName
 			case adcFieldSoftware:
-				klabel = "software"
+				klabel = HubSoftware
 			case adcFieldVersion:
-				klabel = "version"
+				klabel = HubVersion
 			case adcFieldDescription:
-				klabel = "description"
+				klabel = HubDescription
 			default:
-				klabel = key
+				klabel = HubField(key)
+			}
+			if h.client.OnHubInfo != nil {
+				h.client.OnHubInfo(klabel, val)
 			}
 			dolog(LevelInfo, "[hub] [%s] %s", klabel, val)
 		}
@@ -463,11 +477,17 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		if h.state != "preinitialized" && h.state != "lock" {
 			return fmt.Errorf("[HubName] invalid state: %s", h.state)
 		}
+		if h.client.OnHubInfo != nil {
+			h.client.OnHubInfo(HubName, msg.Content)
+		}
 		dolog(LevelInfo, "[hub] [name] %s", msg.Content)
 
 	case *msgNmdcHubTopic:
 		if h.state != "preinitialized" && h.state != "initialized" {
 			return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
+		}
+		if h.client.OnHubInfo != nil {
+			h.client.OnHubInfo(HubTopic, msg.Content)
 		}
 		dolog(LevelInfo, "[hub] [topic] %s", msg.Content)
 
