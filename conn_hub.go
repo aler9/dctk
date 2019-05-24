@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,12 +20,51 @@ const (
 	HubDescription = HubField("description")
 )
 
+type hubConnState int
+
+const (
+	hubDisconnected = hubConnState(iota)
+	hubConnecting
+	hubConnected
+	hubSupports
+	hubSessionID
+	hubGetPass
+	hubInitialized
+	hubPreInitialized
+	hubLock
+)
+
+func (s hubConnState) String() string {
+	switch s {
+	case hubDisconnected:
+		return "disconnected"
+	case hubConnecting:
+		return "connecting"
+	case hubConnected:
+		return "connected"
+	case hubSupports:
+		return "supports"
+	case hubSessionID:
+		return "sessionid"
+	case hubGetPass:
+		return "getpass"
+	case hubInitialized:
+		return "initialized"
+	case hubPreInitialized:
+		return "preinitialized"
+	case hubLock:
+		return "lock"
+	default:
+		return "state(" + strconv.Itoa(int(s)) + ")"
+	}
+}
+
 type connHub struct {
 	client             *Client
 	name               string
 	terminateRequested bool
 	terminate          chan struct{}
-	state              string
+	state              hubConnState
 	conn               protocol
 	passwordSent       bool
 	uniqueCmds         map[string]struct{}
@@ -34,7 +74,7 @@ func newConnHub(client *Client) error {
 	client.connHub = &connHub{
 		client:     client,
 		terminate:  make(chan struct{}, 1),
-		state:      "disconnected",
+		state:      hubDisconnected,
 		uniqueCmds: make(map[string]struct{}),
 	}
 	return nil
@@ -43,10 +83,10 @@ func newConnHub(client *Client) error {
 // HubConnect starts the connection to the hub. It must be called only when
 // HubManualConnect is true.
 func (c *Client) HubConnect() {
-	if c.connHub.state != "disconnected" {
+	if c.connHub.state != hubDisconnected {
 		return
 	}
-	c.connHub.state = "connecting"
+	c.connHub.state = hubConnecting
 	c.wg.Add(1)
 	go c.connHub.do()
 }
@@ -129,7 +169,7 @@ func (h *connHub) do() {
 		}
 
 		h.client.Safe(func() {
-			h.state = "connected"
+			h.state = hubConnected
 		})
 
 		readDone := make(chan error)
@@ -197,16 +237,16 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgAdcISupports:
-		if h.state != "connected" {
+		if h.state != hubConnected {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
-		h.state = "supports"
+		h.state = hubSupports
 
 	case *msgAdcISessionId:
-		if h.state != "supports" {
+		if h.state != hubSupports {
 			return fmt.Errorf("[SessionId] invalid state: %s", h.state)
 		}
-		h.state = "sessionid"
+		h.state = hubSessionID
 		h.client.sessionId = msg.Sid
 		h.client.sendInfos(true)
 
@@ -239,10 +279,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		dolog(LevelInfo, "[hub] %s", msg.Content)
 
 	case *msgAdcIGetPass:
-		if h.state != "sessionid" {
+		if h.state != hubSessionID {
 			return fmt.Errorf("[Sup] invalid state: %s", h.state)
 		}
-		h.state = "getpass"
+		h.state = hubGetPass
 
 		hasher := newTiger()
 		hasher.Write([]byte(h.client.conf.Password))
@@ -338,8 +378,8 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	case *msgAdcICommand:
 		// switch to initialized
-		if h.state != "initialized" {
-			h.state = "initialized"
+		if h.state != hubInitialized {
+			h.state = hubInitialized
 			h.handleHubInitialized()
 		}
 
@@ -448,10 +488,10 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcLock:
-		if h.state != "connected" {
+		if h.state != hubConnected {
 			return fmt.Errorf("[Lock] invalid state: %s", h.state)
 		}
-		h.state = "lock"
+		h.state = hubLock
 
 		// https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
@@ -478,15 +518,15 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		return fmt.Errorf("forbidden nickname")
 
 	case *msgNmdcSupports:
-		if h.state != "lock" {
+		if h.state != hubLock {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
-		h.state = "preinitialized"
+		h.state = hubPreInitialized
 
 	// flexhub sends HubName just after lock
 	// HubName can also be sent twice
 	case *msgNmdcHubName:
-		if h.state != "preinitialized" && h.state != "lock" {
+		if h.state != hubPreInitialized && h.state != hubLock {
 			return fmt.Errorf("[HubName] invalid state: %s", h.state)
 		}
 		if h.client.OnHubInfo != nil {
@@ -495,7 +535,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		dolog(LevelInfo, "[hub] [name] %s", msg.Content)
 
 	case *msgNmdcHubTopic:
-		if h.state != "preinitialized" && h.state != "initialized" {
+		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
 		}
 		if h.client.OnHubInfo != nil {
@@ -504,7 +544,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		dolog(LevelInfo, "[hub] [topic] %s", msg.Content)
 
 	case *msgNmdcGetPass:
-		if h.state != "preinitialized" {
+		if h.state != hubPreInitialized {
 			return fmt.Errorf("[GetPass] invalid state: %s", h.state)
 		}
 		h.passwordSent = true
@@ -521,7 +561,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		return fmt.Errorf("hub is full")
 
 	case *msgNmdcLoggedIn:
-		if h.state != "preinitialized" {
+		if h.state != hubPreInitialized {
 			return fmt.Errorf("[LoggedIn] invalid state: %s", h.state)
 		}
 		if _, ok := h.uniqueCmds["LoggedIn"]; ok {
@@ -530,7 +570,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.uniqueCmds["LoggedIn"] = struct{}{}
 
 	case *msgNmdcHello:
-		if h.state != "preinitialized" {
+		if h.state != hubPreInitialized {
 			return fmt.Errorf("[Hello] invalid state: %s", h.state)
 		}
 		if _, ok := h.uniqueCmds["Hello"]; ok {
@@ -545,7 +585,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.conn.Write(&msgNmdcGetNickList{})
 
 	case *msgNmdcMyInfo:
-		if h.state != "preinitialized" && h.state != "initialized" {
+		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
 		}
 		exists := true
@@ -580,7 +620,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcUserIp:
-		if h.state != "preinitialized" && h.state != "initialized" {
+		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[UserIp] invalid state: %s", h.state)
 		}
 
@@ -596,7 +636,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcOpList:
-		if h.state != "preinitialized" && h.state != "initialized" {
+		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[OpList] invalid state: %s", h.state)
 		}
 
@@ -609,13 +649,13 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 		// switch to initialized
-		if h.state != "initialized" {
-			h.state = "initialized"
+		if h.state != hubInitialized {
+			h.state = hubInitialized
 			h.handleHubInitialized()
 		}
 
 	case *msgNmdcBotList:
-		if h.state != "initialized" {
+		if h.state != hubInitialized {
 			return fmt.Errorf("[BotList] invalid state: %s", h.state)
 		}
 
@@ -628,12 +668,12 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcUserCommand:
-		if h.state != "preinitialized" && h.state != "initialized" {
+		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
 		}
 
 	case *msgNmdcQuit:
-		if h.state != "initialized" {
+		if h.state != hubInitialized {
 			return fmt.Errorf("[Quit] invalid state: %s", h.state)
 		}
 		p := h.client.peerByNick(msg.Nick)
@@ -648,12 +688,12 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	case *msgNmdcSearchRequest:
 		// searches can be received even before initialization; ignore them
-		if h.state == "initialized" {
+		if h.state == hubInitialized {
 			h.client.handleNmdcSearchIncomingRequest(msg)
 		}
 
 	case *msgNmdcSearchResult:
-		if h.state != "initialized" {
+		if h.state != hubInitialized {
 			return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
 		}
 		p := h.client.peerByNick(msg.Nick)
@@ -662,7 +702,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcConnectToMe:
-		if h.state != "initialized" && h.state != "preinitialized" {
+		if h.state != hubInitialized && h.state != hubPreInitialized {
 			return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
 		}
 		if msg.Encrypted == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
@@ -674,7 +714,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgNmdcRevConnectToMe:
-		if h.state != "initialized" && h.state != "preinitialized" {
+		if h.state != hubInitialized && h.state != hubPreInitialized {
 			return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
 		}
 		p := h.client.peerByNick(msg.Author)
