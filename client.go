@@ -165,6 +165,8 @@ type Client struct {
 	OnHubConnected func()
 	// OnHubError is called when a critical error happens
 	OnHubError func(err error)
+	// OnHubInfo is called when an information about the hub is received
+	OnHubInfo func(field HubField, value string)
 	// OnPeerConnected is called when a peer connects to the hub
 	OnPeerConnected func(p *Peer)
 	// OnPeerUpdated is called when a peer has just updated its informations
