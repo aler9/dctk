@@ -234,6 +234,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 	if _, ok := map[string]struct{}{
 		"adc":   {},
 		"adcs":  {},
+		"dchub": {},
 		"nmdc":  {},
 		"nmdcs": {},
 	}[u.Scheme]; !ok {
@@ -253,8 +254,8 @@ func NewClient(conf ClientConf) (*Client, error) {
 	c := &Client{
 		conf:                  conf,
 		terminate:             make(chan struct{}),
-		protoIsAdc:            (u.Scheme == "adc" || u.Scheme == "adcs"),
-		hubIsEncrypted:        (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
+		protoIsAdc:            u.Scheme == "adc" || u.Scheme == "adcs",
+		hubIsEncrypted:        u.Scheme == "adcs" || u.Scheme == "nmdcs",
 		hubHostname:           u.Hostname(),
 		hubPort:               atoui(u.Port()),
 		shareRoots:            make(map[string]string),
