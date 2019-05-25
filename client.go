@@ -198,7 +198,8 @@ type Client struct {
 	OnPeerUpdated func(p *Peer)
 	// OnPeerDisconnected is called when a peer disconnects from the hub
 	OnPeerDisconnected func(p *Peer)
-	// OnMessagePublic is called when someone has written in the hub public chat
+	// OnMessagePublic is called when someone writes in the hub public chat.
+	// When using ADC, it is also called when the hub sends a message.
 	OnMessagePublic func(p *Peer, content string)
 	// OnMessagePrivate is called when a private message has been received
 	OnMessagePrivate func(p *Peer, content string)

@@ -295,9 +295,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *msgAdcIMsg:
-		if h.client.OnMessagePublic != nil {
-			h.client.OnMessagePublic(&Peer{Nick: h.name}, msg.Content)
-		}
+		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Content)
 		dolog(LevelInfo, "[hub] %s", msg.Content)
 
 	case *msgAdcIGetPass:
