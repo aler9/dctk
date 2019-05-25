@@ -35,6 +35,7 @@ Basic example (more are available at https://github.com/gswly/dctoolkit/tree/mas
 package dctoolkit
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -44,6 +45,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -133,14 +135,21 @@ type ClientConf struct {
 	HubDisableKeepAlive    bool
 }
 
+type protocolName uint32
+
+const (
+	protocolNMDC = protocolName(iota)
+	protocolADC
+)
+
 // Client represents a local client.
 type Client struct {
 	conf               ClientConf
 	mutex              sync.Mutex
 	wg                 sync.WaitGroup
+	proto              protocolName // atomic
 	terminateRequested bool
 	terminate          chan struct{}
-	protoIsAdc         bool
 	hubIsEncrypted     bool
 	hubHostname        string
 	hubPort            uint
@@ -179,6 +188,10 @@ type Client struct {
 	OnHubError func(err error)
 	// OnHubInfo is called when an information about the hub is received
 	OnHubInfo func(field HubField, value string)
+	// OnHubTLS is called when a TLS connection with a hub is established
+	OnHubTLS func(st tls.ConnectionState)
+	// OnHubProto is called when a protocol for the hub is selected
+	OnHubProto func(proto string)
 	// OnPeerConnected is called when a peer connects to the hub
 	OnPeerConnected func(p *Peer)
 	// OnPeerUpdated is called when a peer has just updated its informations
@@ -269,7 +282,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 		conf:                  conf,
 		privateId:             conf.PID,
 		terminate:             make(chan struct{}),
-		protoIsAdc:            u.Scheme == "adc" || u.Scheme == "adcs",
+		proto:                 protocolNMDC,
 		hubIsEncrypted:        u.Scheme == "adcs" || u.Scheme == "nmdcs",
 		hubHostname:           u.Hostname(),
 		hubPort:               atoui(u.Port()),
@@ -282,6 +295,9 @@ func NewClient(conf ClientConf) (*Client, error) {
 		connPeersByKey:        make(map[nickDirectionPair]*connPeer),
 		transfers:             make(map[transfer]struct{}),
 		activeDownloadsByPeer: make(map[string]*Download),
+	}
+	if u.Scheme == "adc" || u.Scheme == "adcs" {
+		c.proto = protocolADC
 	}
 
 	if c.privateId == nil {
@@ -321,6 +337,18 @@ func NewClient(conf ClientConf) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func (c *Client) getProto() protocolName {
+	return protocolName(atomic.LoadUint32((*uint32)(&c.proto)))
+}
+
+func (c *Client) setProto(p protocolName) {
+	atomic.StoreUint32((*uint32)(&c.proto), uint32(p))
+}
+
+func (c *Client) protoIsAdc() bool {
+	return c.getProto() == protocolADC
 }
 
 // Close every open connection and stop the client.
@@ -451,7 +479,7 @@ func (c *Client) sendInfos(firstTime bool) {
 		hubUnregisteredCount = 1
 	}
 
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		supports := []string{adcSupport0}
 		if c.conf.IsPassive == false {
 			supports = append(supports, adcSupportTcp4, adcSupportUdp4)

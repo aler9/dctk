@@ -59,7 +59,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 		if p.isEncrypted == true {
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
-		if client.protoIsAdc == true {
+		if client.protoIsAdc() {
 			p.conn = newProtocolAdc("p", rawconn, true, true)
 		} else {
 			p.conn = newProtocolNmdc("p", rawconn, true, true)
@@ -121,7 +121,7 @@ func (p *connPeer) do() {
 				rawconn = p.tlsConn
 			}
 
-			if p.client.protoIsAdc == true {
+			if p.client.protoIsAdc() {
 				p.conn = newProtocolAdc("p", rawconn, true, true)
 			} else {
 				p.conn = newProtocolNmdc("p", rawconn, true, true)
@@ -140,7 +140,7 @@ func (p *connPeer) do() {
 				}())
 
 			// if transfer is passive, we are the first to talk
-			if p.client.protoIsAdc == true {
+			if p.client.protoIsAdc() {
 				p.conn.Write(&msgAdcCSupports{
 					msgAdcTypeC{},
 					msgAdcKeySupports{map[string]struct{}{
@@ -323,7 +323,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			// validate peer fingerprint
 			// can be performed on client-side only since many clients do not send
 			// their certificate when in passive mode
-			if p.client.protoIsAdc == true && p.isEncrypted == true &&
+			if p.client.protoIsAdc() && p.isEncrypted &&
 				p.peer.adcFingerprint != "" {
 
 				connFingerprint := adcCertificateFingerprint(

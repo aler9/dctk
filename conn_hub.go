@@ -128,21 +128,43 @@ func (h *connHub) do() {
 		// hub connected
 		rawconn := ce.Conn
 		if h.client.hubIsEncrypted == true {
-			next := []string{"adc"}
-			if !h.client.protoIsAdc {
-				next = []string{"nmdc"}
-			}
-			rawconn = tls.Client(rawconn, &tls.Config{
+			tlsconn := tls.Client(rawconn, &tls.Config{
 				InsecureSkipVerify: true,
-				NextProtos:         next,
+				NextProtos:         []string{"adc", "nmdc"},
 			})
+			rawconn = tlsconn
+			err = tlsconn.Handshake()
+			if err != nil {
+				tlsconn.Close()
+				return err
+			}
+			st := tlsconn.ConnectionState()
+			if h.client.OnHubTLS != nil {
+				h.client.OnHubTLS(st)
+			}
+			if st.NegotiatedProtocol != "" {
+				dolog(LevelInfo, "[hub] negotiated %q", st.NegotiatedProtocol)
+				// ALPN negotiation
+				switch st.NegotiatedProtocol {
+				case "adc":
+					h.client.setProto(protocolADC)
+				case "nmdc":
+					h.client.setProto(protocolNMDC)
+				}
+			}
 		}
 
 		// do not use read timeout since hub does not send data continuously
-		if h.client.protoIsAdc == true {
+		proto := ""
+		if h.client.protoIsAdc() {
+			proto = "adc"
 			h.conn = newProtocolAdc("h", rawconn, false, true)
 		} else {
+			proto = "nmdc"
 			h.conn = newProtocolNmdc("h", rawconn, false, true)
+		}
+		if h.client.OnHubProto != nil {
+			h.client.OnHubProto(proto)
 		}
 
 		if h.client.conf.HubDisableKeepAlive == false {
@@ -152,7 +174,7 @@ func (h *connHub) do() {
 
 		dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
-		if h.client.protoIsAdc == true {
+		if h.client.protoIsAdc() {
 			features := map[string]struct{}{
 				adcFeatureBas0:         {},
 				adcFeatureBase:         {},

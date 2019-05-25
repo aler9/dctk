@@ -47,7 +47,7 @@ func (u *listenerUdp) do() {
 
 		u.client.Safe(func() {
 			err := func() error {
-				if u.client.protoIsAdc == true {
+				if u.client.protoIsAdc() {
 					if msgStr[len(msgStr)-1] != '\n' {
 						return fmt.Errorf("wrong terminator")
 					}

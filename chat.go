@@ -2,7 +2,7 @@ package dctoolkit
 
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		c.connHub.conn.Write(&msgAdcBMessage{
 			msgAdcTypeB{c.sessionId},
 			msgAdcKeyMessage{Content: content},
@@ -15,7 +15,7 @@ func (c *Client) MessagePublic(content string) {
 
 // MessagePrivate sends a private message to a specific peer connected to the hub.
 func (c *Client) MessagePrivate(dest *Peer, content string) {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		c.connHub.conn.Write(&msgAdcDMessage{
 			msgAdcTypeD{c.sessionId, dest.adcSessionId},
 			msgAdcKeyMessage{Content: content},
