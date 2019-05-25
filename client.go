@@ -35,6 +35,7 @@ Basic example (more are available at https://github.com/gswly/dctoolkit/tree/mas
 package dctoolkit
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -44,6 +45,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -71,6 +73,16 @@ const (
 	// do not support encrypton
 	ForceEncryption
 )
+
+// PID is a private ID of the client.
+type PID []byte
+
+// NewPID creates a new random private ID.
+func NewPID() PID {
+	pid := make([]byte, 24)
+	rand.Read(pid)
+	return PID(pid)
+}
 
 // ClientConf allows to configure a client.
 type ClientConf struct {
@@ -103,6 +115,8 @@ type ClientConf struct {
 	Nick string
 	// the password associated with the nick, if requested by the hub
 	Password string
+	// the private ID of the user (ADC only)
+	PID PID
 	// an email, optional
 	Email string
 	// a description, optional
@@ -121,14 +135,21 @@ type ClientConf struct {
 	HubDisableKeepAlive    bool
 }
 
+type protocolName uint32
+
+const (
+	protocolNMDC = protocolName(iota)
+	protocolADC
+)
+
 // Client represents a local client.
 type Client struct {
 	conf               ClientConf
 	mutex              sync.Mutex
 	wg                 sync.WaitGroup
+	proto              protocolName // atomic
 	terminateRequested bool
 	terminate          chan struct{}
-	protoIsAdc         bool
 	hubIsEncrypted     bool
 	hubHostname        string
 	hubPort            uint
@@ -145,7 +166,7 @@ type Client struct {
 	listenerUdp        *listenerUdp
 	connHub            *connHub
 	// we follow the ADC way to handle IDs, even when using NMDC
-	privateId             []byte
+	privateId             PID
 	clientId              []byte
 	sessionId             string // we save it encoded since it is 20 bits and cannot be decoded easily
 	adcFingerprint        string
@@ -157,29 +178,35 @@ type Client struct {
 	transfers             map[transfer]struct{}
 	activeDownloadsByPeer map[string]*Download
 
-	// called just after client initialization, before connecting to the hub
+	// OnInitialized is called just after client initialization, before connecting to the hub
 	OnInitialized func()
-	// called every time the share indexer has finished indexing the client share
+	// OnShareIndexed is called every time the share indexer has finished indexing the client share
 	OnShareIndexed func()
-	// called when the connection between client and hub has been established
+	// OnHubConnected is called when the connection between client and hub has been established
 	OnHubConnected func()
-	// called when a critical error happens
+	// OnHubError is called when a critical error happens
 	OnHubError func(err error)
-	// called when a peer connects to the hub
+	// OnHubInfo is called when an information about the hub is received
+	OnHubInfo func(field HubField, value string)
+	// OnHubTLS is called when a TLS connection with a hub is established
+	OnHubTLS func(st tls.ConnectionState)
+	// OnHubProto is called when a protocol for the hub is selected
+	OnHubProto func(proto string)
+	// OnPeerConnected is called when a peer connects to the hub
 	OnPeerConnected func(p *Peer)
-	// called when a peer has just updated its informations
+	// OnPeerUpdated is called when a peer has just updated its informations
 	OnPeerUpdated func(p *Peer)
-	// called when a peer disconnects from the hub
+	// OnPeerDisconnected is called when a peer disconnects from the hub
 	OnPeerDisconnected func(p *Peer)
-	// called when someone has written in the hub public chat
+	// OnMessagePublic is called when someone has written in the hub public chat
 	OnMessagePublic func(p *Peer, content string)
-	// called when a private message has been received
+	// OnMessagePrivate is called when a private message has been received
 	OnMessagePrivate func(p *Peer, content string)
-	// called when a search result has been received
+	// OnSearchResult is called when a search result has been received
 	OnSearchResult func(r *SearchResult)
-	// called when a given download has finished
+	// OnDownloadSuccessful is called when a given download has finished
 	OnDownloadSuccessful func(d *Download)
-	// called when a given download has failed
+	// OnDownloadError is called when a given download has failed
 	OnDownloadError func(d *Download)
 }
 
@@ -234,6 +261,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 	if _, ok := map[string]struct{}{
 		"adc":   {},
 		"adcs":  {},
+		"dchub": {},
 		"nmdc":  {},
 		"nmdcs": {},
 	}[u.Scheme]; !ok {
@@ -252,9 +280,10 @@ func NewClient(conf ClientConf) (*Client, error) {
 
 	c := &Client{
 		conf:                  conf,
+		privateId:             conf.PID,
 		terminate:             make(chan struct{}),
-		protoIsAdc:            (u.Scheme == "adc" || u.Scheme == "adcs"),
-		hubIsEncrypted:        (u.Scheme == "adcs" || u.Scheme == "nmdcs"),
+		proto:                 protocolNMDC,
+		hubIsEncrypted:        u.Scheme == "adcs" || u.Scheme == "nmdcs",
 		hubHostname:           u.Hostname(),
 		hubPort:               atoui(u.Port()),
 		shareRoots:            make(map[string]string),
@@ -267,10 +296,14 @@ func NewClient(conf ClientConf) (*Client, error) {
 		transfers:             make(map[transfer]struct{}),
 		activeDownloadsByPeer: make(map[string]*Download),
 	}
+	if u.Scheme == "adc" || u.Scheme == "adcs" {
+		c.proto = protocolADC
+	}
 
-	// generate privateId (random)
-	c.privateId = make([]byte, 24)
-	rand.Read(c.privateId)
+	if c.privateId == nil {
+		// generate privateId (random)
+		c.privateId = NewPID()
+	}
 
 	// generate clientId (hash of privateId)
 	hasher := newTiger()
@@ -304,6 +337,18 @@ func NewClient(conf ClientConf) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func (c *Client) getProto() protocolName {
+	return protocolName(atomic.LoadUint32((*uint32)(&c.proto)))
+}
+
+func (c *Client) setProto(p protocolName) {
+	atomic.StoreUint32((*uint32)(&c.proto), uint32(p))
+}
+
+func (c *Client) protoIsAdc() bool {
+	return c.getProto() == protocolADC
 }
 
 // Close every open connection and stop the client.
@@ -434,7 +479,7 @@ func (c *Client) sendInfos(firstTime bool) {
 		hubUnregisteredCount = 1
 	}
 
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		supports := []string{adcSupport0}
 		if c.conf.IsPassive == false {
 			supports = append(supports, adcSupportTcp4, adcSupportUdp4)

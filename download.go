@@ -235,7 +235,7 @@ func (d *Download) do() {
 				dolog(LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
 
 				// generate new token
-				if d.client.protoIsAdc == true {
+				if d.client.protoIsAdc() {
 					d.adcToken = adcRandomToken()
 				}
 
@@ -265,7 +265,7 @@ func (d *Download) do() {
 		// process download
 		dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
 
-		if d.client.protoIsAdc == true {
+		if d.client.protoIsAdc() {
 			d.pconn.conn.Write(&msgAdcCGetFile{
 				msgAdcTypeC{},
 				msgAdcKeyGetFile{
