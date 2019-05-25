@@ -63,7 +63,7 @@ func (c *Client) peerByClientId(clientId []byte) *Peer {
 }
 
 func (c *Client) peerSupportsEncryption(p *Peer) bool {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		if p.adcFingerprint != "" {
 			return true
 		}
@@ -87,7 +87,7 @@ func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
 }
 
 func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		c.connHub.conn.Write(&msgAdcDConnectToMe{
 			msgAdcTypeD{c.sessionId, peer.adcSessionId},
 			msgAdcKeyConnectToMe{
@@ -123,7 +123,7 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 }
 
 func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		c.connHub.conn.Write(&msgAdcDRevConnectToMe{
 			msgAdcTypeD{c.sessionId, peer.adcSessionId},
 			msgAdcKeyRevConnectToMe{

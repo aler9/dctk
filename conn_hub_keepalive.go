@@ -29,7 +29,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 			case <-ticker.C:
 				// we must call Safe() since conn.Write() is not thread safe
 				h.client.Safe(func() {
-					if h.client.protoIsAdc == true {
+					if h.client.protoIsAdc() {
 						// ADC uses the TCP keepalive feature or empty packets
 						h.conn.Write(&msgAdcKeepAlive{})
 					} else {

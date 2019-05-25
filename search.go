@@ -61,7 +61,7 @@ type searchIncomingRequest struct {
 
 // Search starts a file search asynchronously. See SearchConf for the available options.
 func (c *Client) Search(conf SearchConf) error {
-	if c.protoIsAdc == true {
+	if c.protoIsAdc() {
 		return c.handleAdcSearchOutgoingRequest(conf)
 	} else {
 		return c.handleNmdcSearchOutgoingRequest(conf)

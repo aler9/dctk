@@ -40,7 +40,7 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 			return err
 		}
 
-		if client.protoIsAdc == true {
+		if client.protoIsAdc() {
 			xcert, err := x509.ParseCertificate(bcert)
 			if err != nil {
 				return err

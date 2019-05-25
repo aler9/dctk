@@ -143,7 +143,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 	if err != nil {
 		dolog(LevelInfo, "[peer] cannot start upload: %s", err)
 		if err == errorNoSlots {
-			if u.client.protoIsAdc == true {
+			if u.client.protoIsAdc() {
 				u.pconn.conn.Write(&msgAdcCStatus{
 					msgAdcTypeC{},
 					msgAdcKeyStatus{
@@ -156,7 +156,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 				u.pconn.conn.Write(&msgNmdcMaxedOut{})
 			}
 		} else {
-			if u.client.protoIsAdc == true {
+			if u.client.protoIsAdc() {
 				u.pconn.conn.Write(&msgAdcCStatus{
 					msgAdcTypeC{},
 					msgAdcKeyStatus{
@@ -172,7 +172,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		return false
 	}
 
-	if u.client.protoIsAdc == true {
+	if u.client.protoIsAdc() {
 		u.pconn.conn.Write(&msgAdcCSendFile{
 			msgAdcTypeC{},
 			msgAdcKeySendFile{
