@@ -1,4 +1,6 @@
 
+BASE_IMAGE = amd64/golang:1.11-stretch
+
 help:
 	@echo "usage: make [action] [args...]"
 	@echo ""
@@ -21,13 +23,12 @@ endef
 
 mod-tidy:
 	docker run --rm -it -v $(PWD):/src \
-	amd64/golang:1.11 \
+	$(BASE_IMAGE) \
 	sh -c "cd /src && go get -m ./... && go mod tidy"
 
 format:
-	@docker run --rm -it \
-	-v $(PWD):/src \
-	amd64/golang:1.11-stretch \
+	@docker run --rm -it -v $(PWD):/src \
+	$(BASE_IMAGE) \
 	sh -c "cd /src \
 	&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
@@ -35,7 +36,7 @@ format:
 test: test-example test-command test-lib
 
 test-example:
-	echo "FROM amd64/golang:1.11-stretch \n\
+	echo "FROM $(BASE_IMAGE) \n\
 	WORKDIR /src \n\
 	COPY go.mod go.sum ./ \n\
 	RUN go mod download \n\
@@ -44,10 +45,10 @@ test-example:
 	docker run --rm -it dctoolkit-test-example make test-example-nodocker
 
 test-example-nodocker:
-	$(foreach f,$(shell echo example/*),go build -o /dev/null $(f)$(NL))
+	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
 
 test-command:
-	echo "FROM amd64/golang:1.11-stretch \n\
+	echo "FROM $(BASE_IMAGE) \n\
 	WORKDIR /src \n\
 	COPY go.mod go.sum ./ \n\
 	RUN go mod download \n\
@@ -91,14 +92,13 @@ test-lib:
 
 run-example:
 	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )
-	@docker run --rm -it \
-	-v $(PWD):/src \
+	@docker run --rm -it -v $(PWD):/src \
 	--network=host \
-	amd64/golang:1.11-stretch sh -c "\
+	$(BASE_IMAGE) sh -c "\
 	cd /src && go run example/$(E).go"
 
 run-command:
-	@echo "FROM amd64/golang:1.11-stretch \n\
+	@echo "FROM $(BASE_IMAGE) \n\
 	WORKDIR /src \n\
 	COPY go.mod go.sum ./ \n\
 	RUN go mod download \n\

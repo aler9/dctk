@@ -29,7 +29,10 @@ RUN curl -L https://github.com/Verlihub/verlihub/archive/1.2.0.0.tar.gz | tar xv
     && rm -rf /verlihub*
 
 COPY setup.sh /
+RUN chmod +x /setup.sh
 RUN /setup.sh
 
 COPY start.sh /
+RUN chmod +x /start.sh
+
 ENTRYPOINT [ "/start.sh" ]
