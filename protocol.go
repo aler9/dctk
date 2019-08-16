@@ -1,7 +1,7 @@
 package dctoolkit
 
 import (
-	"github.com/direct-connect/go-dc/lineproto"
+	"github.com/gswly/go-dc/lineproto"
 	"io"
 	"net"
 	"sync/atomic"

@@ -6,7 +6,7 @@ import (
 	"net"
 	"regexp"
 
-	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/gswly/go-dc/nmdc"
 )
 
 const (

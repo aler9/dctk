@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/gswly/go-dc/nmdc"
 )
 
 // HubField is a name of a hub information field.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/gswly/go-dc/nmdc"
 )
 
 var errorNoSlots = fmt.Errorf("no slots available")

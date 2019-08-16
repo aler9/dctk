@@ -3,7 +3,7 @@ package dctoolkit
 import (
 	"fmt"
 
-	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/gswly/go-dc/nmdc"
 )
 
 // Peer represents a remote client connected to a Hub.

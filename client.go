@@ -48,8 +48,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/direct-connect/go-dc/nmdc"
-	"github.com/direct-connect/go-dc/types"
+	"github.com/gswly/go-dc/nmdc"
+	"github.com/gswly/go-dc/types"
 )
 
 const (

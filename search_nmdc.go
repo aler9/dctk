@@ -6,8 +6,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/direct-connect/go-dc/nmdc"
-	"github.com/direct-connect/go-dc/tiger"
+	"github.com/gswly/go-dc/nmdc"
+	"github.com/gswly/go-dc/tiger"
 )
 
 func nmdcSearchEscape(in string) string {

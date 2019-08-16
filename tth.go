@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/direct-connect/go-dc/tiger"
+	"github.com/gswly/go-dc/tiger"
 	"hash"
 	"net/url"
 	"os"

@@ -1,7 +1,7 @@
 package dctoolkit
 
 import (
-	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/gswly/go-dc/nmdc"
 )
 
 // MessagePublic publishes a message in the hub public chat.
