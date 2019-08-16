@@ -34,7 +34,7 @@ func main() {
 			downloadStarted = true
 			client.DownloadFile(dctk.DownloadConf{
 				Peer: res.Peer,
-				TTH:  res.TTH,
+				TTH:  *res.TTH,
 			})
 		}
 	}

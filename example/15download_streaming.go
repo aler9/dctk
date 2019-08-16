@@ -60,7 +60,7 @@ func main() {
 			dlStarted = true
 			filePeer = res.Peer
 			fileSize = res.Size
-			fileTTH = res.TTH
+			fileTTH = *res.TTH
 			downloadNextChunk()
 		}
 	}
