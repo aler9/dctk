@@ -8,4 +8,4 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/direct-connect/go-dc => github.com/gswly/go-dc v0.0.0-20191022065526-489cf5e6ec11
+replace github.com/direct-connect/go-dc => github.com/gswly/go-dc v0.0.0-20191022065526-4a885214141e
