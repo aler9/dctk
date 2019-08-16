@@ -398,14 +398,14 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 		}
 
 		features := []string{
-			nmdcFeatureMiniSlots,
-			nmdcFeatureFileListBzip,
-			nmdcFeatureAdcGet,
-			nmdcFeatureTTHLeaves,
-			nmdcFeatureTTHDownload,
+			nmdc.ExtMinislots,
+			nmdc.ExtXmlBZList,
+			nmdc.ExtADCGet,
+			nmdc.ExtTTHL,
+			nmdc.ExtTTHF,
 		}
 		if p.client.conf.PeerDisableCompression == false {
-			features = append(features, nmdcFeatureZlibGet)
+			features = append(features, nmdc.ExtZLIG)
 		}
 		p.conn.Write(&nmdc.Supports{features})
 

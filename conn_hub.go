@@ -518,18 +518,18 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		// https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
 		features := []string{
-			nmdcFeatureUserCommands,
-			nmdcFeatureNoGetInfo,
-			nmdcFeatureNoHello,
-			nmdcFeatureUserIp,
-			nmdcFeatureTTHSearch,
+			nmdc.ExtUserCommand,
+			nmdc.ExtNoGetINFO,
+			nmdc.ExtNoHello,
+			nmdc.ExtUserIP2,
+			nmdc.ExtTTHSearch,
 		}
 		if h.client.conf.HubDisableCompression == false {
-			features = append(features, nmdcFeatureZlibFull)
+			features = append(features, nmdc.ExtZPipe0)
 		}
 		// this must be provided, otherwise the final S is stripped from ConnectToMe
 		if h.client.conf.PeerEncryptionMode != DisableEncryption {
-			features = append(features, nmdcFeatureTls)
+			features = append(features, nmdc.ExtTLS)
 		}
 
 		h.conn.Write(&nmdc.Supports{features})
