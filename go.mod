@@ -5,8 +5,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/direct-connect/go-dc v0.0.0
 	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76
-	golang.org/x/text v0.3.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/direct-connect/go-dc => github.com/gswly/go-dc v0.0.0-20191022065526-0139c8a30f01
+replace github.com/direct-connect/go-dc => github.com/gswly/go-dc v0.0.0-20191022065526-489cf5e6ec11

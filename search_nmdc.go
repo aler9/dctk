@@ -27,7 +27,7 @@ func (c *Client) handleNmdcSearchResult(isActive bool, msg *nmdc.SR) {
 	sr := &SearchResult{
 		IsActive:  isActive,
 		Peer:      peer,
-		Path:      strings.Join(msg.Path, "\\"),
+		Path:      strings.Join(msg.Path, "/"),
 		SlotAvail: uint(msg.FreeSlots),
 		Size:      msg.Size,
 		TTH:       (*TigerHash)(msg.TTH),
