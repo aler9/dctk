@@ -12,7 +12,6 @@ import (
 var reNmdcAddress = regexp.MustCompile("^(" + reStrIp + "):(" + reStrPort + ")$")
 var reNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9:]+)( (.+))?$")
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
-var reNmdcPrivateChat = regexp.MustCompile("(?s)^\\$To: (" + reStrNick + ") From: (" + reStrNick + ") \\$<(" + reStrNick + ")> (.+)$")
 
 type protocolNmdc struct {
 	*protocolBase

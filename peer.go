@@ -3,6 +3,8 @@ package dctoolkit
 import (
 	"fmt"
 
+	"github.com/gswly/go-dc/adc"
+	atypes "github.com/gswly/go-dc/adc/types"
 	"github.com/gswly/go-dc/nmdc"
 )
 
@@ -29,10 +31,10 @@ type Peer struct {
 	// peer ip (if provided by both peer and hub)
 	Ip string
 
-	adcSessionId   string
-	adcClientId    []byte
+	adcSessionId   atypes.SID
+	adcClientId    atypes.CID
 	adcFingerprint string
-	adcSupports    map[string]struct{}
+	adcFeatures    adc.ExtFeatures
 	adcUdpPort     uint
 	nmdcConnection string
 	nmdcFlag       nmdc.UserFlag
@@ -50,7 +52,7 @@ func (c *Client) peerByNick(nick string) *Peer {
 	return nil
 }
 
-func (c *Client) peerBySessionId(sessionId string) *Peer {
+func (c *Client) peerBySessionId(sessionId adc.SID) *Peer {
 	for _, p := range c.peers {
 		if p.adcSessionId == sessionId {
 			return p
@@ -59,13 +61,17 @@ func (c *Client) peerBySessionId(sessionId string) *Peer {
 	return nil
 }
 
-func (c *Client) peerByClientId(clientId []byte) *Peer {
+func (c *Client) peerByClientId(clientId adc.CID) *Peer {
 	for _, p := range c.peers {
-		if string(p.adcClientId) == string(clientId) {
+		if p.adcClientId == clientId {
 			return p
 		}
 	}
 	return nil
+}
+
+func (c *Client) peerSupportsAdc(p *Peer, f adc.Feature) bool {
+	return p.adcFeatures.Has(f)
 }
 
 func (c *Client) peerSupportsEncryption(p *Peer) bool {
@@ -73,7 +79,7 @@ func (c *Client) peerSupportsEncryption(p *Peer) bool {
 		if p.adcFingerprint != "" {
 			return true
 		}
-		if _, ok := p.adcSupports[adcSupportTls]; ok {
+		if c.peerSupportsAdc(p, adc.FeaADCS) {
 			return true
 		}
 		return false
@@ -94,20 +100,20 @@ func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
 
 func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&msgAdcDConnectToMe{
-			msgAdcTypeD{c.sessionId, peer.adcSessionId},
-			msgAdcKeyConnectToMe{
+		c.connHub.conn.Write(&adcDConnectToMe{
+			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
+			&adc.ConnectRequest{
 				func() string {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
-						return adcProtocolEncrypted
+						return adc.ProtoADCS
 					}
-					return adcProtocolPlain
+					return adc.ProtoADC
 				}(),
-				func() uint {
+				func() int {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
-						return c.conf.TcpTlsPort
+						return int(c.conf.TcpTlsPort)
 					}
-					return c.conf.TcpPort
+					return int(c.conf.TcpPort)
 				}(),
 				adcToken,
 			},
@@ -129,14 +135,14 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 
 func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&msgAdcDRevConnectToMe{
-			msgAdcTypeD{c.sessionId, peer.adcSessionId},
-			msgAdcKeyRevConnectToMe{
+		c.connHub.conn.Write(&adcDRevConnectToMe{
+			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
+			&adc.RevConnectRequest{
 				func() string {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
-						return adcProtocolEncrypted
+						return adc.ProtoADCS
 					}
-					return adcProtocolPlain
+					return adc.ProtoADC
 				}(),
 				adcToken,
 			},

@@ -6,7 +6,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +15,8 @@ const reStrNick = "[^\\$ \\|\n]+"
 const reStrAddress = "[a-z0-9\\.-_]+"
 const reStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 const reStrPort = "[0-9]{1,5}"
-const reStrTTH = "[A-Z0-9]{39}"
 
-var reSharedCmdAdcGet = regexp.MustCompile("^((file|tthl) TTH/(" + reStrTTH + ")|file files.xml.bz2) ([0-9]+) (-1|[0-9]+)( ZL1)?$")
-var reSharedCmdAdcSnd = regexp.MustCompile("^((file|tthl) TTH/(" + reStrTTH + ")|file files.xml.bz2) ([0-9]+) ([0-9]+)( ZL1)?$")
-
-const dirTTH = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+var dirTTH = TigerHashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
 var errorTerminated = fmt.Errorf("terminated")
 var errorArgsFormat = fmt.Errorf("not formatted correctly")

@@ -183,7 +183,7 @@ func (sm *shareIndexer) index() {
 	// generate new file list
 	fileList, err := func() ([]byte, error) {
 		fl := &FileList{
-			CID:       dcBase32Encode(sm.client.clientId),
+			CID:       sm.client.clientId.String(),
 			Generator: sm.client.conf.ListGenerator,
 		}
 

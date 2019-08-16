@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
 )
 
@@ -146,12 +147,12 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		dolog(LevelInfo, "[peer] cannot start upload: %s", err)
 		if err == errorNoSlots {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&msgAdcCStatus{
-					msgAdcTypeC{},
-					msgAdcKeyStatus{
-						Type:    adcStatusWarning,
-						Code:    adcCodeSlotsFull,
-						Message: "Slots full",
+				u.pconn.conn.Write(&adcCStatus{
+					&adc.ClientPacket{},
+					&adc.Status{
+						Sev:  adc.Recoverable,
+						Code: adcCodeSlotsFull,
+						Msg:  "Slots full",
 					},
 				})
 			} else {
@@ -159,12 +160,12 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			}
 		} else {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&msgAdcCStatus{
-					msgAdcTypeC{},
-					msgAdcKeyStatus{
-						Type:    adcStatusWarning,
-						Code:    adcCodeFileNotAvailable,
-						Message: "File Not Available",
+				u.pconn.conn.Write(&adcCStatus{
+					&adc.ClientPacket{},
+					&adc.Status{
+						Sev:  adc.Recoverable,
+						Code: adcCodeFileNotAvailable,
+						Msg:  "File Not Available",
 					},
 				})
 			} else {
@@ -175,12 +176,14 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 	}
 
 	if u.client.protoIsAdc() {
-		u.pconn.conn.Write(&msgAdcCSendFile{
-			msgAdcTypeC{},
-			msgAdcKeySendFile{
-				Query:      u.query,
-				Start:      u.start,
-				Length:     u.length,
+		queryParts := strings.Split(u.query, " ")
+		u.pconn.conn.Write(&adcCSendFile{
+			&adc.ClientPacket{},
+			&adc.GetResponse{
+				Type:       queryParts[0],
+				Path:       queryParts[1],
+				Start:      int64(u.start),
+				Bytes:      int64(u.length),
 				Compressed: u.isCompressed,
 			},
 		})

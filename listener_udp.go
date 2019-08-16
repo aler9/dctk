@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
 )
 
@@ -59,23 +60,25 @@ func (u *listenerUdp) do() {
 						return fmt.Errorf("wrong command")
 					}
 
-					msg := &msgAdcUSearchResult{}
-					n, err := msg.AdcTypeDecode(msgStr[5:])
+					pkt, err := adc.DecodePacket([]byte(msgStr + "\n"))
 					if err != nil {
-						return fmt.Errorf("unable to decode command type")
+						return err
 					}
 
-					err = msg.AdcKeyDecode(msgStr[5+n:])
-					if err != nil {
-						return fmt.Errorf("unable to decode command key")
+					msge := pkt.Message().(adc.SearchResult)
+					msg := &msge
+
+					pktMsg := &adcUSearchResult{
+						pkt.(*adc.UDPPacket),
+						msg,
 					}
 
-					p := u.client.peerByClientId(msg.ClientId)
+					p := u.client.peerByClientId(pktMsg.Pkt.ID)
 					if p == nil {
 						return fmt.Errorf("unknown author")
 					}
 
-					u.client.handleAdcSearchResult(true, p, &msg.msgAdcKeySearchResult)
+					u.client.handleAdcSearchResult(true, p, pktMsg.Msg)
 					return nil
 
 				} else {

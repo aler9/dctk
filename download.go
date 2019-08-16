@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
 )
 
@@ -269,12 +270,14 @@ func (d *Download) do() {
 		dolog(LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
 
 		if d.client.protoIsAdc() {
-			d.pconn.conn.Write(&msgAdcCGetFile{
-				msgAdcTypeC{},
-				msgAdcKeyGetFile{
-					Query:  d.query,
-					Start:  d.conf.Start,
-					Length: d.conf.Length,
+			queryParts := strings.Split(d.query, " ")
+			d.pconn.conn.Write(&adcCGetFile{
+				&adc.ClientPacket{},
+				&adc.GetRequest{
+					Type:  queryParts[0],
+					Path:  queryParts[1],
+					Start: int64(d.conf.Start),
+					Bytes: d.conf.Length,
 					Compressed: (d.client.conf.PeerDisableCompression == false &&
 						(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
 				},
@@ -355,11 +358,12 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 
 func (d *Download) handleDownload(msgi msgDecodable) error {
 	switch msg := msgi.(type) {
-	case *msgAdcCStatus:
+	case *adcCStatus:
 		return fmt.Errorf("error: %+v", msg)
 
-	case *msgAdcCSendFile:
-		return d.handleSendFile(msg.Query, msg.Start, msg.Length, msg.Compressed)
+	case *adcCSendFile:
+		query := msg.Msg.Type + " " + msg.Msg.Path
+		return d.handleSendFile(query, uint64(msg.Msg.Start), uint64(msg.Msg.Bytes), msg.Msg.Compressed)
 
 	case *nmdc.MaxedOut:
 		return fmt.Errorf("maxed out")

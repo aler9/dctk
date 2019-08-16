@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
 )
 
@@ -141,14 +142,14 @@ func (p *connPeer) do() {
 
 			// if transfer is passive, we are the first to talk
 			if p.client.protoIsAdc() {
-				p.conn.Write(&msgAdcCSupports{
-					msgAdcTypeC{},
-					msgAdcKeySupports{map[string]struct{}{
-						adcFeatureBas0:         {},
-						adcFeatureBase:         {},
-						adcFeatureTiger:        {},
-						adcFeatureFileListBzip: {},
-						adcFeatureZlibGet:      {},
+				p.conn.Write(&adcCSupports{
+					&adc.ClientPacket{},
+					&adc.Supported{adc.ModFeatures{
+						adc.FeaBAS0: true,
+						adc.FeaBASE: true,
+						adc.FeaTIGR: true,
+						adc.FeaBZIP: true,
+						adc.FeaZLIG: true,
 					}},
 				})
 
@@ -257,67 +258,63 @@ func (p *connPeer) do() {
 
 func (p *connPeer) handleMessage(msgi msgDecodable) error {
 	switch msg := msgi.(type) {
-	case *msgAdcCStatus:
-		if msg.Type != adcStatusOk {
-			return fmt.Errorf("error (%d): %s", msg.Code, msg.Message)
+	case *adcCStatus:
+		if msg.Msg.Sev != adc.Success {
+			return fmt.Errorf("error (%d): %s", msg.Msg.Code, msg.Msg.Msg)
 		}
 
-	case *msgAdcCSupports:
+	case *adcCSupports:
 		if p.state != "connected" {
 			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
 		p.state = "supports"
 		if p.isActive == true {
-			p.conn.Write(&msgAdcCSupports{
-				msgAdcTypeC{},
-				msgAdcKeySupports{map[string]struct{}{
-					adcFeatureBas0:         {},
-					adcFeatureBase:         {},
-					adcFeatureTiger:        {},
-					adcFeatureFileListBzip: {},
-					adcFeatureZlibGet:      {},
+			p.conn.Write(&adcCSupports{
+				&adc.ClientPacket{},
+				&adc.Supported{adc.ModFeatures{
+					adc.FeaBAS0: true,
+					adc.FeaBASE: true,
+					adc.FeaTIGR: true,
+					adc.FeaBZIP: true,
+					adc.FeaZLIG: true,
 				}},
 			})
 
 		} else {
-			p.conn.Write(&msgAdcCInfos{
-				msgAdcTypeC{},
-				msgAdcKeyInfos{map[string]string{
-					adcFieldClientId: dcBase32Encode(p.client.clientId),
-					adcFieldToken:    p.adcToken,
-				}},
+			info := &adc.UserInfo{}
+			info.Id = p.client.clientId
+			info.Token = p.adcToken
+
+			p.conn.Write(&adcCInfos{
+				&adc.ClientPacket{},
+				info,
 			})
 		}
 
-	case *msgAdcCInfos:
+	case *adcCInfos:
 		if p.state != "supports" {
 			return fmt.Errorf("[Infos] invalid state: %s", p.state)
 		}
 		p.state = "infos"
 
-		clientId, ok := msg.Fields[adcFieldClientId]
-		if ok == false {
-			return fmt.Errorf("client id not provided")
-		}
-
-		p.peer = p.client.peerByClientId(dcBase32Decode(clientId))
+		p.peer = p.client.peerByClientId(msg.Msg.Id)
 		if p.peer == nil {
-			return fmt.Errorf("unknown client id (%s)", clientId)
+			return fmt.Errorf("unknown client id (%s)", msg.Msg.Id)
 		}
 
 		if p.isActive == true {
-			token, ok := msg.Fields[adcFieldToken]
-			if ok == false {
+			if msg.Msg.Token == "" {
 				return fmt.Errorf("token not provided")
 			}
-			p.adcToken = token
+			p.adcToken = msg.Msg.Token
 
-			p.conn.Write(&msgAdcCInfos{
-				msgAdcTypeC{},
-				msgAdcKeyInfos{map[string]string{
-					adcFieldClientId: dcBase32Encode(p.client.clientId),
-					// token is not sent back when in active mode
-				}},
+			info := &adc.UserInfo{}
+			info.Id = p.client.clientId
+			// token is not sent back when in active mode
+
+			p.conn.Write(&adcCInfos{
+				&adc.ClientPacket{},
+				info,
 			})
 		} else {
 			// validate peer fingerprint
@@ -326,7 +323,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			if p.client.protoIsAdc() && p.isEncrypted &&
 				p.peer.adcFingerprint != "" {
 
-				connFingerprint := adcCertificateFingerprint(
+				connFingerprint := adcCertFingerprint(
 					p.tlsConn.ConnectionState().PeerCertificates[0])
 
 				if connFingerprint != p.peer.adcFingerprint {
@@ -363,11 +360,12 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			p.state = "wait_upload"
 		}
 
-	case *msgAdcCGetFile:
+	case *adcCGetFile:
 		if p.state != "wait_upload" {
 			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
-		ok := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		query := msg.Msg.Type + " " + msg.Msg.Path
+		ok := newUpload(p.client, p, query, uint64(msg.Msg.Start), int64(msg.Msg.Bytes), msg.Msg.Compressed)
 		if ok {
 			return errorDelegatedUpload
 		}

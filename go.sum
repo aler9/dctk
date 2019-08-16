@@ -10,8 +10,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 h1:eX+pdPPlD279OWgdx7f6KqIRSONuK7egk+jDx7OM3Ac=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76/go.mod h1:KjxHHirfLaw19iGT70HvVjHQsL1vq1SRQB4yOsAfy2s=
-github.com/gswly/go-dc v0.0.0-20190816111625-cdeed84ae922 h1:nOyw/uMUyZhz+AWPFH6mLrRHBj030dRry3uin/xESMY=
-github.com/gswly/go-dc v0.0.0-20190816111625-cdeed84ae922/go.mod h1:qh4+7sBB6lvfyr5lRF+qCIv07qtq8TG65gAkVg1TtdA=
+github.com/gswly/go-dc v0.0.0-20190816144037-d6a5ae4670d3 h1:hHf7SXWJ8XBceVol0X4J5JBXTgxVrFFkjRX8ifmo95w=
+github.com/gswly/go-dc v0.0.0-20190816144037-d6a5ae4670d3/go.mod h1:qh4+7sBB6lvfyr5lRF+qCIv07qtq8TG65gAkVg1TtdA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

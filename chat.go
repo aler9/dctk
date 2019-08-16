@@ -1,15 +1,16 @@
 package dctoolkit
 
 import (
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
 )
 
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&msgAdcBMessage{
-			msgAdcTypeB{c.sessionId},
-			msgAdcKeyMessage{Content: content},
+		c.connHub.conn.Write(&adcBMessage{
+			&adc.BroadcastPacket{ID: c.adcSessionId},
+			&adc.ChatMessage{Text: content},
 		})
 
 	} else {
@@ -20,9 +21,9 @@ func (c *Client) MessagePublic(content string) {
 // MessagePrivate sends a private message to a specific peer connected to the hub.
 func (c *Client) MessagePrivate(dest *Peer, content string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&msgAdcDMessage{
-			msgAdcTypeD{c.sessionId, dest.adcSessionId},
-			msgAdcKeyMessage{Content: content},
+		c.connHub.conn.Write(&adcDMessage{
+			&adc.DirectPacket{ID: c.adcSessionId, To: dest.adcSessionId},
+			&adc.ChatMessage{Text: content},
 		})
 
 	} else {

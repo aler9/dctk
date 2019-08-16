@@ -43,11 +43,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/gswly/go-dc/adc"
+	atypes "github.com/gswly/go-dc/adc/types"
 	"github.com/gswly/go-dc/nmdc"
 	"github.com/gswly/go-dc/types"
 )
@@ -76,16 +77,6 @@ const (
 	// do not support encrypton
 	ForceEncryption
 )
-
-// PID is a private ID of the client.
-type PID []byte
-
-// NewPID creates a new random private ID.
-func NewPID() PID {
-	pid := make([]byte, 24)
-	rand.Read(pid)
-	return PID(pid)
-}
 
 // ClientConf allows to configure a client.
 type ClientConf struct {
@@ -119,7 +110,7 @@ type ClientConf struct {
 	// the password associated with the nick, if requested by the hub
 	Password string
 	// the private ID of the user (ADC only)
-	PID PID
+	PID atypes.PID
 	// an email, optional
 	Email string
 	// a description, optional
@@ -169,9 +160,9 @@ type Client struct {
 	listenerUdp        *listenerUdp
 	connHub            *connHub
 	// we follow the ADC way to handle IDs, even when using NMDC
-	privateId             PID
-	clientId              []byte
-	sessionId             string // we save it encoded since it is 20 bits and cannot be decoded easily
+	privateId             atypes.PID
+	clientId              atypes.CID
+	adcSessionId          atypes.SID
 	adcFingerprint        string
 	peers                 map[string]*Peer
 	downloadSlotAvail     uint
@@ -304,15 +295,16 @@ func NewClient(conf ClientConf) (*Client, error) {
 		c.proto = protocolADC
 	}
 
-	if c.privateId == nil {
-		// generate privateId (random)
-		c.privateId = NewPID()
+	// generate privateId if not provided (random)
+	var zeroPID atypes.PID
+	if c.privateId == zeroPID {
+		c.privateId, _ = atypes.NewPID()
 	}
 
 	// generate clientId (hash of privateId)
 	hasher := newTiger()
-	hasher.Write(c.privateId)
-	c.clientId = hasher.Sum(nil)
+	hasher.Write(c.privateId[:])
+	hasher.Sum(c.clientId[:0])
 
 	if err := newConnHub(c); err != nil {
 		return nil, err
@@ -484,48 +476,47 @@ func (c *Client) sendInfos(firstTime bool) {
 	}
 
 	if c.protoIsAdc() {
-		supports := []string{adcSupport0}
+		info := &adc.UserInfo{
+			Desc:           c.conf.Description,
+			ShareFiles:     int(c.shareCount),
+			ShareSize:      int64(c.shareSize),
+			HubsNormal:     int(hubUnregisteredCount),
+			HubsRegistered: int(hubRegisteredCount),
+			HubsOperator:   int(hubOperatorCount),
+			Application:    c.conf.ClientString,  // verified
+			Version:        c.conf.ClientVersion, // verified
+			MaxUpload:      numtoa(c.conf.UploadMaxSpeed),
+			Slots:          int(c.conf.UploadMaxParallel),
+		}
+
+		info.Features = append(info.Features, adc.FeaADC0)
 		if c.conf.IsPassive == false {
-			supports = append(supports, adcSupportTcp4, adcSupportUdp4)
+			info.Features = append(info.Features, adc.FeaTCP4, adc.FeaUDP4)
 		}
 		if c.conf.PeerEncryptionMode != DisableEncryption {
-			supports = append(supports, adcSupportTls)
-		}
-
-		fields := map[string]string{
-			adcFieldDescription:          c.conf.Description,
-			adcFieldShareCount:           numtoa(c.shareCount),
-			adcFieldShareSize:            numtoa(c.shareSize),
-			adcFieldHubUnregisteredCount: numtoa(hubUnregisteredCount),
-			adcFieldHubRegisteredCount:   numtoa(hubRegisteredCount),
-			adcFieldHubOperatorCount:     numtoa(hubOperatorCount),
-			adcFieldSoftware:             c.conf.ClientString,  // verified
-			adcFieldVersion:              c.conf.ClientVersion, // verified
-			adcFieldSupports:             strings.Join(supports, ","),
-			adcFieldUploadSpeed:          numtoa(c.conf.UploadMaxSpeed),
-			adcFieldUploadSlotCount:      numtoa(c.conf.UploadMaxParallel),
+			info.Features = append(info.Features, adc.FeaADCS)
 		}
 
 		if c.conf.IsPassive == false {
-			fields[adcFieldIp] = c.ip
-			fields[adcFieldUdpPort] = numtoa(c.conf.UdpPort)
+			info.Ip4 = c.ip
+			info.Udp4 = int(c.conf.UdpPort)
 		}
 
-		// these must be send only during initialization
+		// these must be sent only during initialization
 		if firstTime == true {
-			fields[adcFieldName] = c.conf.Nick
-			fields[adcFieldClientId] = dcBase32Encode(c.clientId)
-			fields[adcFieldPrivateId] = dcBase32Encode(c.privateId)
+			info.Name = c.conf.Nick
+			info.Id = c.clientId
+			info.Pid = &c.privateId
 
 			if c.conf.PeerEncryptionMode != DisableEncryption &&
 				c.conf.IsPassive == false {
-				fields[adcFieldTlsFingerprint] = c.adcFingerprint
+				info.KP = c.adcFingerprint
 			}
 		}
 
-		c.connHub.conn.Write(&msgAdcBInfos{
-			msgAdcTypeB{SessionId: c.sessionId},
-			msgAdcKeyInfos{Fields: fields},
+		c.connHub.conn.Write(&adcBInfos{
+			&adc.BroadcastPacket{ID: c.adcSessionId},
+			info,
 		})
 
 	} else {

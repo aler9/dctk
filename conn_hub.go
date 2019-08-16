@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/gswly/go-dc/adc"
 	"github.com/gswly/go-dc/nmdc"
+	"github.com/gswly/go-dc/tiger"
 )
 
 // HubField is a name of a hub information field.
@@ -177,18 +178,18 @@ func (h *connHub) do() {
 		dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
 		if h.client.protoIsAdc() {
-			features := map[string]struct{}{
-				adcFeatureBas0:         {},
-				adcFeatureBase:         {},
-				adcFeatureTiger:        {},
-				adcFeatureUserCommands: {},
+			features := adc.ModFeatures{
+				adc.FeaBAS0: true,
+				adc.FeaBASE: true,
+				adc.FeaTIGR: true,
+				adc.FeaUCM0: true,
 			}
 			if h.client.conf.HubDisableCompression == false {
-				features[adcFeatureZlibFull] = struct{}{}
+				features[adc.FeaZLIF] = true
 			}
-			h.conn.Write(&msgAdcHSupports{
-				msgAdcTypeH{},
-				msgAdcKeySupports{features},
+			h.conn.Write(&adcHSupports{
+				&adc.HubPacket{},
+				&adc.Supported{features},
 			})
 		}
 
@@ -245,9 +246,9 @@ func (h *connHub) do() {
 
 func (h *connHub) handleMessage(msgi msgDecodable) error {
 	switch msg := msgi.(type) {
-	case *msgAdcKeepAlive:
+	case *adcKeepAlive:
 
-	case *msgAdcIZon:
+	case *adcIZon:
 		if h.client.conf.HubDisableCompression == true {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
@@ -255,52 +256,52 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return err
 		}
 
-	case *msgAdcIStatus:
-		if msg.Type != adcStatusOk {
+	case *adcIStatus:
+		if msg.Msg.Sev != adc.Success {
 			return fmt.Errorf("error: %+v", msg)
 		}
 
-	case *msgAdcISupports:
+	case *adcISupports:
 		if h.state != hubConnected {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
 		h.state = hubSupports
 
-	case *msgAdcISessionId:
+	case *adcISessionId:
 		if h.state != hubSupports {
 			return fmt.Errorf("[SessionId] invalid state: %s", h.state)
 		}
 		h.state = hubSessionID
-		h.client.sessionId = msg.Sid
+		h.client.adcSessionId = msg.Msg.SID
 		h.client.sendInfos(true)
 
-	case *msgAdcIInfos:
-		for key, val := range msg.Fields {
-			var klabel HubField
-			switch key {
-			case adcFieldName:
-				klabel = HubName
-				h.name = val
-			case adcFieldSoftware:
-				klabel = HubSoftware
-			case adcFieldVersion:
-				klabel = HubVersion
-			case adcFieldDescription:
-				klabel = HubDescription
-			default:
-				klabel = HubField(key)
-			}
+	case *adcIInfos:
+		onHubInfo := func(k HubField, v string) {
 			if h.client.OnHubInfo != nil {
-				h.client.OnHubInfo(klabel, val)
+				h.client.OnHubInfo(k, v)
 			}
-			dolog(LevelInfo, "[hub] [%s] %s", klabel, val)
+			dolog(LevelInfo, "[hub] [%s] %s", k, v)
 		}
 
-	case *msgAdcIMsg:
-		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Content)
-		dolog(LevelInfo, "[hub] %s", msg.Content)
+		if msg.Msg.Name != "" {
+			h.name = msg.Msg.Name
+			onHubInfo(HubName, msg.Msg.Name)
+		}
+		if msg.Msg.Application != "" {
+			onHubInfo(HubSoftware, msg.Msg.Application)
+		}
+		if msg.Msg.Version != "" {
+			onHubInfo(HubVersion, msg.Msg.Version)
+		}
+		if msg.Msg.Desc != "" {
+			onHubInfo(HubDescription, msg.Msg.Desc)
+		}
 
-	case *msgAdcIGetPass:
+	case *adcIMsg:
+		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Msg.Text)
+		dolog(LevelInfo, "[hub] %s", msg.Msg.Text)
+
+	case *adcIGetPass:
 		if h.state != hubSessionID {
 			return fmt.Errorf("[Sup] invalid state: %s", h.state)
 		}
@@ -308,75 +309,77 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		hasher := newTiger()
 		hasher.Write([]byte(h.client.conf.Password))
-		hasher.Write(msg.Data)
-		data := hasher.Sum(nil)
+		hasher.Write(msg.Msg.Salt)
+		var data tiger.Hash
+		hasher.Sum(data[:0])
 
 		h.passwordSent = true
-		h.conn.Write(&msgAdcHPass{
-			msgAdcTypeH{},
-			msgAdcKeyPass{Data: data},
+		h.conn.Write(&adcHPass{
+			&adc.HubPacket{},
+			&adc.Password{Hash: data},
 		})
 
-	case *msgAdcBInfos:
+	case *adcBInfos:
 		exists := true
-		p := h.client.peerBySessionId(msg.SessionId)
+		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			exists = false
 
 			// adcFieldName is mandatory for peer creation
-			if _, ok := msg.Fields[adcFieldName]; !ok {
-				return fmt.Errorf("adcFieldName not sent")
+			if msg.Msg.Name == "" {
+				return fmt.Errorf("peer name not provided")
 			}
-			if h.client.peerByNick(msg.Fields[adcFieldName]) != nil {
-				return fmt.Errorf("trying to create already-existent peer")
+			if h.client.peerByNick(msg.Msg.Name) != nil {
+				return fmt.Errorf("a peer with this name already exists")
 			}
 
 			p = &Peer{
-				Nick:         msg.Fields[adcFieldName],
-				adcSessionId: msg.SessionId,
+				Nick:         msg.Msg.Name,
+				adcSessionId: msg.Pkt.ID,
 			}
 		}
 
-		for key, val := range msg.Fields {
-			switch key {
-			case adcFieldDescription:
-				p.Description = val
-			case adcFieldEmail:
-				p.Email = val
-			case adcFieldShareSize:
-				p.ShareSize = atoui64(val)
-			case adcFieldIp:
-				p.Ip = val
-			case adcFieldUdpPort:
-				p.adcUdpPort = atoui(val)
-			case adcFieldClientId:
-				p.adcClientId = dcBase32Decode(val)
-			case adcFieldSoftware:
-				p.Client = val
-			case adcFieldVersion:
-				p.Version = val
-			case adcFieldTlsFingerprint:
-				p.adcFingerprint = val
-
-			case adcFieldSupports:
-				p.adcSupports = make(map[string]struct{})
-				for _, feat := range strings.Split(val, ",") {
-					p.adcSupports[feat] = struct{}{}
-				}
-
-			case adcFieldCategory:
-				ct := atoui(val)
-				p.IsBot = (ct & 1) != 0
-				p.IsOperator = ((ct & 4) | (ct & 8) | (ct & 16)) != 0
-			}
+		// every field is optional
+		if msg.Msg.Desc != "" {
+			p.Description = msg.Msg.Desc
+		}
+		if msg.Msg.Email != "" {
+			p.Email = msg.Msg.Email
+		}
+		if msg.Msg.ShareSize != 0 {
+			p.ShareSize = uint64(msg.Msg.ShareSize)
+		}
+		if msg.Msg.Ip4 != "" {
+			p.Ip = msg.Msg.Ip4
+		}
+		if msg.Msg.Udp4 != 0 {
+			p.adcUdpPort = uint(msg.Msg.Udp4)
+		}
+		var zeroCID adc.CID
+		if msg.Msg.Id != zeroCID {
+			p.adcClientId = msg.Msg.Id
+		}
+		if msg.Msg.Application != "" {
+			p.Client = msg.Msg.Application
+		}
+		if msg.Msg.Version != "" {
+			p.Version = msg.Msg.Version
+		}
+		if msg.Msg.KP != "" {
+			p.adcFingerprint = msg.Msg.KP
+		}
+		if len(msg.Msg.Features) > 0 {
+			p.adcFeatures = msg.Msg.Features
+		}
+		if adc.UserTypeBot != 0 {
+			p.IsBot = (msg.Msg.Type & adc.UserTypeBot) != 0
+			p.IsOperator = (msg.Msg.Type & adc.UserTypeOperator) != 0
 		}
 
-		// a peer is active if it supports udp4, it exposes udp port and ip
+		// a peer is active if it supports udp4, exposes udp port and ip
 		p.IsPassive = true
-		if _, ok := p.adcSupports[adcSupportUdp4]; ok {
-			if p.Ip != "" && p.adcUdpPort != 0 {
-				p.IsPassive = false
-			}
+		if h.client.peerSupportsAdc(p, adc.FeaUDP4) && p.Ip != "" && p.adcUdpPort != 0 {
+			p.IsPassive = false
 		}
 
 		if exists == false {
@@ -385,83 +388,92 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			h.client.handlePeerUpdated(p)
 		}
 
-	case *msgAdcIQuit:
+	case *adcIQuit:
 		// self quit, used instead of ForceMove
-		if msg.SessionId == h.client.sessionId {
-			return fmt.Errorf("received Quit message: %s", msg.Reason)
+		if msg.Msg.ID == h.client.adcSessionId {
+			return fmt.Errorf("received Quit message: %s", msg.Msg.Message)
 
 			// peer quit
 		} else {
-			p := h.client.peerBySessionId(msg.SessionId)
+			p := h.client.peerBySessionId(msg.Msg.ID)
 			if p != nil {
 				h.client.handlePeerDisconnected(p)
 			}
 		}
 
-	case *msgAdcICommand:
+	case *adcICommand:
 		// switch to initialized
 		if h.state != hubInitialized {
 			h.state = hubInitialized
 			h.handleHubInitialized()
 		}
 
-	case *msgAdcBMessage:
-		p := h.client.peerBySessionId(msg.SessionId)
+	case *adcBMessage:
+		p := h.client.peerBySessionId(msg.Pkt.ID)
+		if p == nil {
+			return fmt.Errorf("public message with unknown author")
+		}
+		h.client.handlePublicMessage(p, msg.Msg.Text)
+
+	case *adcDMessage:
+		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("private message with unknown author")
 		}
-		h.client.handlePublicMessage(p, msg.Content)
+		h.client.handlePrivateMessage(p, msg.Msg.Text)
 
-	case *msgAdcDMessage:
-		p := h.client.peerBySessionId(msg.AuthorId)
-		if p == nil {
-			return fmt.Errorf("private message with unknown author")
-		}
-		h.client.handlePrivateMessage(p, msg.Content)
+	case *adcBSearchRequest:
+		h.client.handleAdcSearchIncomingRequest(msg.Pkt.ID, msg.Msg)
 
-	case *msgAdcBSearchRequest:
-		h.client.handleAdcSearchIncomingRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
-
-	case *msgAdcFSearchRequest:
-		if _, ok := msg.RequiredFeatures["TCP4"]; ok {
-			if h.client.conf.IsPassive == true {
-				dolog(LevelDebug, "[F warning] we are in passive and author requires active")
-				return nil
+	case *adcFSearchRequest:
+		hasFeature := func(f adc.Feature) bool {
+			for _, s := range msg.Pkt.Sel {
+				if s.Fea == f {
+					return true
+				}
 			}
+			return false
 		}
-		h.client.handleAdcSearchIncomingRequest(msg.SessionId, &msg.msgAdcKeySearchRequest)
 
-	case *msgAdcDSearchResult:
-		p := h.client.peerBySessionId(msg.AuthorId)
+		if h.client.conf.IsPassive == true && hasFeature(adc.FeaTCP4) {
+			dolog(LevelDebug, "we are in passive and author requires active")
+			return nil
+		}
+
+		h.client.handleAdcSearchIncomingRequest(msg.Pkt.ID, msg.Msg)
+
+	case *adcDSearchResult:
+		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("search result with unknown author")
 		}
-		h.client.handleAdcSearchResult(false, p, &msg.msgAdcKeySearchResult)
+		h.client.handleAdcSearchResult(false, p, msg.Msg)
 
-	case *msgAdcDConnectToMe:
-		p := h.client.peerBySessionId(msg.AuthorId)
+	case *adcDConnectToMe:
+		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("connecttome with unknown author")
 		}
-		if msg.Token == "" {
+		if msg.Msg.Token == "" {
 			return fmt.Errorf("connecttome with invalid token")
 		}
 
 		// invalid protocol
 		if _, ok := map[string]struct{}{
-			adcProtocolPlain:     {},
-			adcProtocolEncrypted: {},
-		}[msg.Protocol]; ok == false {
-			h.conn.Write(&msgAdcDStatus{
-				msgAdcTypeD{h.client.sessionId, msg.AuthorId},
-				msgAdcKeyStatus{
-					adcStatusWarning,
-					adcCodeProtocolUnsupported,
-					"Transfer protocol unsupported",
-					map[string]string{
-						adcFieldToken:    msg.Token,
-						adcFieldProtocol: msg.Protocol,
-					},
+			adc.ProtoADC:  {},
+			adc.ProtoADCS: {},
+		}[msg.Msg.Proto]; ok == false {
+			h.conn.Write(&adcDStatus{
+				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
+				&adc.Status{
+					Sev:  adc.Recoverable,
+					Code: adcCodeProtocolUnsupported,
+					Msg:  "Transfer protocol unsupported",
+					// TODO: add additional fields
+					/*map[string]string{
+						adcFieldToken:    msg.Msg.Token,
+						adcFieldProtocol: msg.Msg.Protocol,
+					},*/
 				},
 			})
 			return nil
@@ -469,35 +481,38 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		// some clients send an ADCS request without checking whether we support it
 		// or not. the same can happen for ADC. send back a status
-		if (msg.Protocol == adcProtocolEncrypted &&
+		if (msg.Msg.Proto == adc.ProtoADCS &&
 			h.client.conf.PeerEncryptionMode == DisableEncryption) ||
-			(msg.Protocol == adcProtocolPlain &&
+			(msg.Msg.Proto == adc.ProtoADC &&
 				h.client.conf.PeerEncryptionMode == ForceEncryption) {
 
-			h.conn.Write(&msgAdcDStatus{
-				msgAdcTypeD{h.client.sessionId, msg.AuthorId},
-				msgAdcKeyStatus{adcStatusWarning, 41, "Transfer protocol unsupported",
-					map[string]string{
-						adcFieldToken:    msg.Token,
-						adcFieldProtocol: msg.Protocol,
-					},
+			h.conn.Write(&adcDStatus{
+				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
+				&adc.Status{
+					Sev:  adc.Recoverable,
+					Code: adcCodeProtocolUnsupported,
+					Msg:  "Transfer protocol unsupported",
+					// TODO: add additional fields
+					/*map[string]string{
+						adcFieldToken:    msg.Msg.Token,
+						adcFieldProtocol: msg.Msg.Protocol,
+					},*/
 				},
 			})
 			return nil
 		}
 
-		isEncrypted := (msg.Protocol == adcProtocolEncrypted)
-		newConnPeer(h.client, isEncrypted, false, nil, p.Ip, msg.TcpPort, msg.Token)
+		newConnPeer(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.Ip, uint(msg.Msg.Port), msg.Msg.Token)
 
-	case *msgAdcDRevConnectToMe:
-		p := h.client.peerBySessionId(msg.AuthorId)
+	case *adcDRevConnectToMe:
+		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("revconnecttome with unknown author")
 		}
-		if msg.Token == "" {
+		if msg.Msg.Token == "" {
 			return fmt.Errorf("revconnecttome with invalid token")
 		}
-		h.client.handlePeerRevConnectToMe(p, msg.Token)
+		h.client.handlePeerRevConnectToMe(p, msg.Msg.Token)
 
 	case *nmdcKeepAlive:
 

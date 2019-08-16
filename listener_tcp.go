@@ -45,7 +45,7 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 			if err != nil {
 				return err
 			}
-			client.adcFingerprint = adcCertificateFingerprint(xcert)
+			client.adcFingerprint = adcCertFingerprint(xcert)
 		}
 
 		certPEMBlock := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: bcert})

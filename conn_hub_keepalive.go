@@ -31,7 +31,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 				h.client.Safe(func() {
 					if h.client.protoIsAdc() {
 						// ADC uses the TCP keepalive feature or empty packets
-						h.conn.Write(&msgAdcKeepAlive{})
+						h.conn.Write(&adcKeepAlive{})
 					} else {
 						h.conn.Write(&nmdcKeepAlive{})
 					}

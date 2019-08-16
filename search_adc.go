@@ -1,42 +1,32 @@
 package dctoolkit
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"strings"
+
+	"github.com/gswly/go-dc/adc"
+	"github.com/gswly/go-dc/tiger"
 )
 
-const (
-	adcSearchFile      = "1"
-	adcSearchDirectory = "2"
-)
-
-func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKeySearchResult) {
+func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {
 	sr := &SearchResult{
 		IsActive: isActive,
 		Peer:     peer,
 	}
 
-	for key, val := range msg.Fields {
-		switch key {
-		case adcFieldFilePath:
-			sr.Path = val
-		case adcFieldSize:
-			sr.Size = atoui64(val)
-		case adcFieldFileTTH:
-			if val == dirTTH {
-				sr.IsDir = true
-			} else {
-				tth, err := TigerHashFromBase32(val)
-				if err != nil {
-					return
-				}
-				sr.TTH = &tth
-			}
-		case adcFieldUploadSlotCount:
-			sr.SlotAvail = atoui(val)
+	sr.Path = msg.Path
+	sr.Size = uint64(msg.Size)
+	sr.SlotAvail = uint(msg.Slots)
+	if msg.TTH != nil {
+		if *msg.TTH == tiger.Hash(dirTTH) {
+			sr.IsDir = true
+		} else {
+			sr.TTH = (*TigerHash)(msg.TTH)
 		}
 	}
+
 	if sr.IsDir == true {
 		sr.Path = strings.TrimSuffix(sr.Path, "/")
 	}
@@ -45,125 +35,102 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKey
 }
 
 func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
-	fields := make(map[string]string)
-
-	// always add token even if we're not using it
-	fields[adcFieldToken] = adcRandomToken()
+	req := &adc.SearchRequest{
+		// always add token even if we're not using it
+		Token: adcRandomToken(),
+	}
 
 	switch conf.Type {
 	case SearchAny:
-		fields[adcFieldQueryAnd] = conf.Query
+		req.And = append(req.And, conf.Query)
 
 	case SearchDirectory:
-		fields[adcFieldIsFileOrDir] = adcSearchDirectory
-		fields[adcFieldQueryAnd] = conf.Query
+		req.Type = adc.FileTypeDir
+		req.And = append(req.And, conf.Query)
 
 	case SearchTTH:
-		fields[adcFieldFileTTH] = conf.TTH.String()
+		req.TTH = (*tiger.Hash)(&conf.TTH)
 	}
 
 	// MaxSize and MinSize are used only for files. They can be used for
 	// directories too in ADC, but we want to minimize differences with NMDC.
 	if conf.Type == SearchAny || conf.Type == SearchTTH {
 		if conf.MaxSize != 0 {
-			fields[adcFieldMaxSize] = numtoa(conf.MaxSize)
+			req.Le = int64(conf.MaxSize)
 		}
 		if conf.MinSize != 0 {
-			fields[adcFieldMinSize] = numtoa(conf.MinSize)
+			req.Ge = int64(conf.MinSize)
 		}
 	}
 
-	requiredFeatures := make(map[string]struct{})
+	var features []adc.FeatureSel
 
-	// if we're passive, require that the recipient is active
+	// if we're passive, require that the receiver is active
 	if c.conf.IsPassive == true {
-		requiredFeatures["TCP4"] = struct{}{}
+		features = append(features, adc.FeatureSel{adc.FeaTCP4, true})
 	}
 
-	if len(requiredFeatures) > 0 {
-		c.connHub.conn.Write(&msgAdcFSearchRequest{
-			msgAdcTypeF{SessionId: c.sessionId, RequiredFeatures: requiredFeatures},
-			msgAdcKeySearchRequest{fields},
+	if len(features) > 0 {
+		c.connHub.conn.Write(&adcFSearchRequest{
+			&adc.FeaturePacket{ID: c.adcSessionId, Sel: features},
+			req,
 		})
 	} else {
-		c.connHub.conn.Write(&msgAdcBSearchRequest{
-			msgAdcTypeB{c.sessionId},
-			msgAdcKeySearchRequest{fields},
+		c.connHub.conn.Write(&adcBSearchRequest{
+			&adc.BroadcastPacket{ID: c.adcSessionId},
+			req,
 		})
 	}
 	return nil
 }
 
-func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msgAdcKeySearchRequest) {
+func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchRequest) {
 	var peer *Peer
 	results, err := func() ([]interface{}, error) {
-		peer = c.peerBySessionId(authorSessionId)
+		peer = c.peerBySessionId(ID)
 		if peer == nil {
 			return nil, fmt.Errorf("search author not found")
 		}
 
-		if _, ok := req.Fields[adcFieldFileGroup]; ok {
+		if req.Group != adc.ExtNone {
 			return nil, fmt.Errorf("search by type is not supported")
 		}
-		if _, ok := req.Fields[adcFieldFileExcludeExtens]; ok {
-			return nil, fmt.Errorf("search by type is not supported")
-		}
-		if _, ok := req.Fields[adcFieldFileQueryOr]; ok {
-			return nil, fmt.Errorf("search by query OR is not supported")
-		}
-		if _, ok := req.Fields[adcFieldFileExactSize]; ok {
-			return nil, fmt.Errorf("search by exact size is not supported")
-		}
-		if _, ok := req.Fields[adcFieldFileExtension]; ok {
+		if len(req.Ext) > 0 {
 			return nil, fmt.Errorf("search by extension is not supported")
 		}
-		if _, ok := req.Fields[adcFieldIsFileOrDir]; ok {
-			if req.Fields[adcFieldIsFileOrDir] != adcSearchDirectory {
-				return nil, fmt.Errorf("search file only is not supported")
-			}
+		if len(req.Not) > 0 {
+			return nil, fmt.Errorf("search by OR is not supported")
 		}
-		if _, ok := req.Fields[adcFieldQueryAnd]; !ok {
-			if _, ok := req.Fields[adcFieldFileTTH]; !ok {
-				return nil, fmt.Errorf("AN or TR is required")
-			}
+		if req.Eq != 0 {
+			return nil, fmt.Errorf("search by exact size is not supported")
+		}
+		if req.Type == adc.FileTypeFile {
+			return nil, fmt.Errorf("file-only search is not supported")
+		}
+
+		if len(req.And) == 0 && req.TTH == nil {
+			return nil, fmt.Errorf("AN or TR are required")
 		}
 
 		sr := &searchIncomingRequest{
 			isActive: (peer.IsPassive == false),
 			stype: func() SearchType {
-				if _, ok := req.Fields[adcFieldFileTTH]; ok {
+				if req.TTH != nil {
 					return SearchTTH
 				}
-				if _, ok := req.Fields[adcFieldIsFileOrDir]; ok {
-					if req.Fields[adcFieldIsFileOrDir] == adcSearchDirectory {
-						return SearchDirectory
-					}
+				if req.Type == adc.FileTypeDir {
+					return SearchDirectory
 				}
 				return SearchAny
 			}(),
-			minSize: func() uint64 {
-				if val, ok := req.Fields[adcFieldMinSize]; ok {
-					return atoui64(val)
-				}
-				return 0
-			}(),
-			maxSize: func() uint64 {
-				if val, ok := req.Fields[adcFieldMaxSize]; ok {
-					return atoui64(val)
-				}
-				return 0
-			}(),
+			minSize: uint64(req.Ge),
+			maxSize: uint64(req.Le),
 		}
 
-		if _, ok := req.Fields[adcFieldFileTTH]; ok {
-			var err error
-			sr.tth, err = TigerHashFromBase32(req.Fields[adcFieldFileTTH])
-			if err != nil {
-				return nil, fmt.Errorf("invalid TTH: %v", req.Fields[adcFieldFileTTH])
-			}
-
+		if req.TTH != nil {
+			sr.tth = TigerHash(*req.TTH)
 		} else {
-			sr.query = req.Fields[adcFieldQueryAnd]
+			sr.query = req.And[0]
 		}
 
 		return c.handleSearchIncomingRequest(sr)
@@ -173,31 +140,29 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 		return
 	}
 
-	var msgs []*msgAdcKeySearchResult
+	var msgs []*adc.SearchResult
 	for _, res := range results {
-		fields := map[string]string{
-			adcFieldUploadSlotCount: numtoa(c.conf.UploadMaxParallel),
+		msg := &adc.SearchResult{
+			Slots: int(c.conf.UploadMaxParallel),
 		}
 
 		switch o := res.(type) {
 		case *shareFile:
-			fields[adcFieldFilePath] = o.aliasPath
-			fields[adcFieldFileTTH] = o.tth.String()
-			fields[adcFieldSize] = numtoa(o.size)
+			msg.Path = o.aliasPath
+			msg.TTH = (*tiger.Hash)(&o.tth)
+			msg.Size = int64(o.size)
 
 		case *shareDirectory:
 			// if directory, add a trailing slash
-			fields[adcFieldFilePath] = o.aliasPath + "/"
-			fields[adcFieldFileTTH] = dirTTH
-			fields[adcFieldSize] = numtoa(o.size)
+			msg.Path = o.aliasPath + "/"
+			msg.TTH = (*tiger.Hash)(&dirTTH)
+			msg.Size = int64(o.size)
 		}
 
 		// add token if sent by author
-		if val, ok := req.Fields[adcFieldToken]; ok {
-			fields[adcFieldToken] = val
-		}
+		msg.Token = req.Token
 
-		msgs = append(msgs, &msgAdcKeySearchResult{Fields: fields})
+		msgs = append(msgs, msg)
 	}
 
 	// send to peer
@@ -210,20 +175,28 @@ func (c *Client) handleAdcSearchIncomingRequest(authorSessionId string, req *msg
 			defer conn.Close()
 
 			for _, msg := range msgs {
-				encmsg := &msgAdcUSearchResult{
-					msgAdcTypeU{peer.adcClientId},
-					*msg,
+				amsg := &adcUSearchResult{
+					&adc.UDPPacket{ID: peer.adcClientId},
+					msg,
 				}
-				conn.Write([]byte(encmsg.AdcTypeEncode(encmsg.AdcKeyEncode())))
+
+				amsg.Pkt.SetMessage(amsg.Msg)
+
+				var buf bytes.Buffer
+				if err := amsg.Pkt.MarshalPacketADC(&buf); err != nil {
+					panic(err)
+				}
+
+				conn.Write(buf.Bytes())
 			}
 		}()
 
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			c.connHub.conn.Write(&msgAdcDSearchResult{
-				msgAdcTypeD{c.sessionId, peer.adcSessionId},
-				*msg,
+			c.connHub.conn.Write(&adcDSearchResult{
+				&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
+				msg,
 			})
 		}
 	}
