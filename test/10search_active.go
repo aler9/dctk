@@ -76,10 +76,9 @@ func client2() {
 	client.OnSearchResult = func(res *dctk.SearchResult) {
 		switch step {
 		case 0:
-			var zeroTTH dctk.TigerHash
 			if res.IsDir != true ||
 				res.Path != "/aliasname/inner folder" ||
-				res.TTH != zeroTTH ||
+				res.TTH != nil ||
 				// res.Size for folders is provided by ADC, not provided by NMDC
 				((!isAdc && res.Size != 0) || (isAdc && res.Size != 10000)) ||
 				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
@@ -93,7 +92,7 @@ func client2() {
 		case 1:
 			if res.IsDir != false ||
 				res.Path != "/aliasname/inner folder/test file.txt" ||
-				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+				*res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
 				panic(fmt.Errorf("wrong result (2): %+v", res))
@@ -107,7 +106,7 @@ func client2() {
 		case 2:
 			if res.IsDir != false ||
 				res.Path != "/aliasname/inner folder/test file.txt" ||
-				res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+				*res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 				res.Size != 10000 ||
 				((!isGodcppNmdc && res.IsActive != true) || (isGodcppNmdc && res.IsActive != false)) {
 				panic(fmt.Errorf("wrong result (3): %+v", res))

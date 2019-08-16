@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/direct-connect/go-dc/nmdc"
 )
 
 // HubField is a name of a hub information field.
@@ -497,9 +499,9 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.client.handlePeerRevConnectToMe(p, msg.Token)
 
-	case *msgNmdcKeepAlive:
+	case *nmdcKeepAlive:
 
-	case *msgNmdcZon:
+	case *nmdc.ZOn:
 		if h.client.conf.HubDisableCompression == true {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
@@ -507,7 +509,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return err
 		}
 
-	case *msgNmdcLock:
+	case *nmdc.Lock:
 		if h.state != hubConnected {
 			return fmt.Errorf("[Lock] invalid state: %s", h.state)
 		}
@@ -515,29 +517,29 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		// https://web.archive.org/web/20150323114734/http://wiki.gusari.org/index.php?title=$Supports
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/master/dcpp/Nmdchub.cpp#L618
-		features := map[string]struct{}{
-			nmdcFeatureUserCommands: {},
-			nmdcFeatureNoGetInfo:    {},
-			nmdcFeatureNoHello:      {},
-			nmdcFeatureUserIp:       {},
-			nmdcFeatureTTHSearch:    {},
+		features := []string{
+			nmdcFeatureUserCommands,
+			nmdcFeatureNoGetInfo,
+			nmdcFeatureNoHello,
+			nmdcFeatureUserIp,
+			nmdcFeatureTTHSearch,
 		}
 		if h.client.conf.HubDisableCompression == false {
-			features[nmdcFeatureZlibFull] = struct{}{}
+			features = append(features, nmdcFeatureZlibFull)
 		}
 		// this must be provided, otherwise the final S is stripped from ConnectToMe
 		if h.client.conf.PeerEncryptionMode != DisableEncryption {
-			features[nmdcFeatureTls] = struct{}{}
+			features = append(features, nmdcFeatureTls)
 		}
 
-		h.conn.Write(&msgNmdcSupports{features})
-		h.conn.Write(&msgNmdcKey{Key: nmdcComputeKey([]byte(msg.Lock))})
-		h.conn.Write(&msgNmdcValidateNick{Nick: h.client.conf.Nick})
+		h.conn.Write(&nmdc.Supports{features})
+		h.conn.Write(msg.Key())
+		h.conn.Write(&nmdc.ValidateNick{Name: nmdc.Name(h.client.conf.Nick)})
 
-	case *msgNmdcValidateDenide:
+	case *nmdc.ValidateDenide:
 		return fmt.Errorf("forbidden nickname")
 
-	case *msgNmdcSupports:
+	case *nmdc.Supports:
 		if h.state != hubLock {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
@@ -545,42 +547,42 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	// flexhub sends HubName just after lock
 	// HubName can also be sent twice
-	case *msgNmdcHubName:
+	case *nmdc.HubName:
 		if h.state != hubPreInitialized && h.state != hubLock {
 			return fmt.Errorf("[HubName] invalid state: %s", h.state)
 		}
 		if h.client.OnHubInfo != nil {
-			h.client.OnHubInfo(HubName, msg.Content)
+			h.client.OnHubInfo(HubName, string(msg.String))
 		}
-		dolog(LevelInfo, "[hub] [name] %s", msg.Content)
+		dolog(LevelInfo, "[hub] [name] %s", string(msg.String))
 
-	case *msgNmdcHubTopic:
+	case *nmdc.HubTopic:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[HubTopic] invalid state: %s", h.state)
 		}
 		if h.client.OnHubInfo != nil {
-			h.client.OnHubInfo(HubTopic, msg.Content)
+			h.client.OnHubInfo(HubTopic, msg.Text)
 		}
-		dolog(LevelInfo, "[hub] [topic] %s", msg.Content)
+		dolog(LevelInfo, "[hub] [topic] %s", msg.Text)
 
-	case *msgNmdcGetPass:
+	case *nmdc.GetPass:
 		if h.state != hubPreInitialized {
 			return fmt.Errorf("[GetPass] invalid state: %s", h.state)
 		}
 		h.passwordSent = true
-		h.conn.Write(&msgNmdcMyPass{Pass: h.client.conf.Password})
+		h.conn.Write(&nmdc.MyPass{nmdc.String(h.client.conf.Password)})
 		if _, ok := h.uniqueCmds["GetPass"]; ok {
 			return fmt.Errorf("GetPass sent twice")
 		}
 		h.uniqueCmds["GetPass"] = struct{}{}
 
-	case *msgNmdcBadPassword:
+	case *nmdc.BadPass:
 		return fmt.Errorf("wrong password")
 
-	case *msgNmdcHubIsFull:
+	case *nmdc.HubIsFull:
 		return fmt.Errorf("hub is full")
 
-	case *msgNmdcLoggedIn:
+	case *nmdc.LogedIn:
 		if h.state != hubPreInitialized {
 			return fmt.Errorf("[LoggedIn] invalid state: %s", h.state)
 		}
@@ -589,7 +591,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.uniqueCmds["LoggedIn"] = struct{}{}
 
-	case *msgNmdcHello:
+	case *nmdc.Hello:
 		if h.state != hubPreInitialized {
 			return fmt.Errorf("[Hello] invalid state: %s", h.state)
 		}
@@ -598,40 +600,34 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.uniqueCmds["Hello"] = struct{}{}
 
-		// The last version of the Neo-Modus client was 1.0091 and is what is commonly used by current clients
+		// The last version of the Neo-Modus client was 1,0091 and is what is commonly used by current clients
 		// https://github.com/eiskaltdcpp/eiskaltdcpp/blob/1e72256ac5e8fe6735f81bfbc3f9d90514ada578/dcpp/NmdcHub.h#L119
-		h.conn.Write(&msgNmdcVersion{})
+		h.conn.Write(&nmdc.Version{Vers: "1,0091"})
 		h.client.sendInfos(true)
-		h.conn.Write(&msgNmdcGetNickList{})
+		h.conn.Write(&nmdc.GetNickList{})
 
-	case *msgNmdcMyInfo:
+	case *nmdc.MyINFO:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[MyInfo] invalid state: %s", h.state)
 		}
 		exists := true
-		p := h.client.peerByNick(msg.Nick)
+		p := h.client.peerByNick(msg.Name)
 		if p == nil {
 			exists = false
-			p = &Peer{Nick: msg.Nick}
+			p = &Peer{Nick: msg.Name}
 		}
 
-		p.Description = msg.Description
+		p.Description = msg.Desc
 		p.Email = msg.Email
 		p.ShareSize = msg.ShareSize
-		p.nmdcConnection = msg.Connection
-		p.nmdcStatusByte = msg.StatusByte
+		p.nmdcConnection = msg.Conn
+		p.nmdcFlag = msg.Flag
 
 		// client, version, mode are in the tag part of MyInfo (i.e. <>)
 		// that can be deliberately hidden by hub
-		if msg.Client != "" {
-			p.Client = msg.Client
-		}
-		if msg.Version != "" {
-			p.Version = msg.Version
-		}
-		if msg.Mode != "" {
-			p.IsPassive = (msg.Mode == "P")
-		}
+		p.Client = msg.Client.Name
+		p.Version = msg.Client.Version
+		p.IsPassive = (msg.Mode == nmdc.UserModePassive)
 
 		if exists == false {
 			h.client.handlePeerConnected(p)
@@ -639,33 +635,45 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			h.client.handlePeerUpdated(p)
 		}
 
-	case *msgNmdcUserIp:
+	case *nmdc.UserIP:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[UserIp] invalid state: %s", h.state)
 		}
 
 		// we do not use UserIp to get our own ip, but only to get other
 		// ips of other peers
-		for peer, ip := range msg.Ips {
+		for _, entry := range msg.List {
 			// update peer
-			p := h.client.peerByNick(peer)
-			if p != nil {
-				p.Ip = ip
+			if p := h.client.peerByNick(entry.Name); p != nil {
+				p.Ip = entry.IP
 				h.client.handlePeerUpdated(p)
 			}
 		}
 
-	case *msgNmdcOpList:
+	case *nmdc.OpList:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[OpList] invalid state: %s", h.state)
 		}
 
+		updatedPeers := make(map[string]struct{})
 		for _, p := range h.client.peers {
-			_, isOp := msg.Ops[p.Nick]
-			if isOp != p.IsOperator {
-				p.IsOperator = isOp
-				h.client.handlePeerUpdated(p)
+			if p.IsOperator {
+				updatedPeers[p.Nick] = struct{}{}
+				p.IsOperator = false
 			}
+		}
+
+		for _, name := range msg.Names {
+			h.client.peers[name].IsOperator = true
+			if _, ok := updatedPeers[name]; ok {
+				delete(updatedPeers, name)
+			} else {
+				updatedPeers[name] = struct{}{}
+			}
+		}
+
+		for name := range updatedPeers {
+			h.client.handlePeerUpdated(h.client.peers[name])
 		}
 
 		// switch to initialized
@@ -674,87 +682,103 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			h.handleHubInitialized()
 		}
 
-	case *msgNmdcBotList:
+	case *nmdc.BotList:
 		if h.state != hubInitialized {
 			return fmt.Errorf("[BotList] invalid state: %s", h.state)
 		}
 
+		updatedPeers := make(map[string]struct{})
 		for _, p := range h.client.peers {
-			_, isBot := msg.Bots[p.Nick]
-			if isBot != p.IsBot {
-				p.IsBot = isBot
-				h.client.handlePeerUpdated(p)
+			if p.IsBot {
+				updatedPeers[p.Nick] = struct{}{}
+				p.IsBot = false
 			}
 		}
 
-	case *msgNmdcUserCommand:
+		for _, name := range msg.Names {
+			h.client.peers[name].IsBot = true
+			if _, ok := updatedPeers[name]; ok {
+				delete(updatedPeers, name)
+			} else {
+				updatedPeers[name] = struct{}{}
+			}
+		}
+
+		for name := range updatedPeers {
+			h.client.handlePeerUpdated(h.client.peers[name])
+		}
+
+	case *nmdc.UserCommand:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
 			return fmt.Errorf("[UserCommand] invalid state: %s", h.state)
 		}
 
-	case *msgNmdcQuit:
+	case *nmdc.Quit:
 		if h.state != hubInitialized {
 			return fmt.Errorf("[Quit] invalid state: %s", h.state)
 		}
-		p := h.client.peerByNick(msg.Nick)
+		p := h.client.peerByNick(string(msg.Name))
 		if p != nil {
 			h.client.handlePeerDisconnected(p)
 		}
 
-	case *msgNmdcForceMove:
+	case *nmdc.ForceMove:
 		// means disconnect and reconnect to provided address
 		// we just disconnect
 		return fmt.Errorf("received force move (%+v)", msg)
 
-	case *msgNmdcSearchRequest:
+	case *nmdc.Search:
 		// searches can be received even before initialization; ignore them
 		if h.state == hubInitialized {
 			h.client.handleNmdcSearchIncomingRequest(msg)
 		}
 
-	case *msgNmdcSearchResult:
+	case *nmdc.SR:
 		if h.state != hubInitialized {
 			return fmt.Errorf("[SearchResult] invalid state: %s", h.state)
 		}
-		p := h.client.peerByNick(msg.Nick)
-		if p != nil {
-			h.client.handleNmdcSearchResult(false, p, msg)
-		}
+		h.client.handleNmdcSearchResult(false, msg)
 
-	case *msgNmdcConnectToMe:
+	case *nmdc.ConnectToMe:
+		matches := reNmdcAddress.FindStringSubmatch(msg.Address)
+		if matches == nil {
+			return fmt.Errorf("invalid address")
+		}
+		ip, port := matches[1], atoui(matches[2])
+
 		if h.state != hubInitialized && h.state != hubPreInitialized {
 			return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
 		}
-		if msg.Encrypted == true && h.client.conf.PeerEncryptionMode == DisableEncryption {
+		if msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption {
 			dolog(LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
-		} else if msg.Encrypted == false && h.client.conf.PeerEncryptionMode == ForceEncryption {
+		} else if !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption {
 			dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
 		} else {
-			newConnPeer(h.client, msg.Encrypted, false, nil, msg.Ip, msg.Port, "")
+			newConnPeer(h.client, msg.Secure, false, nil, ip, port, "")
 		}
 
-	case *msgNmdcRevConnectToMe:
+	case *nmdc.RevConnectToMe:
 		if h.state != hubInitialized && h.state != hubPreInitialized {
 			return fmt.Errorf("[RevConnectToMe] invalid state: %s", h.state)
 		}
-		p := h.client.peerByNick(msg.Author)
+		p := h.client.peerByNick(msg.From)
 		if p != nil {
 			h.client.handlePeerRevConnectToMe(p, "")
 		}
 
-	case *msgNmdcPublicChat:
-		p := h.client.peerByNick(msg.Author)
+	case *nmdc.ChatMessage:
+		p := h.client.peerByNick(msg.Name)
 		if p == nil { // create a dummy peer if not found
-			p = &Peer{Nick: msg.Author}
+			p = &Peer{Nick: msg.Name}
 		}
-		h.client.handlePublicMessage(p, msg.Content)
+		h.client.handlePublicMessage(p, msg.Text)
 
-	case *msgNmdcPrivateChat:
-		p := h.client.peerByNick(msg.Author)
+	case *nmdc.PrivateMessage:
+		p := h.client.peerByNick(msg.From)
 		if p == nil { // create a dummy peer if not found
-			p = &Peer{Nick: msg.Author}
+			p = &Peer{Nick: msg.From}
 		}
-		h.client.handlePrivateMessage(p, msg.Content)
+		h.client.handlePrivateMessage(p, msg.Text)
 
 	default:
 		return fmt.Errorf("unhandled: %T %+v", msgi, msgi)

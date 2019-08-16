@@ -47,6 +47,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/direct-connect/go-dc/types"
 )
 
 const (
@@ -526,34 +529,36 @@ func (c *Client) sendInfos(firstTime bool) {
 		})
 
 	} else {
-		modestr := "P"
-		if c.conf.IsPassive == false {
-			modestr = "A"
-		}
-
 		// http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_myinfo
 		// https://web.archive.org/web/20150323115608/http://wiki.gusari.org/index.php?title=$MyINFO
-		var statusByte byte = 0x01
+		userFlag := nmdc.FlagStatusNormal
 
 		// add upload and download TLS support
 		if c.conf.PeerEncryptionMode != DisableEncryption {
-			statusByte |= (0x01 << 4) | (0x01 << 5)
+			userFlag |= nmdc.FlagTLSDownload | nmdc.FlagTLSUpload
 		}
 
-		c.connHub.conn.Write(&msgNmdcMyInfo{
-			Nick:                 c.conf.Nick,
-			Description:          c.conf.Description,
-			Client:               c.conf.ClientString,
-			Version:              c.conf.ClientVersion,
-			Mode:                 modestr,
-			HubUnregisteredCount: hubUnregisteredCount,
-			HubRegisteredCount:   hubRegisteredCount,
-			HubOperatorCount:     hubOperatorCount,
-			UploadSlots:          c.conf.UploadMaxParallel,
-			Connection:           fmt.Sprintf("%d KiB/s", c.conf.UploadMaxSpeed/1024),
-			StatusByte:           statusByte,
-			Email:                c.conf.Email,
-			ShareSize:            c.shareSize,
+		c.connHub.conn.Write(&nmdc.MyINFO{
+			Name: c.conf.Nick,
+			Desc: c.conf.Description,
+			Client: types.Software{
+				Name:    c.conf.ClientString,
+				Version: c.conf.ClientVersion,
+			},
+			Mode: func() nmdc.UserMode {
+				if c.conf.IsPassive == false {
+					return nmdc.UserModeActive
+				}
+				return nmdc.UserModePassive
+			}(),
+			HubsNormal:     int(hubUnregisteredCount),
+			HubsRegistered: int(hubRegisteredCount),
+			HubsOperator:   int(hubOperatorCount),
+			Slots:          int(c.conf.UploadMaxParallel),
+			Conn:           fmt.Sprintf("%d KiB/s", c.conf.UploadMaxSpeed/1024),
+			Flag:           userFlag,
+			Email:          c.conf.Email,
+			ShareSize:      c.shareSize,
 		})
 	}
 }

@@ -8,7 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/direct-connect/go-dc/nmdc"
 )
 
 const (
@@ -277,10 +280,12 @@ func (d *Download) do() {
 				},
 			})
 		} else {
-			d.pconn.conn.Write(&msgNmdcGetFile{
-				Query:  d.query,
-				Start:  d.conf.Start,
-				Length: d.conf.Length,
+			queryParts := strings.Split(d.query, " ")
+			d.pconn.conn.Write(&nmdc.ADCGET{
+				ContentType: nmdc.String(queryParts[0]),
+				Identifier:  nmdc.String(queryParts[1]),
+				Start:       d.conf.Start,
+				Length:      d.conf.Length,
 				Compressed: (d.client.conf.PeerDisableCompression == false &&
 					(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
 			})
@@ -356,14 +361,15 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 	case *msgAdcCSendFile:
 		return d.handleSendFile(msg.Query, msg.Start, msg.Length, msg.Compressed)
 
-	case *msgNmdcMaxedOut:
+	case *nmdc.MaxedOut:
 		return fmt.Errorf("maxed out")
 
-	case *msgNmdcError:
-		return fmt.Errorf("error: %s", msg.Error)
+	case *nmdc.Error:
+		return fmt.Errorf("error: %s", msg.Err)
 
-	case *msgNmdcSendFile:
-		return d.handleSendFile(msg.Query, msg.Start, msg.Length, msg.Compressed)
+	case *nmdc.ADCSND:
+		query := string(msg.ContentType) + " " + string(msg.Identifier)
+		return d.handleSendFile(query, msg.Start, msg.Length, msg.Compressed)
 
 	case *msgBinary:
 		newLength := d.offset + uint64(len(msg.Content))

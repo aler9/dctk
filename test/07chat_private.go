@@ -60,7 +60,6 @@ func client2() {
 
 func main() {
 	dctk.SetLogLevel(dctk.LevelInfo)
-	//dctk.SetLogLevel(dctk.LevelDebug)
 
 	go client1()
 	client2()

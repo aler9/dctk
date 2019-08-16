@@ -31,7 +31,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *msgAdcKey
 				if err != nil {
 					return
 				}
-				sr.TTH = tth
+				sr.TTH = &tth
 			}
 		case adcFieldUploadSlotCount:
 			sr.SlotAvail = atoui(val)

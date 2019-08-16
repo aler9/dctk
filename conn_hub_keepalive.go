@@ -33,7 +33,7 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 						// ADC uses the TCP keepalive feature or empty packets
 						h.conn.Write(&msgAdcKeepAlive{})
 					} else {
-						h.conn.Write(&msgNmdcKeepAlive{})
+						h.conn.Write(&nmdcKeepAlive{})
 					}
 				})
 			case <-ka.terminate:

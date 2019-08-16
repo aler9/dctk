@@ -4,8 +4,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"strings"
 	"time"
+
+	"github.com/direct-connect/go-dc/nmdc"
 )
 
 var errorDelegatedUpload = fmt.Errorf("delegated upload")
@@ -28,10 +29,9 @@ type connPeer struct {
 	passiveIp          string
 	passivePort        uint
 	peer               *Peer
-	remoteLock         []byte
 	localDirection     string
 	localBet           uint
-	remoteDirection    string
+	remoteIsUpload     bool
 	remoteBet          uint
 	direction          string
 	transfer           transfer
@@ -153,10 +153,10 @@ func (p *connPeer) do() {
 				})
 
 			} else {
-				p.conn.Write(&msgNmdcMyNick{Nick: p.client.conf.Nick})
-				p.conn.Write(&msgNmdcLock{
+				p.conn.Write(&nmdc.MyNick{Name: nmdc.Name(p.client.conf.Nick)})
+				p.conn.Write(&nmdc.Lock{
 					Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
-					Pk:   p.client.conf.PkValue,
+					PK:   p.client.conf.PkValue,
 					Ref:  fmt.Sprintf("%s:%d", p.client.hubSolvedIp, p.client.hubPort),
 				})
 			}
@@ -372,92 +372,91 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			return errorDelegatedUpload
 		}
 
-	case *msgNmdcMyNick:
+	case *nmdc.MyNick:
 		if p.state != "connected" {
 			return fmt.Errorf("[MyNick] invalid state: %s", p.state)
 		}
 		p.state = "mynick"
-		p.peer = p.client.peerByNick(msg.Nick)
+		p.peer = p.client.peerByNick(string(msg.Name))
 		if p.peer == nil {
-			return fmt.Errorf("peer not connected to hub (%s)", msg.Nick)
+			return fmt.Errorf("peer not connected to hub (%s)", msg.Name)
 		}
 
-	case *msgNmdcLock:
+	case *nmdc.Lock:
 		if p.state != "mynick" {
 			return fmt.Errorf("[Lock] invalid state: %s", p.state)
 		}
 		p.state = "lock"
-		p.remoteLock = []byte(msg.Lock)
 
 		// if transfer is active, wait remote before sending MyNick and Lock
 		if p.isActive {
-			p.conn.Write(&msgNmdcMyNick{Nick: p.client.conf.Nick})
-			p.conn.Write(&msgNmdcLock{
+			p.conn.Write(&nmdc.MyNick{Name: nmdc.Name(p.client.conf.Nick)})
+			p.conn.Write(&nmdc.Lock{
 				Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
-				Pk:   p.client.conf.PkValue,
+				PK:   p.client.conf.PkValue,
 			})
 		}
 
-		features := map[string]struct{}{
-			nmdcFeatureMiniSlots:    {},
-			nmdcFeatureFileListBzip: {},
-			nmdcFeatureAdcGet:       {},
-			nmdcFeatureTTHLeaves:    {},
-			nmdcFeatureTTHDownload:  {},
+		features := []string{
+			nmdcFeatureMiniSlots,
+			nmdcFeatureFileListBzip,
+			nmdcFeatureAdcGet,
+			nmdcFeatureTTHLeaves,
+			nmdcFeatureTTHDownload,
 		}
 		if p.client.conf.PeerDisableCompression == false {
-			features[nmdcFeatureZlibGet] = struct{}{}
+			features = append(features, nmdcFeatureZlibGet)
 		}
-		p.conn.Write(&msgNmdcSupports{features})
+		p.conn.Write(&nmdc.Supports{features})
 
 		p.localBet = uint(randomInt(1, 0x7FFF))
 
 		// try download
 		if p.client.downloadPendingByPeer(p.peer) != nil {
 			p.localDirection = "download"
-			p.conn.Write(&msgNmdcDirection{
-				Direction: "Download",
-				Bet:       p.localBet,
+			p.conn.Write(&nmdc.Direction{
+				Upload: false,
+				Number: p.localBet,
 			})
 			// upload
 		} else {
 			p.localDirection = "upload"
-			p.conn.Write(&msgNmdcDirection{
-				Direction: "Upload",
-				Bet:       p.localBet,
+			p.conn.Write(&nmdc.Direction{
+				Upload: true,
+				Number: p.localBet,
 			})
 		}
 
-		p.conn.Write(&msgNmdcKey{Key: nmdcComputeKey(p.remoteLock)})
+		p.conn.Write(msg.Key())
 
-	case *msgNmdcSupports:
+	case *nmdc.Supports:
 		if p.state != "lock" {
 			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
 		p.state = "supports"
 
-	case *msgNmdcDirection:
+	case *nmdc.Direction:
 		if p.state != "supports" {
 			return fmt.Errorf("[Direction] invalid state: %s", p.state)
 		}
 		p.state = "direction"
-		p.remoteDirection = strings.ToLower(msg.Direction)
-		p.remoteBet = msg.Bet
+		p.remoteIsUpload = msg.Upload
+		p.remoteBet = msg.Number
 
-	case *msgNmdcKey:
+	case *nmdc.Key:
 		if p.state != "direction" {
 			return fmt.Errorf("[Key] invalid state: %s", p.state)
 		}
 		p.state = "key"
 
 		var direction string
-		if p.localDirection == "upload" && p.remoteDirection == "download" {
+		if p.localDirection == "upload" && !p.remoteIsUpload {
 			direction = "upload"
 
-		} else if p.localDirection == "download" && p.remoteDirection == "upload" {
+		} else if p.localDirection == "download" && p.remoteIsUpload {
 			direction = "download"
 
-		} else if p.localDirection == "download" && p.remoteDirection == "download" {
+		} else if p.localDirection == "download" && !p.remoteIsUpload {
 			// bet win
 			if p.localBet > p.remoteBet {
 				direction = "download"
@@ -505,11 +504,12 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			dl.peerChan <- struct{}{}
 		}
 
-	case *msgNmdcGetFile:
+	case *nmdc.ADCGET:
 		if p.state != "wait_upload" {
 			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
-		ok := newUpload(p.client, p, msg.Query, msg.Start, msg.Length, msg.Compressed)
+		query := string(msg.ContentType) + " " + string(msg.Identifier)
+		ok := newUpload(p.client, p, query, msg.Start, msg.Length, msg.Compressed)
 		if ok {
 			return errorDelegatedUpload
 		}

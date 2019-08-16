@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/direct-connect/go-dc/nmdc"
 )
 
 var errorNoSlots = fmt.Errorf("no slots available")
@@ -153,7 +155,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 					},
 				})
 			} else {
-				u.pconn.conn.Write(&msgNmdcMaxedOut{})
+				u.pconn.conn.Write(&nmdc.MaxedOut{})
 			}
 		} else {
 			if u.client.protoIsAdc() {
@@ -166,7 +168,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 					},
 				})
 			} else {
-				u.pconn.conn.Write(&msgNmdcError{Error: "File Not Available"})
+				u.pconn.conn.Write(&nmdc.Error{Err: fmt.Errorf("File Not Available")})
 			}
 		}
 		return false
@@ -184,11 +186,13 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		})
 
 	} else {
-		u.pconn.conn.Write(&msgNmdcSendFile{
-			Query:      u.query,
-			Start:      u.start,
-			Length:     u.length,
-			Compressed: u.isCompressed,
+		queryParts := strings.Split(u.query, " ")
+		u.pconn.conn.Write(&nmdc.ADCSND{
+			ContentType: nmdc.String(queryParts[0]),
+			Identifier:  nmdc.String(queryParts[1]),
+			Start:       u.start,
+			Length:      u.length,
+			Compressed:  u.isCompressed,
 		})
 	}
 

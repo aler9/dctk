@@ -1,24 +1,13 @@
 package dctoolkit
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"strings"
-)
 
-type nmdcSearchType int
-
-const (
-	nmdcSearchTypeInvalid    nmdcSearchType = 0
-	nmdcSearchTypeAny        nmdcSearchType = 1
-	nmdcSearchTypeAudio      nmdcSearchType = 2
-	nmdcSearchTypeCompressed nmdcSearchType = 3
-	nmdcSearchTypeDocument   nmdcSearchType = 4
-	nmdcSearchTypeExe        nmdcSearchType = 5
-	nmdcSearchTypePicture    nmdcSearchType = 6
-	nmdcSearchTypeVideo      nmdcSearchType = 7
-	nmdcSearchTypeDirectory  nmdcSearchType = 8
-	nmdcSearchTypeTTH        nmdcSearchType = 9
+	"github.com/direct-connect/go-dc/nmdc"
+	"github.com/direct-connect/go-dc/tiger"
 )
 
 func nmdcSearchEscape(in string) string {
@@ -29,14 +18,19 @@ func nmdcSearchUnescape(in string) string {
 	return strings.Replace(in, "$", " ", -1)
 }
 
-func (c *Client) handleNmdcSearchResult(isActive bool, peer *Peer, msg *msgNmdcSearchResult) {
+func (c *Client) handleNmdcSearchResult(isActive bool, msg *nmdc.SR) {
+	peer := c.peerByNick(msg.From)
+	if peer == nil {
+		return
+	}
+
 	sr := &SearchResult{
 		IsActive:  isActive,
 		Peer:      peer,
-		Path:      msg.Path,
-		SlotAvail: msg.SlotAvail,
+		Path:      strings.Join(msg.Path, "\\"),
+		SlotAvail: uint(msg.FreeSlots),
 		Size:      msg.Size,
-		TTH:       msg.TTH,
+		TTH:       (*TigerHash)(msg.TTH),
 		IsDir:     msg.IsDir,
 	}
 	c.handleSearchResult(sr)
@@ -47,71 +41,93 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 		return fmt.Errorf("max size and min size cannot be used together in NMDC")
 	}
 
-	c.connHub.conn.Write(&msgNmdcSearchRequest{
-		Type: func() nmdcSearchType {
+	c.connHub.conn.Write(&nmdc.Search{
+		DataType: func() nmdc.DataType {
 			switch conf.Type {
 			case SearchAny:
-				return nmdcSearchTypeAny
+				return nmdc.DataTypeAny
 			case SearchDirectory:
-				return nmdcSearchTypeDirectory
+				return nmdc.DataTypeFolders
 			}
-			return nmdcSearchTypeTTH
+			return nmdc.DataTypeTTH
 		}(),
-		MaxSize: conf.MaxSize,
-		MinSize: conf.MinSize,
-		Query: func() string {
+		SizeRestricted: (conf.MaxSize != 0) || (conf.MinSize != 0),
+		IsMaxSize:      (conf.MaxSize != 0),
+		Size: func() uint64 {
+			if conf.MaxSize != 0 {
+				return conf.MaxSize
+			}
+			return conf.MinSize
+		}(),
+		Pattern: func() string {
+			if conf.Type != SearchTTH {
+				return conf.Query
+			}
+			return ""
+		}(),
+		TTH: func() *tiger.Hash {
 			if conf.Type == SearchTTH {
-				return conf.TTH.String()
+				ptr := tiger.Hash(conf.TTH)
+				return &ptr
 			}
-			return conf.Query
+			return nil
 		}(),
-		IsActive: !c.conf.IsPassive,
-		Ip:       c.ip,
-		UdpPort:  c.conf.UdpPort,
-		Nick:     c.conf.Nick,
+		Address: func() string {
+			if !c.conf.IsPassive {
+				return fmt.Sprintf("%s:%d", c.ip, c.conf.UdpPort)
+			}
+			return ""
+		}(),
+		User: func() string {
+			if c.conf.IsPassive {
+				return c.conf.Nick
+			}
+			return ""
+		}(),
 	})
 	return nil
 }
 
-func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
+func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 	results, err := func() ([]interface{}, error) {
 		// we do not support search by type
-		if _, ok := map[nmdcSearchType]struct{}{
-			nmdcSearchTypeAny:       {},
-			nmdcSearchTypeDirectory: {},
-			nmdcSearchTypeTTH:       {},
-		}[req.Type]; !ok {
+		if _, ok := map[nmdc.DataType]struct{}{
+			nmdc.DataTypeAny:     {},
+			nmdc.DataTypeFolders: {},
+			nmdc.DataTypeTTH:     {},
+		}[req.DataType]; !ok {
 			return nil, fmt.Errorf("unsupported search type: %v", req.Type)
 		}
 
 		sr := &searchIncomingRequest{
-			isActive: req.IsActive,
+			isActive: req.Address != "",
 			stype: func() SearchType {
-				switch req.Type {
-				case nmdcSearchTypeAny:
+				switch req.DataType {
+				case nmdc.DataTypeAny:
 					return SearchAny
-				case nmdcSearchTypeDirectory:
+				case nmdc.DataTypeFolders:
 					return SearchDirectory
 				}
 				return SearchTTH
 			}(),
-			minSize: req.MinSize,
-			maxSize: req.MaxSize,
+			minSize: func() uint64 {
+				if req.SizeRestricted && !req.IsMaxSize {
+					return req.Size
+				}
+				return 0
+			}(),
+			maxSize: func() uint64 {
+				if req.SizeRestricted && req.IsMaxSize {
+					return req.Size
+				}
+				return 0
+			}(),
 		}
 
-		if req.Type == nmdcSearchTypeTTH {
-			if strings.HasPrefix(req.Query, "TTH:") == false {
-				return nil, fmt.Errorf("invalid TTH (1): %v", req.Query)
-			}
-
-			var err error
-			sr.tth, err = TigerHashFromBase32(req.Query[4:])
-			if err != nil {
-				return nil, fmt.Errorf("invalid TTH (2): %v", req.Query[4:])
-			}
-
+		if req.DataType == nmdc.DataTypeTTH {
+			sr.tth = TigerHash(*req.TTH)
 		} else {
-			sr.query = req.Query
+			sr.query = req.Pattern
 		}
 
 		return c.handleSearchIncomingRequest(sr)
@@ -121,15 +137,15 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 		return
 	}
 
-	var msgs []*msgNmdcSearchResult
+	var msgs []*nmdc.SR
 	for _, res := range results {
-		msgs = append(msgs, &msgNmdcSearchResult{
-			Path: func() string {
+		msgs = append(msgs, &nmdc.SR{
+			Path: strings.Split(func() string {
 				if f, ok := res.(*shareFile); ok {
 					return f.aliasPath
 				}
 				return res.(*shareDirectory).aliasPath
-			}(),
+			}(), "\\"),
 			IsDir: func() bool {
 				_, ok := res.(*shareDirectory)
 				return ok
@@ -140,38 +156,42 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *msgNmdcSearchRequest) {
 				}
 				return 0
 			}(),
-			TTH: func() TigerHash {
+			TTH: func() *tiger.Hash {
 				if f, ok := res.(*shareFile); ok {
-					return f.tth
+					ptr := tiger.Hash(f.tth)
+					return &ptr
 				}
-				return TigerHash{}
+				return nil
 			}(),
-			Nick:      c.conf.Nick,
-			SlotAvail: c.uploadSlotAvail,
-			SlotCount: c.conf.UploadMaxParallel,
-			HubIp:     c.hubSolvedIp,
-			HubPort:   c.hubPort,
+			From:       c.conf.Nick,
+			FreeSlots:  int(c.uploadSlotAvail),
+			TotalSlots: int(c.conf.UploadMaxParallel),
+			HubAddress: fmt.Sprintf("%s:%d", c.hubSolvedIp, c.hubPort),
 		})
 	}
 
-	// send to peer
-	if req.IsActive == true {
+	// if request was active, send to peer
+	if req.Address != "" {
 		go func() {
-			conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", req.Ip, req.UdpPort))
+			conn, err := net.Dial("udp", req.Address)
 			if err != nil {
 				return
 			}
 			defer conn.Close()
 
 			for _, msg := range msgs {
-				conn.Write([]byte(msg.NmdcEncode()))
+				var buf bytes.Buffer
+				buf.WriteString("$SR ")
+				msg.MarshalNMDC(nil, &buf)
+				buf.WriteByte('|')
+				conn.Write(buf.Bytes())
 			}
 		}()
 
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			msg.TargetNick = req.Nick
+			msg.To = req.User
 			c.connHub.conn.Write(msg)
 		}
 	}

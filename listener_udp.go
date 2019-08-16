@@ -3,6 +3,8 @@ package dctoolkit
 import (
 	"fmt"
 	"net"
+
+	"github.com/direct-connect/go-dc/nmdc"
 )
 
 type listenerUdp struct {
@@ -92,18 +94,13 @@ func (u *listenerUdp) do() {
 						return fmt.Errorf("wrong command")
 					}
 
-					msg := &msgNmdcSearchResult{}
-					err = msg.NmdcDecode(matches[3])
+					msg := &nmdc.SR{}
+					err = msg.UnmarshalNMDC(nil, []byte(matches[3]))
 					if err != nil {
 						return fmt.Errorf("wrong search result")
 					}
 
-					p := u.client.peerByNick(msg.Nick)
-					if p == nil {
-						return fmt.Errorf("unknown author")
-					}
-
-					u.client.handleNmdcSearchResult(true, p, msg)
+					u.client.handleNmdcSearchResult(true, msg)
 					return nil
 				}
 			}()

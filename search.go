@@ -30,7 +30,7 @@ type SearchResult struct {
 	// size (file only in NMDC, both files and directories in ADC)
 	Size uint64
 	// TTH (file only)
-	TTH TigerHash
+	TTH *TigerHash
 	// the available upload slots of the peer
 	SlotAvail uint
 }

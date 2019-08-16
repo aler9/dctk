@@ -1,5 +1,11 @@
 package dctoolkit
 
+import (
+	"fmt"
+
+	"github.com/direct-connect/go-dc/nmdc"
+)
+
 // Peer represents a remote client connected to a Hub.
 type Peer struct {
 	// peer nickname
@@ -29,7 +35,7 @@ type Peer struct {
 	adcSupports    map[string]struct{}
 	adcUdpPort     uint
 	nmdcConnection string
-	nmdcStatusByte byte
+	nmdcFlag       nmdc.UserFlag
 }
 
 // Peers returns a map containing all the peers connected to current hub.
@@ -74,7 +80,7 @@ func (c *Client) peerSupportsEncryption(p *Peer) bool {
 
 	} else {
 		// we check only for bit 4
-		return (p.nmdcStatusByte & (0x01 << 4)) == (0x01 << 4)
+		return (p.nmdcFlag & nmdc.FlagTLSDownload) != 0
 	}
 }
 
@@ -108,16 +114,15 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&msgNmdcConnectToMe{
-			Target: peer.Nick,
-			Ip:     c.ip,
-			Port: func() uint {
+		c.connHub.conn.Write(&nmdc.ConnectToMe{
+			Targ: peer.Nick,
+			Address: fmt.Sprintf("%s:%d", c.ip, func() uint {
 				if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
 					return c.conf.TcpTlsPort
 				}
 				return c.conf.TcpPort
-			}(),
-			Encrypted: (c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer)),
+			}()),
+			Secure: (c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer)),
 		})
 	}
 }
@@ -138,9 +143,9 @@ func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&msgNmdcRevConnectToMe{
-			Author: c.conf.Nick,
-			Target: peer.Nick,
+		c.connHub.conn.Write(&nmdc.RevConnectToMe{
+			From: c.conf.Nick,
+			To:   peer.Nick,
 		})
 	}
 }

@@ -1,5 +1,9 @@
 package dctoolkit
 
+import (
+	"github.com/direct-connect/go-dc/nmdc"
+)
+
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
 	if c.protoIsAdc() {
@@ -9,7 +13,7 @@ func (c *Client) MessagePublic(content string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&msgNmdcPublicChat{c.conf.Nick, content})
+		c.connHub.conn.Write(&nmdc.ChatMessage{c.conf.Nick, content})
 	}
 }
 
@@ -22,7 +26,12 @@ func (c *Client) MessagePrivate(dest *Peer, content string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&msgNmdcPrivateChat{c.conf.Nick, dest.Nick, content})
+		c.connHub.conn.Write(&nmdc.PrivateMessage{
+			From: c.conf.Nick,
+			Name: c.conf.Nick,
+			To:   dest.Nick,
+			Text: content,
+		})
 	}
 }
 
