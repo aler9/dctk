@@ -284,7 +284,7 @@ func (d *Download) do() {
 			})
 		} else {
 			queryParts := strings.Split(d.query, " ")
-			d.pconn.conn.Write(&nmdc.ADCGET{
+			d.pconn.conn.Write(&nmdc.ADCGet{
 				ContentType: nmdc.String(queryParts[0]),
 				Identifier:  nmdc.String(queryParts[1]),
 				Start:       d.conf.Start,
@@ -309,10 +309,10 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 	reqLength uint64, reqCompressed bool) error {
 
 	if reqQuery != d.query {
-		return fmt.Errorf("filename returned by client is wrong: %s vs %s", reqQuery, d.query)
+		return fmt.Errorf("filename returned by uploader is wrong: %s vs %s", reqQuery, d.query)
 	}
 	if reqStart != d.conf.Start {
-		return fmt.Errorf("peer returned wrong start: %d instead of %d", reqStart, d.conf.Start)
+		return fmt.Errorf("uploader returned wrong start: %d instead of %d", reqStart, d.conf.Start)
 	}
 	if reqCompressed == true && d.client.conf.PeerDisableCompression == true {
 		return fmt.Errorf("compression is active but is disabled")
@@ -323,7 +323,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 	} else {
 		d.length = uint64(d.conf.Length)
 		if d.length != reqLength {
-			return fmt.Errorf("peer returned wrong length: %d instead of %d", d.length, reqLength)
+			return fmt.Errorf("uploader returned wrong length: %d instead of %d", d.length, reqLength)
 		}
 	}
 
@@ -371,7 +371,7 @@ func (d *Download) handleDownload(msgi msgDecodable) error {
 	case *nmdc.Error:
 		return fmt.Errorf("error: %s", msg.Err)
 
-	case *nmdc.ADCSND:
+	case *nmdc.ADCSnd:
 		query := string(msg.ContentType) + " " + string(msg.Identifier)
 		return d.handleSendFile(query, msg.Start, msg.Length, msg.Compressed)
 

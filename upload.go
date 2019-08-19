@@ -190,7 +190,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 
 	} else {
 		queryParts := strings.Split(u.query, " ")
-		u.pconn.conn.Write(&nmdc.ADCSND{
+		u.pconn.conn.Write(&nmdc.ADCSnd{
 			ContentType: nmdc.String(queryParts[0]),
 			Identifier:  nmdc.String(queryParts[1]),
 			Start:       u.start,

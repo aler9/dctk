@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/gswly/go-dc/tiger"
 	"hash"
 	"net/url"
 	"os"
+
+	"github.com/gswly/go-dc/tiger"
 )
 
 // tiger hash used throughout the library.

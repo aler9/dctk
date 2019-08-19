@@ -44,9 +44,9 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 				cmd := func() nmdc.Message {
 					switch key {
 					case "ADCGET":
-						return &nmdc.ADCGET{}
+						return &nmdc.ADCGet{}
 					case "ADCSND":
-						return &nmdc.ADCSND{}
+						return &nmdc.ADCSnd{}
 					case "BadPass":
 						return &nmdc.BadPass{}
 					case "BotList":

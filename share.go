@@ -2,12 +2,13 @@ package dctoolkit
 
 import (
 	"bytes"
-	"github.com/dsnet/compress/bzip2"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/dsnet/compress/bzip2"
 )
 
 type shareFile struct {

@@ -1,11 +1,12 @@
 package dctoolkit
 
 import (
-	"github.com/gswly/go-dc/lineproto"
 	"io"
 	"net"
 	"sync/atomic"
 	"time"
+
+	"github.com/gswly/go-dc/lineproto"
 )
 
 const (

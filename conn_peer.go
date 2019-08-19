@@ -502,7 +502,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 			dl.peerChan <- struct{}{}
 		}
 
-	case *nmdc.ADCGET:
+	case *nmdc.ADCGet:
 		if p.state != "wait_upload" {
 			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
