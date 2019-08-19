@@ -257,8 +257,14 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 	case *adcIStatus:
-		if msg.Msg.Sev != adc.Success {
-			return fmt.Errorf("error: %+v", msg)
+		switch msg.Msg.Sev {
+		case adc.Success:
+
+		case adc.Recoverable:
+			dolog(LevelInfo, "[hub] [WARN] %s (%d)", msg.Msg.Msg, msg.Msg.Code)
+
+		case adc.Fatal:
+			return fmt.Errorf("fatal: %s (%d)", msg.Msg.Msg, msg.Msg.Code)
 		}
 
 	case *adcISupports:
