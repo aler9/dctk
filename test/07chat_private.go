@@ -40,6 +40,12 @@ func client2() {
 		panic(err)
 	}
 
+	client.OnHubConnected = func() {
+		// launch client 2 after client 1 connects, in order to avoid
+		// a possible freeze issue with godcpp_adc
+		go client1()
+	}
+
 	client.OnPeerConnected = func(p *dctk.Peer) {
 		if p.Nick == "client1" {
 			client.MessagePrivate(p, "hi client1")
@@ -59,9 +65,8 @@ func client2() {
 }
 
 func main() {
-	dctk.SetLogLevel(dctk.LevelInfo)
+	dctk.SetLogLevel(dctk.LevelDebug)
 
-	go client1()
 	client2()
 
 	if ok == false {
