@@ -3,10 +3,11 @@
 package main
 
 import (
-	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 var ok = false

@@ -4,8 +4,9 @@ package main
 
 import (
 	"fmt"
-	dctk "github.com/gswly/dctoolkit"
 	"reflect"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 func main() {

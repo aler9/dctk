@@ -4,11 +4,12 @@ package main
 
 import (
 	"fmt"
-	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 var ok = false

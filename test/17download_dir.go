@@ -4,10 +4,11 @@ package main
 
 import (
 	"fmt"
-	dctk "github.com/gswly/dctoolkit"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 func client1() {

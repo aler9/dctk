@@ -3,8 +3,9 @@
 package main
 
 import (
-	dctk "github.com/gswly/dctoolkit"
 	"os"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 var ok = false

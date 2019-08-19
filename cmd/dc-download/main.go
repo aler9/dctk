@@ -1,9 +1,10 @@
 package main
 
 import (
+	"path/filepath"
+
 	dctk "github.com/gswly/dctoolkit"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"path/filepath"
 )
 
 var (

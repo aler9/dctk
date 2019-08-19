@@ -4,9 +4,10 @@ package main
 
 import (
 	"fmt"
-	dctk "github.com/gswly/dctoolkit"
 	"os"
 	"time"
+
+	dctk "github.com/gswly/dctoolkit"
 )
 
 func main() {
