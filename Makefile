@@ -1,4 +1,6 @@
 
+.PHONY: $(shell ls)
+
 BASE_IMAGE = amd64/golang:1.11-stretch
 
 help:
@@ -22,17 +24,13 @@ $(blank)
 endef
 
 mod-tidy:
-	docker run --rm -it -v $(PWD):/src \
-	$(BASE_IMAGE) \
+	docker run --rm -it -v $(PWD):/src $(BASE_IMAGE) \
 	sh -c "cd /src && go get -m ./... && go mod tidy"
 
 format:
-	@docker run --rm -it -v $(PWD):/src \
-	$(BASE_IMAGE) \
-	sh -c "cd /src \
-	&& find . -type f -name '*.go' | xargs gofmt -l -w -s"
+	docker run --rm -it -v $(PWD):/src $(BASE_IMAGE) \
+	sh -c "cd /src && find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
-.PHONY: test
 test: test-example test-command test-lib
 
 test-example:
@@ -92,19 +90,19 @@ test-lib:
 
 run-example:
 	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )
-	@docker run --rm -it -v $(PWD):/src \
+	docker run --rm -it -v $(PWD):/src \
 	--network=host \
 	$(BASE_IMAGE) sh -c "\
 	cd /src && go run example/$(E).go"
 
 run-command:
-	@echo "FROM $(BASE_IMAGE) \n\
+	echo "FROM $(BASE_IMAGE) \n\
 	WORKDIR /src \n\
 	COPY go.mod go.sum ./ \n\
 	RUN go mod download \n\
 	COPY . ./ \n\
 	RUN go install ./..." | docker build . -q -f - -t dctk-runcmd
-	@docker run --rm -it \
+	docker run --rm -it \
 	--network=host \
 	-e COLUMNS=$(shell tput cols) \
 	dctk-runcmd $(N) $(A)
