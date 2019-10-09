@@ -2,6 +2,8 @@ github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc h1:cAKDfWh5Vpd
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf h1:qet1QNfXsQxTZqLG4oE62mJzwPIB8+Tee4RNCL9ulrY=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
+github.com/aler9/go-dc v0.0.0-20191009204319-d093824102ed h1:kIwG4zmxYGG/BFWwE1Oj/fK5eZK4RDa1TuDeWh+4rxk=
+github.com/aler9/go-dc v0.0.0-20191009204319-d093824102ed/go.mod h1:q5FwwMvrJRG35wD28Vl+SJIpuojzVln7IQ3jE4hoVOs=
 github.com/cxmcc/tiger v0.0.0-20170524142333-bde35e2713d7 h1:jBEtq1t2gpn2kEzvRlCUxvvrxl5aSWkXNPwe/hwvSNQ=
 github.com/cxmcc/tiger v0.0.0-20170524142333-bde35e2713d7/go.mod h1:ruCYvt9rtYymAr4rNmfYJrl1dz8HSXUFP7cufqKOsDI=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
@@ -10,8 +12,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 h1:eX+pdPPlD279OWgdx7f6KqIRSONuK7egk+jDx7OM3Ac=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76/go.mod h1:KjxHHirfLaw19iGT70HvVjHQsL1vq1SRQB4yOsAfy2s=
-github.com/aler9/go-dc v0.0.0-20190816144037-884177f5e670 h1:8PUzxv+ymcSDcnSIZINaqCDZzeMXALQ/cfWvS7FH6pg=
-github.com/aler9/go-dc v0.0.0-20190816144037-884177f5e670/go.mod h1:qh4+7sBB6lvfyr5lRF+qCIv07qtq8TG65gAkVg1TtdA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
