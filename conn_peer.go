@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/gswly/go-dc/adc"
-	"github.com/gswly/go-dc/nmdc"
+	"github.com/aler9/go-dc/adc"
+	"github.com/aler9/go-dc/nmdc"
 )
 
 var errorDelegatedUpload = fmt.Errorf("delegated upload")

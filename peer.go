@@ -3,9 +3,9 @@ package dctoolkit
 import (
 	"fmt"
 
-	"github.com/gswly/go-dc/adc"
-	atypes "github.com/gswly/go-dc/adc/types"
-	"github.com/gswly/go-dc/nmdc"
+	"github.com/aler9/go-dc/adc"
+	atypes "github.com/aler9/go-dc/adc/types"
+	"github.com/aler9/go-dc/nmdc"
 )
 
 // Peer represents a remote client connected to a Hub.

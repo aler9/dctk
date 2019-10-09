@@ -9,7 +9,7 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/gswly/go-dc/adc"
+	"github.com/aler9/go-dc/adc"
 )
 
 const (

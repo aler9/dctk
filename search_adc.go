@@ -6,8 +6,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/gswly/go-dc/adc"
-	"github.com/gswly/go-dc/tiger"
+	"github.com/aler9/go-dc/adc"
+	"github.com/aler9/go-dc/tiger"
 )
 
 func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {

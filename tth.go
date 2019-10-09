@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/gswly/go-dc/tiger"
+	"github.com/aler9/go-dc/tiger"
 )
 
 // tiger hash used throughout the library.

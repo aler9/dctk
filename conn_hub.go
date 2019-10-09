@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gswly/go-dc/adc"
-	"github.com/gswly/go-dc/nmdc"
-	"github.com/gswly/go-dc/tiger"
+	"github.com/aler9/go-dc/adc"
+	"github.com/aler9/go-dc/nmdc"
+	"github.com/aler9/go-dc/tiger"
 )
 
 // HubField is a name of a hub information field.

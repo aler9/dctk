@@ -1,9 +1,9 @@
 
 # dctoolkit
 
-[![GoDoc](https://godoc.org/github.com/gswly/dctoolkit?status.svg)](https://godoc.org/github.com/gswly/dctoolkit)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gswly/dctoolkit)](https://goreportcard.com/report/github.com/gswly/dctoolkit)
-[![Build Status](https://travis-ci.org/gswly/dctoolkit.svg?branch=master)](https://travis-ci.org/gswly/dctoolkit)
+[![GoDoc](https://godoc.org/github.com/aler9/dctoolkit?status.svg)](https://godoc.org/github.com/aler9/dctoolkit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctoolkit)](https://goreportcard.com/report/github.com/aler9/dctoolkit)
+[![Build Status](https://travis-ci.org/aler9/dctoolkit.svg?branch=master)](https://travis-ci.org/aler9/dctoolkit)
 
 dctoolkit implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
 * a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
@@ -34,13 +34,13 @@ Note: this project uses the rolling release development model, as it is used in 
 Go &ge; 1.11 is required. If modules are enabled (i.e. there's a go.mod file in your project folder), it is enough to write the library name in the import section of the source files that are referring to it. Go will take care of downloading the needed files:
 ```go
 import (
-    dctk "github.com/gswly/dctoolkit"
+    dctk "github.com/aler9/dctoolkit"
 )
 ```
 
 If modules are not enabled, the library must be downloaded manually:
 ```
-go get github.com/gswly/dctoolkit
+go get github.com/aler9/dctoolkit
 ```
 
 #### Examples
@@ -63,7 +63,7 @@ go get github.com/gswly/dctoolkit
 
 #### Documentation
 
-https://godoc.org/github.com/gswly/dctoolkit
+https://godoc.org/github.com/aler9/dctoolkit
 
 #### Testing
 
@@ -78,7 +78,7 @@ make test
 
 Go &ge; 1.11 is required. Download, compile and install the binaries with a single command:
 ```
-go get github.com/gswly/dctoolkit/cmd/...
+go get github.com/aler9/dctoolkit/cmd/...
 ```
 
 #### Usage

@@ -1,7 +1,7 @@
 package main
 
 import (
-	dctk "github.com/gswly/dctoolkit"
+	dctk "github.com/aler9/dctoolkit"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

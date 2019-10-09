@@ -3,7 +3,7 @@
 package main
 
 import (
-	dctk "github.com/gswly/dctoolkit"
+	dctk "github.com/aler9/dctoolkit"
 )
 
 func main() {

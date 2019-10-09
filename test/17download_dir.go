@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	dctk "github.com/gswly/dctoolkit"
+	dctk "github.com/aler9/dctoolkit"
 )
 
 func client1() {

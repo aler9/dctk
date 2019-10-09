@@ -6,7 +6,7 @@ import (
 	"net"
 	"regexp"
 
-	"github.com/gswly/go-dc/nmdc"
+	"github.com/aler9/go-dc/nmdc"
 )
 
 var reNmdcAddress = regexp.MustCompile("^(" + reStrIp + "):(" + reStrPort + ")$")

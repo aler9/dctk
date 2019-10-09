@@ -5,7 +5,7 @@ package main
 import (
 	"os"
 
-	dctk "github.com/gswly/dctoolkit"
+	dctk "github.com/aler9/dctoolkit"
 )
 
 var ok = false

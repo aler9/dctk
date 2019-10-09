@@ -4,13 +4,13 @@ peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 It allows the creation of clients that can interact with hubs and other
 clients, and can be used as backend to user interfaces or automatic bots.
 
-Basic example (more are available at https://github.com/gswly/dctoolkit/tree/master/example)
+Basic example (more are available at https://github.com/aler9/dctoolkit/tree/master/example)
 
   package main
 
   import (
   	"fmt"
-  	dctk "github.com/gswly/dctoolkit"
+  	dctk "github.com/aler9/dctoolkit"
   )
 
   func main() {
@@ -47,10 +47,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gswly/go-dc/adc"
-	atypes "github.com/gswly/go-dc/adc/types"
-	"github.com/gswly/go-dc/nmdc"
-	"github.com/gswly/go-dc/types"
+	"github.com/aler9/go-dc/adc"
+	atypes "github.com/aler9/go-dc/adc/types"
+	"github.com/aler9/go-dc/nmdc"
+	"github.com/aler9/go-dc/types"
 )
 
 const (

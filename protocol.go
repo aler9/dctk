@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gswly/go-dc/lineproto"
+	"github.com/aler9/go-dc/lineproto"
 )
 
 const (
