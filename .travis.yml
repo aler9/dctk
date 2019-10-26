@@ -1,7 +1,17 @@
-language: minimal
+language: go
+
+go:
+- "1.12.x"
+- "1.13.x"
 
 services:
 - docker
 
+env:
+- GO111MODULE=on
+
+before_install:
+- go mod download
+
 script:
-- make test
+- make test-nodocker

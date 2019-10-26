@@ -1,7 +1,7 @@
 
 .PHONY: $(shell ls)
 
-BASE_IMAGE = amd64/golang:1.11-stretch
+BASE_IMAGE = amd64/golang:1.13-alpine3.10
 
 help:
 	@echo "usage: make [action] [args...]"
@@ -10,9 +10,7 @@ help:
 	@echo ""
 	@echo "  mod-tidy                      run go mod tidy"
 	@echo "  format                        format source files"
-	@echo "  test H=[hub] U=[unit]         run available tests. tests can be"
-	@echo "                                filtered by hub or unit."
-	@echo "                                add V=1 to increase verbosity"
+	@echo "  test                          run available tests"
 	@echo "  run-example E=[name]          run an example by name"
 	@echo "  run-command N=[name] A=[args] run a command by name"
 	@echo ""
@@ -24,18 +22,21 @@ $(blank)
 endef
 
 mod-tidy:
-	docker run --rm -it -v $(PWD):/src $(BASE_IMAGE) \
-	sh -c "cd /src && go get -m ./... && go mod tidy"
+	docker run --rm -it -v $(PWD):/s $(BASE_IMAGE) \
+	sh -c "cd /s && go get && go mod tidy"
 
 format:
-	docker run --rm -it -v $(PWD):/src $(BASE_IMAGE) \
-	sh -c "cd /src && find . -type f -name '*.go' | xargs gofmt -l -w -s"
+	docker run --rm -it -v $(PWD):/s $(BASE_IMAGE) \
+	sh -c "cd /s && find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
-test: test-example test-command test-lib
+test: test-example test-command test-sys
+
+test-nodocker: test-example-nodocker test-command-nodocker test-sys-nodocker
 
 define DOCKERFILE_TEST_EXAMPLE
 FROM $(BASE_IMAGE)
-WORKDIR /src
+RUN apk add --no-cache make
+WORKDIR /s
 COPY go.mod go.sum ./
 RUN go mod download
 COPY Makefile *.go ./
@@ -44,15 +45,17 @@ endef
 export DOCKERFILE_TEST_EXAMPLE
 
 test-example:
-	echo "$$DOCKERFILE_TEST_EXAMPLE" | docker build . -f - -t dctoolkit-test-example >/dev/null
+	echo "$$DOCKERFILE_TEST_EXAMPLE" | docker build -q . -f - -t dctoolkit-test-example >/dev/null
 	docker run --rm -it dctoolkit-test-example make test-example-nodocker
 
 test-example-nodocker:
+	$(eval export CGO_ENABLED = 0)
 	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
 
 define DOCKERFILE_TEST_COMMAND
 FROM $(BASE_IMAGE)
-WORKDIR /src
+WORKDIR /s
+RUN apk add --no-cache make
 COPY go.mod go.sum ./
 RUN go mod download
 COPY Makefile *.go ./
@@ -61,53 +64,50 @@ endef
 export DOCKERFILE_TEST_COMMAND
 
 test-command:
-	echo "$$DOCKERFILE_TEST_COMMAND" | docker build . -f - -t dctoolkit-test-command >/dev/null
+	echo "$$DOCKERFILE_TEST_COMMAND" | docker build -q . -f - -t dctoolkit-test-command >/dev/null
 	docker run --rm -it dctoolkit-test-command make test-command-nodocker
 
 test-command-nodocker:
+	$(eval export CGO_ENABLED = 0)
 	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
 
-define TEST_LIB_UNIT
-@[ -f test/$(UNIT).go ] || { echo "test not found"; exit 1; }
-@echo "testing $(HUB) -> $(UNIT)"
-@docker run --rm -d --network=dctk-test --name=dctk-hub-$(HUB)-$(UNIT) \
-dctk-hub-$(HUB) $(UNIT) >/dev/null
-@docker run --rm -it --network=dctk-test --name=dctk-test \
--v $(PWD):/src \
--e HUBURL=$(subst addr,dctk-hub-$(HUB)-$(UNIT),$(shell cat test/$(HUB)/URL)) \
--e UNIT=$(UNIT) \
-dctk-unit >$(OUT)
-@docker container kill dctk-hub-$(HUB)-$(UNIT) >/dev/null 2>&1
+define DOCKERFILE_TEST_SYS
+FROM $(BASE_IMAGE)
+RUN apk add --no-cache make docker-cli
+WORKDIR /s
+COPY go.mod go.sum ./
+RUN go mod download
+COPY Makefile *.go ./
+COPY test-sys ./test-sys
 endef
+export DOCKERFILE_TEST_SYS
 
-test-lib:
-	$(eval HUBS := $(if $(H), $(H), $(shell echo test/*/ | xargs -n1 basename)))
-	$(eval UNITS := $(if $(U), $(U), $(shell echo test/*.go | xargs -n1 basename | sed 's/\.go$$//')))
-	$(eval OUT := $(if $(V), /dev/stdout, /dev/null))
+HUBS = $(shell echo test-sys/*/ | xargs -n1 basename)
 
-  # cleanup
-	@docker container kill $$(docker ps -a -q --filter='name=dctk-*') >/dev/null 2>&1 || exit 0
-	docker network rm dctk-test >/dev/null 2>&1 || exit 0
+test-sys:
+	echo "$$DOCKERFILE_TEST_SYS" | docker build -q . -f - -t dctk-test-sys
+	docker run --rm -it \
+	-e IN_DOCKER=1 \
+	--name dctk-test-sys \
+	-v /var/run/docker.sock:/var/run/docker.sock:ro \
+	dctk-test-sys \
+	make test-sys-nodocker
 
-  # build images
-	docker build . -f test/Dockerfile -t dctk-unit >$(OUT)
-	$(foreach HUB,$(HUBS),docker build test/$(HUB) -t dctk-hub-$(HUB) >$(OUT)$(NL))
-
-  # run units
-	docker network create dctk-test >/dev/null
-	$(foreach HUB,$(HUBS),$(foreach UNIT,$(UNITS),$(TEST_LIB_UNIT)$(NL))$(NL))
-	docker network rm dctk-test
+test-sys-nodocker:
+	$(foreach HUB,$(HUBS),docker build -q test-sys/$(HUB) -t dctk-test-sys-hub-$(HUB)$(NL))
+	$(eval export CGO_ENABLED = 0)
+	go test -v ./test-sys
 
 run-example:
 	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )
-	docker run --rm -it -v $(PWD):/src \
+	docker run --rm -it -v $(PWD):/s \
 	--network=host \
 	$(BASE_IMAGE) sh -c "\
-	cd /src && go run example/$(E).go"
+	cd /s && go run example/$(E).go"
 
 define DOCKERFILE_RUN_COMMAND
 FROM $(BASE_IMAGE)
-WORKDIR /src
+WORKDIR /s
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . ./

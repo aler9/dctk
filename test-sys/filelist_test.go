@@ -1,15 +1,15 @@
-// +build ignore
-
-package main
+package dctoolkit_test
 
 import (
-	"fmt"
 	"reflect"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
 )
 
-func main() {
+func TestFileList(t *testing.T) {
 	inout := []byte(`<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <FileListing Version="1" CID="testcid" Base="/" Generator="testgen">
     <Directory Name="share">
@@ -19,16 +19,10 @@ func main() {
 </FileListing>`)
 
 	fl, err := dctk.FileListParse(inout)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	cmp, err := fl.Export()
-	if err != nil {
-		panic(cmp)
-	}
+	require.NoError(t, err)
 
-	if reflect.DeepEqual(cmp, inout) == false {
-		panic(fmt.Errorf("input and output are different"))
-	}
+	require.True(t, reflect.DeepEqual(cmp, inout))
 }

@@ -39,7 +39,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -83,8 +82,8 @@ type ClientConf struct {
 	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
 	// and TcpTlsPort but functionalities are limited
 	IsPassive bool
-	// whether to use the local IP instead of the IP of your internet provider
-	PrivateIp bool
+	// (optional) an explicit ip, instead of the one obtained automatically
+	Ip string
 	// these are the 3 ports needed for active mode. They must be accessible from the
 	// internet, so any router/firewall in between must be configured
 	TcpPort    uint
@@ -361,12 +360,10 @@ func (c *Client) Close() error {
 func (c *Client) Run() {
 	// get an ip
 	if c.conf.IsPassive == false {
-		if c.conf.PrivateIp == false {
-			if err := c.dlPublicIp(); err != nil {
-				panic(err)
-			}
+		if c.conf.Ip != "" {
+			c.ip = c.conf.Ip
 		} else {
-			if err := c.getPrivateIp(); err != nil {
+			if err := c.getPublicIp(); err != nil {
 				panic(err)
 			}
 		}
@@ -423,7 +420,7 @@ func (c *Client) Run() {
 	c.wg.Wait()
 }
 
-func (c *Client) dlPublicIp() error {
+func (c *Client) getPublicIp() error {
 	res, err := http.Get(_PUBLIC_IP_PROVIDER)
 	if err != nil {
 		return err
@@ -441,26 +438,6 @@ func (c *Client) dlPublicIp() error {
 	}
 
 	c.ip = m[1]
-	return nil
-}
-
-func (c *Client) getPrivateIp() error {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return err
-	}
-
-	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				c.ip = ipnet.IP.String()
-				break
-			}
-		}
-	}
-	if c.ip == "" {
-		return fmt.Errorf("cannot find own ip")
-	}
 	return nil
 }
 
