@@ -33,25 +33,35 @@ format:
 
 test: test-example test-command test-lib
 
+define DOCKERFILE_TEST_EXAMPLE
+FROM $(BASE_IMAGE)
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY Makefile *.go ./
+COPY example ./example
+endef
+export DOCKERFILE_TEST_EXAMPLE
+
 test-example:
-	echo "FROM $(BASE_IMAGE) \n\
-	WORKDIR /src \n\
-	COPY go.mod go.sum ./ \n\
-	RUN go mod download \n\
-	COPY Makefile *.go ./ \n\
-	COPY example ./example" | docker build . -f - -t dctoolkit-test-example >/dev/null
+	echo "$$DOCKERFILE_TEST_EXAMPLE" | docker build . -f - -t dctoolkit-test-example >/dev/null
 	docker run --rm -it dctoolkit-test-example make test-example-nodocker
 
 test-example-nodocker:
 	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
 
+define DOCKERFILE_TEST_COMMAND
+FROM $(BASE_IMAGE)
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY Makefile *.go ./
+COPY cmd ./cmd
+endef
+export DOCKERFILE_TEST_COMMAND
+
 test-command:
-	echo "FROM $(BASE_IMAGE) \n\
-	WORKDIR /src \n\
-	COPY go.mod go.sum ./ \n\
-	RUN go mod download \n\
-	COPY Makefile *.go ./ \n\
-	COPY cmd ./cmd" | docker build . -f - -t dctoolkit-test-command >/dev/null
+	echo "$$DOCKERFILE_TEST_COMMAND" | docker build . -f - -t dctoolkit-test-command >/dev/null
 	docker run --rm -it dctoolkit-test-command make test-command-nodocker
 
 test-command-nodocker:
@@ -95,13 +105,18 @@ run-example:
 	$(BASE_IMAGE) sh -c "\
 	cd /src && go run example/$(E).go"
 
+define DOCKERFILE_RUN_COMMAND
+FROM $(BASE_IMAGE)
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . ./
+RUN go install ./...
+endef
+export DOCKERFILE_RUN_COMMAND
+
 run-command:
-	echo "FROM $(BASE_IMAGE) \n\
-	WORKDIR /src \n\
-	COPY go.mod go.sum ./ \n\
-	RUN go mod download \n\
-	COPY . ./ \n\
-	RUN go install ./..." | docker build . -q -f - -t dctk-runcmd
+	echo "$$DOCKERFILE_RUN_COMMAND" | docker build . -q -f - -t dctk-runcmd
 	docker run --rm -it \
 	--network=host \
 	-e COLUMNS=$(shell tput cols) \
