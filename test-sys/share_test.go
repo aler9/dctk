@@ -18,7 +18,7 @@ func TestShare(t *testing.T) {
 			HubUrl:           e.Url(),
 			HubManualConnect: true,
 			Nick:             "testdctk",
-			Ip:               "127.0.0.1",
+			Ip:               getPrivateIp(),
 			IsPassive:        true,
 		})
 		require.NoError(t, err)

@@ -85,7 +85,6 @@ export DOCKERFILE_TEST_SYS
 test-sys:
 	echo "$$DOCKERFILE_TEST_SYS" | docker build -q . -f - -t dctk-test-sys
 	docker run --rm -it \
-	-e IN_DOCKER=1 \
 	--name dctk-test-sys \
 	-v /var/run/docker.sock:/var/run/docker.sock:ro \
 	dctk-test-sys \

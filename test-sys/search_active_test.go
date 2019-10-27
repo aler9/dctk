@@ -20,7 +20,7 @@ func TestSearchActive(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               "127.0.0.1",
+				Ip:               getPrivateIp(),
 				HubManualConnect: true,
 				TcpPort:          3006,
 				UdpPort:          3006,
@@ -28,13 +28,13 @@ func TestSearchActive(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			os.RemoveAll("/testshare")
-			os.Mkdir("/testshare", 0755)
-			os.Mkdir("/testshare/inner folder", 0755)
-			ioutil.WriteFile("/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+			os.RemoveAll("/tmp/testshare")
+			os.Mkdir("/tmp/testshare", 0755)
+			os.Mkdir("/tmp/testshare/inner folder", 0755)
+			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
 
 			client.OnInitialized = func() {
-				client.ShareAdd("aliasname", "/testshare")
+				client.ShareAdd("aliasname", "/tmp/testshare")
 			}
 
 			client.OnShareIndexed = func() {
@@ -52,7 +52,7 @@ func TestSearchActive(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:     e.Url(),
 				Nick:       "client2",
-				Ip:         "127.0.0.1",
+				Ip:         getPrivateIp(),
 				TcpPort:    3005,
 				UdpPort:    3005,
 				TcpTlsPort: 3004,

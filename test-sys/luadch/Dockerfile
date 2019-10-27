@@ -9,13 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rsync \
     make \
     libssl-dev \
-    netcat-traditional \
-    net-tools \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/luadch/luadch \
+RUN git clone -b v2.20 https://github.com/luadch/luadch \
     && cd /luadch \
-    && git checkout 03b4bd9 \
     && ./compile \
     && mv ./build_gcc/luadch /luadch-out \
     && rm -rf /luadch

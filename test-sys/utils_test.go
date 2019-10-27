@@ -1,30 +1,42 @@
 package dctoolkit_test
 
 import (
-	"io/ioutil"
 	"net"
-	"net/url"
-	"os"
 	"os/exec"
+	"strconv"
 	"testing"
 	"time"
 )
 
-var externalHubNames = func() []string {
-	var ret []string
-	files, _ := ioutil.ReadDir(".")
-	for _, f := range files {
-		if f.IsDir() {
-			ret = append(ret, f.Name())
+func getPrivateIp() string {
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
 		}
 	}
-	return ret
-}()
+	return ""
+}
+
+type externalHubDef struct {
+	name  string
+	proto string
+	port  uint
+}
+
+var externalHubDefs = []*externalHubDef{
+	{"godcpp-adc", "adc", 1411},
+	{"godcpp-nmdc", "nmdc", 1411},
+	{"luadch", "adc", 5000},
+	{"verlihub", "nmdc", 4111},
+}
 
 func foreachExternalHub(t *testing.T, cb func(t *testing.T, e *externalHub)) {
-	for _, name := range externalHubNames {
-		t.Run(name, func(t *testing.T) {
-			e := newExternalHub(name)
+	for _, def := range externalHubDefs {
+		t.Run(def.name, func(t *testing.T) {
+			e := newExternalHub(def)
 			defer e.close()
 			cb(t, e)
 		})
@@ -35,31 +47,29 @@ type externalHub struct {
 	su string
 }
 
-func newExternalHub(name string) *externalHub {
+func newExternalHub(def *externalHubDef) *externalHub {
 	exec.Command("docker", "kill", "dctk-test-sys-hub").Run()
 	exec.Command("docker", "wait", "dctk-test-sys-hub").Run()
 	exec.Command("docker", "rm", "dctk-test-sys-hub").Run()
 
 	// start hub
 	cmd := []string{"docker", "run", "--rm", "-d", "--name=dctk-test-sys-hub"}
-	if os.Getenv("IN_DOCKER") == "1" {
-		cmd = append(cmd, "--network=container:dctk-test-sys")
-	} else {
-		cmd = append(cmd, "--network=host")
-	}
-	cmd = append(cmd, "dctk-test-sys-hub-"+name)
+	cmd = append(cmd, "dctk-test-sys-hub-"+def.name)
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
-	// get hub url
-	byts, _ := ioutil.ReadFile(name + "/URL")
-	su := string(byts[:len(byts)-1])
+	// get hub ip
+	byts, _ := exec.Command("docker", "inspect", "-f",
+		"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+		"dctk-test-sys-hub").Output()
+	ip := string(byts[:len(byts)-1])
+
+	address := ip + ":" + strconv.FormatUint(uint64(def.port), 10)
 
 	// wait for hub
-	u, _ := url.Parse(su)
 	for {
-		conn, err := net.DialTimeout("tcp", u.Host, 1*time.Second)
+		time.Sleep(1 * time.Second)
+		conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 		if err != nil {
-			time.Sleep(1 * time.Second)
 			continue
 		}
 		conn.Close()
@@ -67,7 +77,7 @@ func newExternalHub(name string) *externalHub {
 	}
 
 	return &externalHub{
-		su: su,
+		su: def.proto + "://" + address,
 	}
 }
 

@@ -17,7 +17,7 @@ func TestConnActive(t *testing.T) {
 		client, err := dctk.NewClient(dctk.ClientConf{
 			HubUrl:     e.Url(),
 			Nick:       "testdctk",
-			Ip:         "127.0.0.1",
+			Ip:         getPrivateIp(),
 			TcpPort:    3006,
 			UdpPort:    3006,
 			TcpTlsPort: 3007,

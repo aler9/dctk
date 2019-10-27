@@ -18,7 +18,7 @@ func TestConnPwd(t *testing.T) {
 			HubUrl:     e.Url(),
 			Nick:       "testdctk_auth",
 			Password:   "testpa$ss",
-			Ip:         "127.0.0.1",
+			Ip:         getPrivateIp(),
 			TcpPort:    3006,
 			UdpPort:    3006,
 			TcpTlsPort: 3007,

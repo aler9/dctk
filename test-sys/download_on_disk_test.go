@@ -19,7 +19,7 @@ func TestDownloadOnDisk(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               "127.0.0.1",
+				Ip:               getPrivateIp(),
 				TcpPort:          3006,
 				UdpPort:          3006,
 				TcpTlsPort:       3007,
@@ -27,12 +27,12 @@ func TestDownloadOnDisk(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			os.RemoveAll("/testshare")
-			os.Mkdir("/testshare", 0755)
-			ioutil.WriteFile("/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+			os.RemoveAll("/tmp/testshare")
+			os.Mkdir("/tmp/testshare", 0755)
+			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
 
 			client.OnInitialized = func() {
-				client.ShareAdd("share", "/testshare")
+				client.ShareAdd("share", "/tmp/testshare")
 			}
 
 			client.OnShareIndexed = func() {
@@ -46,7 +46,7 @@ func TestDownloadOnDisk(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:     e.Url(),
 				Nick:       "client2",
-				Ip:         "127.0.0.1",
+				Ip:         getPrivateIp(),
 				TcpPort:    3005,
 				UdpPort:    3005,
 				TcpTlsPort: 3004,

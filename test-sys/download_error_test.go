@@ -16,7 +16,7 @@ func TestDownloadError(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:             e.Url(),
 				Nick:               "client1",
-				Ip:                 "127.0.0.1",
+				Ip:                 getPrivateIp(),
 				TcpPort:            3006,
 				UdpPort:            3006,
 				PeerEncryptionMode: dctk.DisableEncryption,
@@ -30,7 +30,7 @@ func TestDownloadError(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:             e.Url(),
 				Nick:               "client2",
-				Ip:                 "127.0.0.1",
+				Ip:                 getPrivateIp(),
 				TcpPort:            3005,
 				UdpPort:            3005,
 				PeerEncryptionMode: dctk.DisableEncryption,

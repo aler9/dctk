@@ -17,7 +17,7 @@ func TestDownloadDir(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               "127.0.0.1",
+				Ip:               getPrivateIp(),
 				TcpPort:          3006,
 				UdpPort:          3006,
 				TcpTlsPort:       3007,
@@ -25,18 +25,18 @@ func TestDownloadDir(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			os.RemoveAll("/testshare")
-			os.Mkdir("/testshare", 0755)
-			os.Mkdir("/testshare/folder", 0755)
-			os.Mkdir("/testshare/folder/subdir", 0755)
-			ioutil.WriteFile("/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0644)
-			ioutil.WriteFile("/testshare/folder/second file.txt", []byte(strings.Repeat("B", 50000)), 0644)
-			ioutil.WriteFile("/testshare/folder/third file.txt", []byte(strings.Repeat("C", 50000)), 0644)
-			ioutil.WriteFile("/testshare/folder/subdir/fourth file.txt", []byte(strings.Repeat("D", 50000)), 0644)
-			ioutil.WriteFile("/testshare/folder/subdir/fifth file.txt", []byte(strings.Repeat("E", 50000)), 0644)
+			os.RemoveAll("/tmp/testshare")
+			os.Mkdir("/tmp/testshare", 0755)
+			os.Mkdir("/tmp/testshare/folder", 0755)
+			os.Mkdir("/tmp/testshare/folder/subdir", 0755)
+			ioutil.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0644)
+			ioutil.WriteFile("/tmp/testshare/folder/second file.txt", []byte(strings.Repeat("B", 50000)), 0644)
+			ioutil.WriteFile("/tmp/testshare/folder/third file.txt", []byte(strings.Repeat("C", 50000)), 0644)
+			ioutil.WriteFile("/tmp/testshare/folder/subdir/fourth file.txt", []byte(strings.Repeat("D", 50000)), 0644)
+			ioutil.WriteFile("/tmp/testshare/folder/subdir/fifth file.txt", []byte(strings.Repeat("E", 50000)), 0644)
 
 			client.OnInitialized = func() {
-				client.ShareAdd("share", "/testshare")
+				client.ShareAdd("share", "/tmp/testshare")
 			}
 
 			client.OnShareIndexed = func() {
@@ -50,7 +50,7 @@ func TestDownloadDir(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:     e.Url(),
 				Nick:       "client2",
-				Ip:         "127.0.0.1",
+				Ip:         getPrivateIp(),
 				TcpPort:    3005,
 				UdpPort:    3005,
 				TcpTlsPort: 3004,
@@ -64,11 +64,11 @@ func TestDownloadDir(t *testing.T) {
 			}
 
 			paths := map[dctk.TigerHash]string{
-				dctk.TigerHashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/testshare/folder/first file.txt",
-				dctk.TigerHashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/testshare/folder/second file.txt",
-				dctk.TigerHashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/testshare/folder/third file.txt",
-				dctk.TigerHashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/testshare/folder/subdir/fourth file.txt",
-				dctk.TigerHashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/testshare/folder/subdir/fifth file.txt",
+				dctk.TigerHashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/tmp/testshare/folder/first file.txt",
+				dctk.TigerHashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/tmp/testshare/folder/second file.txt",
+				dctk.TigerHashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/tmp/testshare/folder/third file.txt",
+				dctk.TigerHashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/tmp/testshare/folder/subdir/fourth file.txt",
+				dctk.TigerHashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/tmp/testshare/folder/subdir/fifth file.txt",
 			}
 
 			downloaded := map[dctk.TigerHash]bool{
