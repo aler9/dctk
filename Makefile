@@ -82,8 +82,6 @@ COPY test-sys ./test-sys
 endef
 export DOCKERFILE_TEST_SYS
 
-HUBS = $(shell echo test-sys/*/ | xargs -n1 basename)
-
 test-sys:
 	echo "$$DOCKERFILE_TEST_SYS" | docker build -q . -f - -t dctk-test-sys
 	docker run --rm -it \
@@ -92,6 +90,8 @@ test-sys:
 	-v /var/run/docker.sock:/var/run/docker.sock:ro \
 	dctk-test-sys \
 	make test-sys-nodocker
+
+HUBS = $(shell echo test-sys/*/ | xargs -n1 basename)
 
 test-sys-nodocker:
 	$(foreach HUB,$(HUBS),docker build -q test-sys/$(HUB) -t dctk-test-sys-hub-$(HUB)$(NL))
