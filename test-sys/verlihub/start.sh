@@ -9,18 +9,18 @@ while true; do
 done
 
 case "$1" in
-    3conn_noip)
-        echo "UPDATE SetupList SET val = '0' WHERE var = 'send_user_ip';" |  mysql -D verlihub
-        ;;
+3conn_noip)
+    echo "UPDATE SetupList SET val = '0' WHERE var = 'send_user_ip';" |  mysql -D verlihub
+    ;;
 
-    5conn_compression)
-        echo "UPDATE SetupList SET val = '10' WHERE var = 'zlib_min_len';" | mysql -D verlihub
-        echo "UPDATE SetupList SET val = '0' WHERE var = 'disable_zlib';" | mysql -D verlihub
-        ;;
+5conn_compression)
+    echo "UPDATE SetupList SET val = '10' WHERE var = 'zlib_min_len';" | mysql -D verlihub
+    echo "UPDATE SetupList SET val = '0' WHERE var = 'disable_zlib';" | mysql -D verlihub
+    ;;
 esac
 
 #echo "select * from reglist;" | mysql -D verlihub
-echo "SELECT * from SetupList;" | mysql -D verlihub
+#echo "SELECT * from SetupList;" | mysql -D verlihub
 
 verlihub &
 VPID=$!
