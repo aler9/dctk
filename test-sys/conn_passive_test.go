@@ -10,7 +10,7 @@ import (
 )
 
 func TestConnPassive(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "ConnPassive", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 

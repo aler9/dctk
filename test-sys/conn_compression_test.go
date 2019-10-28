@@ -10,7 +10,7 @@ import (
 )
 
 func TestConnCompression(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "ConnCompression", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 

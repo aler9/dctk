@@ -1,6 +1,9 @@
 package dctoolkit_test
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,7 +13,7 @@ import (
 )
 
 func TestShare(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "Share", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 
@@ -18,13 +21,18 @@ func TestShare(t *testing.T) {
 			HubUrl:           e.Url(),
 			HubManualConnect: true,
 			Nick:             "testdctk",
-			Ip:               getPrivateIp(),
+			Ip:               dockerIp,
 			IsPassive:        true,
 		})
 		require.NoError(t, err)
 
+		os.RemoveAll("/tmp/testshare")
+		os.Mkdir("/tmp/testshare", 0755)
+		os.Mkdir("/tmp/testshare/folder", 0755)
+		ioutil.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0644)
+
 		client.OnInitialized = func() {
-			client.ShareAdd("etc", "/etc")
+			client.ShareAdd("share", "/testshare")
 		}
 
 		reindexed := false
@@ -36,7 +44,7 @@ func TestShare(t *testing.T) {
 				go func() {
 					time.Sleep(2 * time.Second)
 					client.Safe(func() {
-						client.ShareAdd("etc", "/etc")
+						client.ShareAdd("share", "/testshare")
 					})
 				}()
 

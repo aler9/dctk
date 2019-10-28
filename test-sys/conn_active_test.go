@@ -10,14 +10,14 @@ import (
 )
 
 func TestConnActive(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "ConnActive", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 
 		client, err := dctk.NewClient(dctk.ClientConf{
 			HubUrl:     e.Url(),
 			Nick:       "testdctk",
-			Ip:         getPrivateIp(),
+			Ip:         dockerIp,
 			TcpPort:    3006,
 			UdpPort:    3006,
 			TcpTlsPort: 3007,

@@ -9,7 +9,7 @@ import (
 )
 
 func TestChatPublic(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "ChatPublic", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {

@@ -12,12 +12,12 @@ import (
 )
 
 func TestDownloadDir(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "DownloadDir", func(t *testing.T, e *externalHub) {
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               getPrivateIp(),
+				Ip:               dockerIp,
 				TcpPort:          3006,
 				UdpPort:          3006,
 				TcpTlsPort:       3007,
@@ -50,7 +50,7 @@ func TestDownloadDir(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:     e.Url(),
 				Nick:       "client2",
-				Ip:         getPrivateIp(),
+				Ip:         dockerIp,
 				TcpPort:    3005,
 				UdpPort:    3005,
 				TcpTlsPort: 3004,

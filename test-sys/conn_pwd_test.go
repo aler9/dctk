@@ -10,7 +10,7 @@ import (
 )
 
 func TestConnPwd(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "ConnPwd", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 
@@ -18,7 +18,7 @@ func TestConnPwd(t *testing.T) {
 			HubUrl:     e.Url(),
 			Nick:       "testdctk_auth",
 			Password:   "testpa$ss",
-			Ip:         getPrivateIp(),
+			Ip:         dockerIp,
 			TcpPort:    3006,
 			UdpPort:    3006,
 			TcpTlsPort: 3007,

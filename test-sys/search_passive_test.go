@@ -13,14 +13,14 @@ import (
 )
 
 func TestSearchPassive(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "SearchPassive", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               getPrivateIp(),
+				Ip:               dockerIp,
 				HubManualConnect: true,
 				TcpPort:          3006,
 				UdpPort:          3006,
@@ -49,7 +49,7 @@ func TestSearchPassive(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:    e.Url(),
 				Nick:      "client2",
-				Ip:        getPrivateIp(),
+				Ip:        dockerIp,
 				IsPassive: true,
 			})
 			require.NoError(t, err)

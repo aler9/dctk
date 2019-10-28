@@ -8,17 +8,23 @@ import (
 	"time"
 )
 
-func getPrivateIp() string {
+var dockerIp = func() string {
+	out, _ := exec.Command("docker", "network", "inspect", "bridge", "--format",
+		"{{range .IPAM.Config}}{{.Subnet}}{{end}}").Output()
+	subnetStr := string(out[:len(out)-1])
+
+	_, subnet, _ := net.ParseCIDR(subnetStr)
+
 	addrs, _ := net.InterfaceAddrs()
 	for _, a := range addrs {
 		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
+			if subnet.Contains(ipnet.IP) {
 				return ipnet.IP.String()
 			}
 		}
 	}
 	return ""
-}
+}()
 
 type externalHubDef struct {
 	name  string
@@ -33,10 +39,10 @@ var externalHubDefs = []*externalHubDef{
 	{"verlihub", "nmdc", 4111},
 }
 
-func foreachExternalHub(t *testing.T, cb func(t *testing.T, e *externalHub)) {
+func foreachExternalHub(t *testing.T, testName string, cb func(t *testing.T, e *externalHub)) {
 	for _, def := range externalHubDefs {
 		t.Run(def.name, func(t *testing.T) {
-			e := newExternalHub(def)
+			e := newExternalHub(testName, def)
 			defer e.close()
 			cb(t, e)
 		})
@@ -47,7 +53,7 @@ type externalHub struct {
 	su string
 }
 
-func newExternalHub(def *externalHubDef) *externalHub {
+func newExternalHub(testName string, def *externalHubDef) *externalHub {
 	exec.Command("docker", "kill", "dctk-test-sys-hub").Run()
 	exec.Command("docker", "wait", "dctk-test-sys-hub").Run()
 	exec.Command("docker", "rm", "dctk-test-sys-hub").Run()
@@ -55,6 +61,7 @@ func newExternalHub(def *externalHubDef) *externalHub {
 	// start hub
 	cmd := []string{"docker", "run", "--rm", "-d", "--name=dctk-test-sys-hub"}
 	cmd = append(cmd, "dctk-test-sys-hub-"+def.name)
+	cmd = append(cmd, testName)
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
 	// get hub ip

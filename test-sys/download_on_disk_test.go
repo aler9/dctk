@@ -12,14 +12,14 @@ import (
 )
 
 func TestDownloadOnDisk(t *testing.T) {
-	foreachExternalHub(t, func(t *testing.T, e *externalHub) {
+	foreachExternalHub(t, "DownloadOnDisk", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
 				Nick:             "client1",
-				Ip:               getPrivateIp(),
+				Ip:               dockerIp,
 				TcpPort:          3006,
 				UdpPort:          3006,
 				TcpTlsPort:       3007,
@@ -46,7 +46,7 @@ func TestDownloadOnDisk(t *testing.T) {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:     e.Url(),
 				Nick:       "client2",
-				Ip:         getPrivateIp(),
+				Ip:         dockerIp,
 				TcpPort:    3005,
 				UdpPort:    3005,
 				TcpTlsPort: 3004,
