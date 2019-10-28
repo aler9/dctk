@@ -76,7 +76,7 @@ make test
 
 #### Installation
 
-Go &ge; 1.11 is required. Download, compile and install the binaries with a single command:
+Go &ge; 1.12 is required. Download, compile and install the binaries with a single command:
 ```
 go get github.com/aler9/dctoolkit/cmd/...
 ```
