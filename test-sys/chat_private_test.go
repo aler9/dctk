@@ -40,8 +40,6 @@ func TestChatPrivate(t *testing.T) {
 			require.NoError(t, err)
 
 			client.OnHubConnected = func() {
-				// launch client 2 after client 1 connects, in order to avoid
-				// a possible freeze issue with godcpp_adc
 				go client1()
 			}
 
@@ -66,6 +64,7 @@ func TestChatPrivate(t *testing.T) {
 		dctk.SetLogLevel(dctk.LevelError)
 
 		client2()
+
 		require.True(t, ok)
 	})
 }

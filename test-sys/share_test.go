@@ -32,7 +32,7 @@ func TestShare(t *testing.T) {
 		ioutil.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0644)
 
 		client.OnInitialized = func() {
-			client.ShareAdd("share", "/testshare")
+			client.ShareAdd("share", "/tmp/testshare")
 		}
 
 		reindexed := false
@@ -44,7 +44,7 @@ func TestShare(t *testing.T) {
 				go func() {
 					time.Sleep(2 * time.Second)
 					client.Safe(func() {
-						client.ShareAdd("share", "/testshare")
+						client.ShareAdd("share", "/tmp/testshare")
 					})
 				}()
 

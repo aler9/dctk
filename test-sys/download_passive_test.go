@@ -52,6 +52,10 @@ func TestDownloadPassive(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			client.OnHubConnected = func() {
+				go client1()
+			}
+
 			client.OnPeerConnected = func(p *dctk.Peer) {
 				if p.Nick == "client1" {
 					client.DownloadFile(dctk.DownloadConf{
@@ -71,7 +75,6 @@ func TestDownloadPassive(t *testing.T) {
 
 		dctk.SetLogLevel(dctk.LevelError)
 
-		go client1()
 		client2()
 
 		require.True(t, ok)

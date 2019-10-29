@@ -13,6 +13,8 @@ import (
 
 func TestDownloadDir(t *testing.T) {
 	foreachExternalHub(t, "DownloadDir", func(t *testing.T, e *externalHub) {
+		ok := false
+
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				HubUrl:           e.Url(),
@@ -56,6 +58,10 @@ func TestDownloadDir(t *testing.T) {
 				TcpTlsPort: 3004,
 			})
 			require.NoError(t, err)
+
+			client.OnHubConnected = func() {
+				go client1()
+			}
 
 			client.OnPeerConnected = func(p *dctk.Peer) {
 				if p.Nick == "client1" {
@@ -108,6 +114,7 @@ func TestDownloadDir(t *testing.T) {
 					require.Equal(t, tth, d.Conf().TTH)
 
 					if client.DownloadCount() == 0 {
+						ok = true
 						client.Close()
 					}
 				}
@@ -122,7 +129,8 @@ func TestDownloadDir(t *testing.T) {
 
 		dctk.SetLogLevel(dctk.LevelError)
 
-		go client1()
 		client2()
+
+		require.True(t, ok)
 	})
 }
