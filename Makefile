@@ -4,7 +4,7 @@
 BASE_IMAGE = amd64/golang:1.13-alpine3.10
 
 help:
-	@echo "usage: make [action] [args...]"
+	@echo "usage: make [action]"
 	@echo ""
 	@echo "available actions:"
 	@echo ""
