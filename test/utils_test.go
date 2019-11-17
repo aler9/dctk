@@ -1,4 +1,4 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
 	"net"
@@ -54,20 +54,20 @@ type externalHub struct {
 }
 
 func newExternalHub(testName string, def *externalHubDef) *externalHub {
-	exec.Command("docker", "kill", "dctk-test-sys-hub").Run()
-	exec.Command("docker", "wait", "dctk-test-sys-hub").Run()
-	exec.Command("docker", "rm", "dctk-test-sys-hub").Run()
+	exec.Command("docker", "kill", "dctk-test-hub").Run()
+	exec.Command("docker", "wait", "dctk-test-hub").Run()
+	exec.Command("docker", "rm", "dctk-test-hub").Run()
 
 	// start hub
-	cmd := []string{"docker", "run", "--rm", "-d", "--name=dctk-test-sys-hub"}
-	cmd = append(cmd, "dctk-test-sys-hub-"+def.name)
+	cmd := []string{"docker", "run", "--rm", "-d", "--name=dctk-test-hub"}
+	cmd = append(cmd, "dctk-test-hub-"+def.name)
 	cmd = append(cmd, testName)
 	exec.Command(cmd[0], cmd[1:]...).Run()
 
 	// get hub ip
 	byts, _ := exec.Command("docker", "inspect", "-f",
 		"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
-		"dctk-test-sys-hub").Output()
+		"dctk-test-hub").Output()
 	ip := string(byts[:len(byts)-1])
 
 	address := ip + ":" + strconv.FormatUint(uint64(def.port), 10)
@@ -93,6 +93,6 @@ func (e *externalHub) Url() string {
 }
 
 func (e *externalHub) close() {
-	exec.Command("docker", "kill", "dctk-test-sys-hub").Run()
-	exec.Command("docker", "wait", "dctk-test-sys-hub").Run()
+	exec.Command("docker", "kill", "dctk-test-hub").Run()
+	exec.Command("docker", "wait", "dctk-test-hub").Run()
 }

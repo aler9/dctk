@@ -1,4 +1,4 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
 	"io/ioutil"

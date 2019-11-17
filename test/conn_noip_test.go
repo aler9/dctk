@@ -1,4 +1,4 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
 	"testing"
@@ -9,15 +9,18 @@ import (
 	dctk "github.com/aler9/dctoolkit"
 )
 
-func TestConnPassive(t *testing.T) {
-	foreachExternalHub(t, "ConnPassive", func(t *testing.T, e *externalHub) {
+func TestConnNoIp(t *testing.T) {
+	foreachExternalHub(t, "ConnNoIp", func(t *testing.T, e *externalHub) {
 		ok := false
 		dctk.SetLogLevel(dctk.LevelError)
 
 		client, err := dctk.NewClient(dctk.ClientConf{
-			HubUrl:    e.Url(),
-			Nick:      "testdctk",
-			IsPassive: true,
+			HubUrl:     e.Url(),
+			Nick:       "testdctk",
+			Ip:         dockerIp,
+			TcpPort:    3006,
+			UdpPort:    3006,
+			TcpTlsPort: 3007,
 		})
 		require.NoError(t, err)
 

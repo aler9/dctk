@@ -1,9 +1,6 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
-	"io/ioutil"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,8 +8,8 @@ import (
 	dctk "github.com/aler9/dctoolkit"
 )
 
-func TestDownloadTls(t *testing.T) {
-	foreachExternalHub(t, "DownloadTls", func(t *testing.T, e *externalHub) {
+func TestDownloadError(t *testing.T) {
+	foreachExternalHub(t, "DownloadError", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {
@@ -22,23 +19,9 @@ func TestDownloadTls(t *testing.T) {
 				Ip:                 dockerIp,
 				TcpPort:            3006,
 				UdpPort:            3006,
-				TcpTlsPort:         3007,
-				PeerEncryptionMode: dctk.ForceEncryption,
-				HubManualConnect:   true,
+				PeerEncryptionMode: dctk.DisableEncryption,
 			})
 			require.NoError(t, err)
-
-			os.RemoveAll("/tmp/testshare")
-			os.Mkdir("/tmp/testshare", 0755)
-			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
-
-			client.OnInitialized = func() {
-				client.ShareAdd("share", "/tmp/testshare")
-			}
-
-			client.OnShareIndexed = func() {
-				client.HubConnect()
-			}
 
 			client.Run()
 		}
@@ -50,8 +33,7 @@ func TestDownloadTls(t *testing.T) {
 				Ip:                 dockerIp,
 				TcpPort:            3005,
 				UdpPort:            3005,
-				TcpTlsPort:         3004,
-				PeerEncryptionMode: dctk.ForceEncryption,
+				PeerEncryptionMode: dctk.DisableEncryption,
 			})
 			require.NoError(t, err)
 
@@ -59,16 +41,17 @@ func TestDownloadTls(t *testing.T) {
 				go client1()
 			}
 
+			// request a nonexistent file
 			client.OnPeerConnected = func(p *dctk.Peer) {
 				if p.Nick == "client1" {
 					client.DownloadFile(dctk.DownloadConf{
 						Peer: p,
-						TTH:  dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+						TTH:  dctk.TigerHashMust("UAUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 					})
 				}
 			}
 
-			client.OnDownloadSuccessful = func(d *dctk.Download) {
+			client.OnDownloadError = func(d *dctk.Download) {
 				ok = true
 				client.Close()
 			}

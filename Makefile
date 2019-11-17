@@ -29,73 +29,34 @@ format:
 	docker run --rm -it -v $(PWD):/s $(BASE_IMAGE) \
 	sh -c "cd /s && find . -type f -name '*.go' | xargs gofmt -l -w -s"
 
-test: test-example test-command test-sys
-
-test-nodocker: test-example-nodocker test-command-nodocker test-sys-nodocker
-
-define DOCKERFILE_TEST_EXAMPLE
-FROM $(BASE_IMAGE)
-RUN apk add --no-cache make
-WORKDIR /s
-COPY go.mod go.sum ./
-RUN go mod download
-COPY Makefile *.go ./
-COPY example ./example
-endef
-export DOCKERFILE_TEST_EXAMPLE
-
-test-example:
-	echo "$$DOCKERFILE_TEST_EXAMPLE" | docker build -q . -f - -t dctoolkit-test-example >/dev/null
-	docker run --rm -it dctoolkit-test-example make test-example-nodocker
-
-test-example-nodocker:
-	$(eval export CGO_ENABLED = 0)
-	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
-
-define DOCKERFILE_TEST_COMMAND
-FROM $(BASE_IMAGE)
-WORKDIR /s
-RUN apk add --no-cache make
-COPY go.mod go.sum ./
-RUN go mod download
-COPY Makefile *.go ./
-COPY cmd ./cmd
-endef
-export DOCKERFILE_TEST_COMMAND
-
-test-command:
-	echo "$$DOCKERFILE_TEST_COMMAND" | docker build -q . -f - -t dctoolkit-test-command >/dev/null
-	docker run --rm -it dctoolkit-test-command make test-command-nodocker
-
-test-command-nodocker:
-	$(eval export CGO_ENABLED = 0)
-	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
-
-define DOCKERFILE_TEST_SYS
+define DOCKERFILE_TEST
 FROM $(BASE_IMAGE)
 RUN apk add --no-cache make docker-cli
 WORKDIR /s
 COPY go.mod go.sum ./
 RUN go mod download
 COPY Makefile *.go ./
-COPY test-sys ./test-sys
+COPY cmd ./cmd
+COPY example ./example
+COPY test ./test
 endef
-export DOCKERFILE_TEST_SYS
+export DOCKERFILE_TEST
 
-test-sys:
-	echo "$$DOCKERFILE_TEST_SYS" | docker build -q . -f - -t dctk-test-sys
+test:
+	echo "$$DOCKERFILE_TEST" | docker build -q . -f - -t dctk-test
 	docker run --rm -it \
-	--name dctk-test-sys \
+	--name dctk-test \
 	-v /var/run/docker.sock:/var/run/docker.sock:ro \
-	dctk-test-sys \
-	make test-sys-nodocker
+	dctk-test \
+	make test-nodocker
 
-HUBS = $(shell echo test-sys/*/ | xargs -n1 basename)
-
-test-sys-nodocker:
-	$(foreach HUB,$(HUBS),docker build -q test-sys/$(HUB) -t dctk-test-sys-hub-$(HUB)$(NL))
+test-nodocker:
 	$(eval export CGO_ENABLED = 0)
-	go test -v ./test-sys
+	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
+	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
+	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
+	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
+	go test -v ./test
 
 run-example:
 	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )

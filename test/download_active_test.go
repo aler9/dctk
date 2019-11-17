@@ -1,4 +1,4 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
 	"io/ioutil"
@@ -11,8 +11,8 @@ import (
 	dctk "github.com/aler9/dctoolkit"
 )
 
-func TestDownloadPassive(t *testing.T) {
-	foreachExternalHub(t, "DownloadPassive", func(t *testing.T, e *externalHub) {
+func TestDownloadActive(t *testing.T) {
+	foreachExternalHub(t, "DownloadActive", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {
@@ -47,7 +47,8 @@ func TestDownloadPassive(t *testing.T) {
 				HubUrl:             e.Url(),
 				Nick:               "client2",
 				Ip:                 dockerIp,
-				IsPassive:          true,
+				TcpPort:            3005,
+				UdpPort:            3005,
 				PeerEncryptionMode: dctk.DisableEncryption,
 			})
 			require.NoError(t, err)

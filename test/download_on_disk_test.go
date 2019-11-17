@@ -1,4 +1,4 @@
-package dctoolkit_test_sys
+package dctoolkit_test
 
 import (
 	"io/ioutil"
@@ -11,19 +11,19 @@ import (
 	dctk "github.com/aler9/dctoolkit"
 )
 
-func TestDownloadActive(t *testing.T) {
-	foreachExternalHub(t, "DownloadActive", func(t *testing.T, e *externalHub) {
+func TestDownloadOnDisk(t *testing.T) {
+	foreachExternalHub(t, "DownloadOnDisk", func(t *testing.T, e *externalHub) {
 		ok := false
 
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
-				HubUrl:             e.Url(),
-				Nick:               "client1",
-				Ip:                 dockerIp,
-				TcpPort:            3006,
-				UdpPort:            3006,
-				PeerEncryptionMode: dctk.DisableEncryption,
-				HubManualConnect:   true,
+				HubUrl:           e.Url(),
+				Nick:             "client1",
+				Ip:               dockerIp,
+				TcpPort:          3006,
+				UdpPort:          3006,
+				TcpTlsPort:       3007,
+				HubManualConnect: true,
 			})
 			require.NoError(t, err)
 
@@ -44,12 +44,12 @@ func TestDownloadActive(t *testing.T) {
 
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
-				HubUrl:             e.Url(),
-				Nick:               "client2",
-				Ip:                 dockerIp,
-				TcpPort:            3005,
-				UdpPort:            3005,
-				PeerEncryptionMode: dctk.DisableEncryption,
+				HubUrl:     e.Url(),
+				Nick:       "client2",
+				Ip:         dockerIp,
+				TcpPort:    3005,
+				UdpPort:    3005,
+				TcpTlsPort: 3004,
 			})
 			require.NoError(t, err)
 
@@ -60,8 +60,9 @@ func TestDownloadActive(t *testing.T) {
 			client.OnPeerConnected = func(p *dctk.Peer) {
 				if p.Nick == "client1" {
 					client.DownloadFile(dctk.DownloadConf{
-						Peer: p,
-						TTH:  dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+						Peer:     p,
+						TTH:      dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+						SavePath: "/tmp/outfile",
 					})
 				}
 			}
