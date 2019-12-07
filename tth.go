@@ -131,7 +131,7 @@ func (l TigerLeaves) SaveToFile(fpath string) error {
 	return l.SaveToWriter(f)
 }
 
-// TreeHash converts tiger leaves into a TTH
+// TreeHash converts tiger leaves into a TTH.
 func (l TigerLeaves) TreeHash() TigerHash {
 	var ttl tiger.Leaves
 	for _, h := range l {

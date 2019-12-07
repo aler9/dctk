@@ -171,7 +171,7 @@ func (d *Download) Conf() DownloadConf {
 }
 
 // Content returns the downloaded file content ONLY if SavePath is not used, otherwise
-// file content is saved directly on disk
+// file content is saved directly on disk.
 func (d *Download) Content() []byte {
 	return d.content
 }
