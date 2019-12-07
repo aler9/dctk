@@ -63,9 +63,8 @@ type searchIncomingRequest struct {
 func (c *Client) Search(conf SearchConf) error {
 	if c.protoIsAdc() {
 		return c.handleAdcSearchOutgoingRequest(conf)
-	} else {
-		return c.handleNmdcSearchOutgoingRequest(conf)
 	}
+	return c.handleNmdcSearchOutgoingRequest(conf)
 }
 
 func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]interface{}, error) {

@@ -99,7 +99,7 @@ func TTHLeavesFromFile(fpath string) (TigerLeaves, error) {
 	return TTHLeavesFromReader(buf)
 }
 
-// Save saves the TTH leaves into a Writer.
+// SaveToWriter saves the TTH leaves into a Writer.
 func (l TigerLeaves) SaveToWriter(w io.Writer) error {
 	for _, h := range l {
 		_, err := w.Write(h[:])
@@ -110,7 +110,7 @@ func (l TigerLeaves) SaveToWriter(w io.Writer) error {
 	return nil
 }
 
-// Save saves the TTH leaves into a byte slice.
+// SaveToBytes saves the TTH leaves into a byte slice.
 func (l TigerLeaves) SaveToBytes() ([]byte, error) {
 	var buf bytes.Buffer
 	err := l.SaveToWriter(&buf)
@@ -120,7 +120,7 @@ func (l TigerLeaves) SaveToBytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Save saves the TTH leaves into a file.
+// SaveToFile saves the TTH leaves into a file.
 func (l TigerLeaves) SaveToFile(fpath string) error {
 	f, err := os.Create(fpath)
 	if err != nil {
@@ -147,7 +147,7 @@ func (l TigerLeaves) TreeHash() TigerHash {
 // identifier associated to a specific file content.
 type TigerHash tiger.Hash
 
-// TTHFromBase32 imports a TigerHash in base32 encoding.
+// TigerHashFromBase32 imports a TigerHash in base32 encoding.
 func TigerHashFromBase32(in string) (TigerHash, error) {
 	ret := new(tiger.Hash)
 	err := ret.FromBase32(in)

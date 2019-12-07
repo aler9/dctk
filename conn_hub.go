@@ -398,13 +398,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		// self quit, used instead of ForceMove
 		if msg.Msg.ID == h.client.adcSessionId {
 			return fmt.Errorf("received Quit message: %s", msg.Msg.Message)
-
-			// peer quit
-		} else {
-			p := h.client.peerBySessionId(msg.Msg.ID)
-			if p != nil {
-				h.client.handlePeerDisconnected(p)
-			}
+		}
+		// peer quit
+		p := h.client.peerBySessionId(msg.Msg.ID)
+		if p != nil {
+			h.client.handlePeerDisconnected(p)
 		}
 
 	case *adcICommand:
