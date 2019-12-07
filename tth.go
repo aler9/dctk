@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"io"
 	"net/url"
 	"os"
 
@@ -18,15 +19,73 @@ func newTiger() hash.Hash {
 
 // TigerLeaves is a sequence of hashes that can be used to validate the single
 // parts of a file, and ultimately to compute the file TTH.
-type TigerLeaves tiger.Leaves
+type TigerLeaves []TigerHash
 
-// TTHLeavesFromBytes computes the TTH leaves of a given byte sequence.
-func TTHLeavesFromBytes(in []byte) TigerLeaves {
-	ret, _ := tiger.TreeLeaves(bytes.NewReader(in))
-	return TigerLeaves(ret)
+// TTHLeavesLoadFromReader loads TTH leaves from data provided by a Reader.
+// please note that this function does NOT compute TTH leaves of the input data,
+// it just reads the data and use it as TTH leaves.
+func TTHLeavesLoadFromReader(r io.Reader) (TigerLeaves, error) {
+	var ret TigerLeaves
+
+	// load hash by hash
+	var h TigerHash
+	for {
+		_, err := io.ReadFull(r, h[:])
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		ret = append(ret, h)
+	}
+
+	return ret, nil
 }
 
-// TTHLeavesFromFile computes the TTH leaves of a given file.
+// TTHLeavesLoadFromBytes loads TTH leaves from a byte slice.
+// please note that this function does NOT compute TTH leaves of the input data,
+// it just reads the data and use it as TTH leaves.
+func TTHLeavesLoadFromBytes(in []byte) (TigerLeaves, error) {
+	return TTHLeavesLoadFromReader(bytes.NewReader(in))
+}
+
+// TTHLeavesLoadFromFile loads TTH leaves from a file.
+// please note that this function does NOT compute TTH leaves of the input data,
+// it just reads the data and use it as TTH leaves.
+func TTHLeavesLoadFromFile(fpath string) (TigerLeaves, error) {
+	f, err := os.Open(fpath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// buffer to optimize disk read
+	buf := bufio.NewReaderSize(f, 1024*1024)
+
+	return TTHLeavesLoadFromReader(buf)
+}
+
+// TTHLeavesFromReader computes the TTH leaves of data provided by a Reader.
+func TTHLeavesFromReader(in io.Reader) (TigerLeaves, error) {
+	ttl, err := tiger.TreeLeaves(in)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret TigerLeaves
+	for _, l := range ttl {
+		ret = append(ret, TigerHash(l))
+	}
+	return ret, nil
+}
+
+// TTHLeavesFromBytes computes the TTH leaves of a byte slice.
+func TTHLeavesFromBytes(in []byte) (TigerLeaves, error) {
+	return TTHLeavesFromReader(bytes.NewReader(in))
+}
+
+// TTHLeavesFromFile computes the TTH leaves of a file.
 func TTHLeavesFromFile(fpath string) (TigerLeaves, error) {
 	f, err := os.Open(fpath)
 	if err != nil {
@@ -37,13 +96,49 @@ func TTHLeavesFromFile(fpath string) (TigerLeaves, error) {
 	// buffer to optimize disk read
 	buf := bufio.NewReaderSize(f, 1024*1024)
 
-	ret, err := tiger.TreeLeaves(buf)
-	return TigerLeaves(ret), err
+	return TTHLeavesFromReader(buf)
+}
+
+// Save saves the TTH leaves into a Writer.
+func (l TigerLeaves) SaveToWriter(w io.Writer) error {
+	for _, h := range l {
+		_, err := w.Write(h[:])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Save saves the TTH leaves into a byte slice.
+func (l TigerLeaves) SaveToBytes() ([]byte, error) {
+	var buf bytes.Buffer
+	err := l.SaveToWriter(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// Save saves the TTH leaves into a file.
+func (l TigerLeaves) SaveToFile(fpath string) error {
+	f, err := os.Create(fpath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return l.SaveToWriter(f)
 }
 
 // TreeHash converts tiger leaves into a TTH
 func (l TigerLeaves) TreeHash() TigerHash {
-	h := tiger.Leaves(l).TreeHash()
+	var ttl tiger.Leaves
+	for _, h := range l {
+		ttl = append(ttl, tiger.Hash(h))
+	}
+
+	h := tiger.Leaves(ttl).TreeHash()
 	return TigerHash(h)
 }
 
@@ -83,13 +178,13 @@ func (h *TigerHash) UnmarshalText(text []byte) error {
 	return (*tiger.Hash)(h).UnmarshalText(text)
 }
 
-// TTHFromBytes computes the Tiger Tree Hash (TTH) of a given byte sequence.
+// TTHFromBytes computes the Tiger Tree Hash (TTH) of a byte slice.
 func TTHFromBytes(in []byte) TigerHash {
 	ret, _ := tiger.TreeHash(bytes.NewReader(in))
 	return TigerHash(ret)
 }
 
-// TTHFromFile computes the Tiger Tree Hash (TTH) of a given file.
+// TTHFromFile computes the Tiger Tree Hash (TTH) of a file.
 func TTHFromFile(fpath string) (TigerHash, error) {
 	f, err := os.Open(fpath)
 	if err != nil {
