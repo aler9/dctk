@@ -35,10 +35,7 @@ RUN apk add --no-cache make docker-cli
 WORKDIR /s
 COPY go.mod go.sum ./
 RUN go mod download
-COPY Makefile *.go ./
-COPY cmd ./cmd
-COPY example ./example
-COPY test ./test
+COPY . ./
 endef
 export DOCKERFILE_TEST
 
