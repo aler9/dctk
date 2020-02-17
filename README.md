@@ -22,8 +22,7 @@ This project is based on the [**go-dc**](https://github.com/direct-connect/go-dc
 * **File search**: by name or TTH, reply to requests
 * **File download**: by name or TTH, full or partial, on ram or disk, multiple in parallel, compression, encryption, configurable download slots, validation via TTH, client fingerprint validation
 * **File upload**: upload from personal share, asynchronous file indexing system, file list generation and serving, compression, encryption, configurable upload slots, tthl extension support, client fingerprint validation
-* Examples provided for every feature
-* Comprehensive test suite
+* Examples provided for every feature, comprehensive test suite, continuous integration
 
 Note: this project uses the rolling release development model, as it is used in a production environment which requires the latest updates. The public API may suffer minor changes. The master branch is to be considered stable.
 
