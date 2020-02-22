@@ -157,7 +157,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 		return "file TTH/" + d.conf.TTH.String()
 	}()
 
-	dolog(LevelInfo, "[download] [%s] request %s (s=%d l=%d)",
+	dolog(LevelInfo, "[download] [%s] requesting %s (s=%d l=%d)",
 		d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
 	d.client.wg.Add(1)
