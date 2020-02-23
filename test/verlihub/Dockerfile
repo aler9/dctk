@@ -2,26 +2,26 @@ FROM amd64/debian:stretch-slim
 
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     ca-certificates \
+    git \
+    g++ \
+    make \
+    cmake \
     libpcre3-dev \
     libssl-dev \
-    mariadb-server \
     libmariadbclient-dev-compat \
     mariadb-client \
-    g++ \
     libmaxminddb-dev \
     libmaxminddb0 \
     libicu-dev \
     gettext \
     libasprintf-dev \
-    make \
-    cmake \
+    mariadb-server \
     netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -L https://github.com/Verlihub/verlihub/archive/1.2.0.0.tar.gz | tar xvfz - \
-    && cd /verlihub* \
+RUN git clone --depth=1 -b 1.2.0.0 https://github.com/Verlihub/verlihub \
+    && cd /verlihub \
     && cmake . \
     && make -j$(nproc) \
     && make install \
@@ -29,8 +29,9 @@ RUN curl -L https://github.com/Verlihub/verlihub/archive/1.2.0.0.tar.gz | tar xv
     && rm -rf /verlihub*
 
 COPY setup.sh /
-RUN chmod +x /setup.sh
-RUN /setup.sh
+RUN chmod +x /setup.sh \
+    && /setup.sh \
+    && rm /setup.sh
 
 COPY start.sh /
 RUN chmod +x /start.sh

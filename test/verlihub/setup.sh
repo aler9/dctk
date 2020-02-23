@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 mysqld_safe &
 MPID=$!
@@ -32,7 +32,7 @@ while true; do
 done
 
 kill -TERM $VPID
-wait $VPID
+wait $VPID || true
 
 echo "UPDATE SetupList SET val = '1' WHERE var = 'send_user_ip';" | mysql -D verlihub
 echo "UPDATE SetupList SET val = 'test topic' WHERE var = 'hub_topic';" | mysql -D verlihub

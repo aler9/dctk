@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 mysqld_safe &
 
@@ -19,10 +19,4 @@ ConnCompression)
     ;;
 esac
 
-#echo "select * from reglist;" | mysql -D verlihub
-#echo "SELECT * from SetupList;" | mysql -D verlihub
-
-verlihub &
-VPID=$!
-
-wait
+exec verlihub

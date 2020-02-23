@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone -b v2.20 https://github.com/luadch/luadch \
+RUN git clone --depth=1 -b v2.20 https://github.com/luadch/luadch \
     && cd /luadch \
     && ./compile \
     && mv ./build_gcc/luadch /luadch-out \

@@ -2,8 +2,9 @@ FROM amd64/golang:1.12-stretch
 
 WORKDIR /
 
-RUN git clone https://github.com/aler9/go-dcpp \
+RUN git clone https://github.com/direct-connect/go-dcpp \
     && cd /go-dcpp \
+    && git checkout 981f564 \
     && go install ./cmd/go-hub \
     && rm -rf /go-dcpp
 
