@@ -6,12 +6,14 @@ import (
 
 func main() {
 	client, err := dctk.NewClient(dctk.ClientConf{
-		HubUrl:           "nmdc://127.0.0.1:4111",
-		Nick:             "testclient",
-		TcpPort:          3009,
-		UdpPort:          3009,
-		TcpTlsPort:       3010,
-		HubManualConnect: true,
+		HubUrl:             "nmdc://127.0.0.1:4111",
+		Nick:               "testclient",
+		TcpPort:            3009,
+		UdpPort:            3009,
+		TcpTlsPort:         3010,
+		HubManualConnect:   true,
+		IsPassive:          true,
+		PeerEncryptionMode: dctk.DisableEncryption,
 	})
 	if err != nil {
 		panic(err)
