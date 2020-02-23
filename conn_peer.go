@@ -225,21 +225,14 @@ func (p *connPeer) do() {
 	}()
 
 	p.client.Safe(func() {
+		if p.terminateRequested == false {
+			dolog(LevelInfo, "ERR (connPeer): %s", err)
+		}
+
 		// transfer abruptly interrupted, doesnt care if the conn was terminated or not
 		switch p.state {
 		case "delegated_upload", "delegated_download":
 			p.transfer.handleExit(err)
-		}
-
-		if p.terminateRequested == false {
-			switch p.state {
-			// timeout while waiting, not an error
-			case "wait_upload", "wait_download":
-			default:
-				if p.terminateRequested == false {
-					dolog(LevelInfo, "ERR (connPeer): %s", err)
-				}
-			}
 		}
 
 		if p.conn != nil {
