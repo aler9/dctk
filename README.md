@@ -61,7 +61,7 @@ https://godoc.org/github.com/aler9/dctoolkit
 
 #### Testing
 
-If you want to edit this library and test the results, you can you automated tests through:
+If you want to edit this library and test the results, you can you automated tests with:
 ```
 make test
 ```
@@ -70,7 +70,7 @@ make test
 
 #### Installation
 
-Go &ge; 1.12 is required. Download, compile and install the binaries with a single command:
+Go &ge; 1.12 is required. Download, compile and install the binaries with:
 ```
 go get github.com/aler9/dctoolkit/cmd/...
 ```
