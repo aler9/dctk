@@ -40,6 +40,7 @@ echo "UPDATE SetupList SET val = '10' WHERE var = 'search_number';" | mysql -D v
 echo "INSERT INTO reglist (nick, class, reg_date, reg_op, pwd_change, pwd_crypt, login_pwd) VALUES \
     ('testdctk_auth', 3, UNIX_TIMESTAMP(NOW()), 'installation', 0, 0, 'testpa&#36;ss');" \
     | mysql -D verlihub
+echo "UPDATE SetupList SET val = '0' WHERE var = 'int_login';" | mysql -D verlihub
 
 kill -TERM $MPID
 wait
