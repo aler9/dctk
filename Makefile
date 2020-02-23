@@ -11,6 +11,7 @@ help:
 	@echo "  mod-tidy                      run go mod tidy"
 	@echo "  format                        format source files"
 	@echo "  test                          run available tests"
+	@echo "  test-manual                   start a test hub and client"
 	@echo "  run-example E=[name]          run an example by name"
 	@echo "  run-command N=[name] A=[args] run a command by name"
 	@echo ""
@@ -54,6 +55,12 @@ test-nodocker:
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
 	go test -v ./test
+
+test-manual:
+	cd ./test-manual && docker-compose up \
+	--build \
+	--renew-anon-volumes \
+	--force-recreate
 
 run-example:
 	@test -f "./examples/$(E).go" || ( echo "example file not found"; exit 1 )
