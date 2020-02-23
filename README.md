@@ -103,14 +103,14 @@ Share a directory in a given hub.
 
 ## Links
 
+Base library
+* https://github.com/direct-connect/go-dc
+
 Protocol references
 * (ADC) https://adc.dcbase.org/Protocol
 * (ADC) https://adc.dcbase.org/Extensions
 * (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
 * (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
-
-Base library
-* https://github.com/direct-connect/go-dc
 
 Hubs
 * (NMDC) http://www.ptokax.org
