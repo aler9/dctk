@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	// wait initialization and start indexing
+	// wait initialization and start indexing files in a certain folder
 	client.OnInitialized = func() {
 		client.ShareAdd("share", "/etc")
 	}
