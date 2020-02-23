@@ -39,21 +39,21 @@ import (
 
 #### Examples
 
-* [connection_active](example/01connection_active.go)
-* [connection_passive](example/02connection_passive.go)
-* [chat_public](example/03chat_public.go)
-* [chat_private](example/04chat_private.go)
-* [search](example/05search.go)
-* [share](example/06share.go)
-* [magnet](example/07magnet.go)
-* [download_list](example/08download_list.go)
-* [download_all_lists](example/09download_all_lists.go)
-* [download_file](example/10download_file.go)
-* [download_file_on_disk](example/11download_file_on_disk.go)
-* [download_file_from_search](example/12download_file_from_search.go)
-* [download_file_from_list](example/13download_file_from_list.go)
-* [download_directory_from_list](example/14download_directory_from_list.go)
-* [download_streaming](example/15download_streaming.go)
+* [connection_active](examples/01connection_active.go)
+* [connection_passive](examples/02connection_passive.go)
+* [chat_public](examples/03chat_public.go)
+* [chat_private](examples/04chat_private.go)
+* [search](examples/05search.go)
+* [share](examples/06share.go)
+* [magnet](examples/07magnet.go)
+* [download_list](examples/08download_list.go)
+* [download_all_lists](examples/09download_all_lists.go)
+* [download_file](examples/10download_file.go)
+* [download_file_on_disk](examples/11download_file_on_disk.go)
+* [download_file_from_search](examples/12download_file_from_search.go)
+* [download_file_from_list](examples/13download_file_from_list.go)
+* [download_directory_from_list](examples/14download_directory_from_list.go)
+* [download_streaming](examples/15download_streaming.go)
 
 #### Documentation
 

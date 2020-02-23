@@ -49,18 +49,18 @@ test:
 
 test-nodocker:
 	$(eval export CGO_ENABLED = 0)
-	$(foreach f,$(shell echo example/*),go build -o /dev/null ./$(f)$(NL))
+	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
 	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
 	go test -v ./test
 
 run-example:
-	@test -f "./example/$(E).go" || ( echo "example file not found"; exit 1 )
+	@test -f "./examples/$(E).go" || ( echo "example file not found"; exit 1 )
 	docker run --rm -it -v $(PWD):/s \
 	--network=host \
 	$(BASE_IMAGE) sh -c "\
-	cd /s && go run example/$(E).go"
+	cd /s && go run examples/$(E).go"
 
 define DOCKERFILE_RUN_COMMAND
 FROM $(BASE_IMAGE)

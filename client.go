@@ -4,7 +4,7 @@ peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 It allows the creation of clients that can interact with hubs and other
 clients, and can be used as backend to user interfaces or automatic bots.
 
-Basic example (more are available at https://github.com/aler9/dctoolkit/tree/master/example)
+Basic example (more are available at https://github.com/aler9/dctoolkit/tree/master/examples)
 
   package main
 
