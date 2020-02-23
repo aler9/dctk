@@ -50,8 +50,8 @@ test:
 
 test-nodocker:
 	$(eval export CGO_ENABLED = 0)
+	go build -o /dev/null ./commands/...
 	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
-	$(foreach d,$(shell echo cmd/*/),go build -o /dev/null ./$(d)$(NL))
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
 	go test -v ./test

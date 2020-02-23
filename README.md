@@ -72,7 +72,7 @@ make test
 
 Go &ge; 1.12 is required. Download, compile and install the binaries with:
 ```
-go get github.com/aler9/dctoolkit/cmd/...
+go get github.com/aler9/dctoolkit/commands/...
 ```
 
 #### Usage
