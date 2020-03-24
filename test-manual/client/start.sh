@@ -6,4 +6,6 @@ while true; do
 	sleep 1
 done
 
+dd if=/dev/urandom of=/share/temp bs=1M count=100
+
 exec /out

@@ -6,7 +6,10 @@ services:
     network_mode: host
 
   client:
+    read_only: yes
     build:
       context: ../
       dockerfile: test-manual/client/Dockerfile
     network_mode: host
+    tmpfs:
+    - /share

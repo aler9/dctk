@@ -20,7 +20,7 @@ func main() {
 	}
 
 	client.OnInitialized = func() {
-		client.ShareAdd("share", "/etc")
+		client.ShareAdd("share", "/share")
 	}
 
 	client.OnShareIndexed = func() {
