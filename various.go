@@ -46,7 +46,10 @@ func dcReadableQuery(request string) string {
 	if strings.HasPrefix(request, "file TTH/") {
 		return "tth/" + strings.TrimPrefix(request, "file TTH/")
 	}
-	return "filelist"
+	if request == "file files.xml.bz2" {
+		return "filelist"
+	}
+	return "\"" + request + "\""
 }
 
 func randomInt(min, max int) int {

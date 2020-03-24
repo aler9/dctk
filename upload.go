@@ -64,6 +64,10 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			return nil
 		}
 
+		if !strings.HasPrefix(u.query, "file TTH/") && !strings.HasPrefix(u.query, "tthl TTH/") {
+			return fmt.Errorf("invalid query")
+		}
+
 		// skip "file TTH/" or "tthl TTH/"
 		tthString := u.query[9:]
 
