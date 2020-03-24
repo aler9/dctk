@@ -132,15 +132,16 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			return err
 		}
 
-		// set real length
 		maxLength := sfile.size - u.start
 		if reqLength != -1 {
+			// check required length
 			if uint64(reqLength) > maxLength {
 				f.Close()
 				return fmt.Errorf("length too big")
 			}
 			u.length = uint64(reqLength)
 		} else {
+			// set real length
 			u.length = maxLength
 		}
 
@@ -224,12 +225,20 @@ func (u *upload) handleUpload() error {
 		u.pconn.conn.WriterEnableZlib()
 	}
 
-	// setup time to correctly compute speed
 	u.lastPrintTime = time.Now()
+	buf := make([]byte, 1024*1024)
+	bufLength := uint64(len(buf))
 
-	var buf [1024 * 1024]byte
 	for {
-		n, err := u.reader.Read(buf[:])
+		// apply length
+		maxLength := func() uint64 {
+			if (u.offset + bufLength) >= u.length {
+				return u.length - u.offset
+			}
+			return bufLength
+		}()
+
+		n, err := u.reader.Read(buf[:maxLength])
 		if err != nil && err != io.EOF {
 			return err
 		}
