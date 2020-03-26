@@ -237,13 +237,13 @@ func (u *upload) handleUpload() error {
 			}
 			return bufLength
 		}()
+		if maxLength == 0 {
+			break
+		}
 
 		n, err := u.reader.Read(buf[:maxLength])
 		if err != nil && err != io.EOF {
 			return err
-		}
-		if n == 0 {
-			break
 		}
 
 		u.offset += uint64(n)
