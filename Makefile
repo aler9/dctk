@@ -49,12 +49,12 @@ test:
 	make test-nodocker
 
 test-nodocker:
-	$(eval export CGO_ENABLED = 0)
-	go build -o /dev/null ./commands/...
-	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
+	$(eval export CGO_ENABLED = 0)
 	go test -v ./test
+	go build -o /dev/null ./commands/...
+	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
 
 test-manual:
 	cd ./test-manual && docker-compose up \
