@@ -352,7 +352,7 @@ func (c *Client) Close() error {
 		return nil
 	}
 	c.terminateRequested = true
-	c.terminate <- struct{}{}
+	close(c.terminate)
 	return nil
 }
 

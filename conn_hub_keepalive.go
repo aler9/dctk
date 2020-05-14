@@ -15,12 +15,12 @@ type hubKeepAliver struct {
 
 func newHubKeepAliver(h *connHub) *hubKeepAliver {
 	ka := &hubKeepAliver{
-		terminate: make(chan struct{}, 1),
+		terminate: make(chan struct{}),
 		done:      make(chan struct{}),
 	}
 
 	go func() {
-		defer func() { ka.done <- struct{}{} }()
+		defer close(ka.done)
 
 		ticker := time.NewTicker(_HUB_KEEPALIVE_PERIOD)
 		defer ticker.Stop()
@@ -45,6 +45,6 @@ func newHubKeepAliver(h *connHub) *hubKeepAliver {
 }
 
 func (ka *hubKeepAliver) Close() {
-	ka.terminate <- struct{}{}
+	close(ka.terminate)
 	<-ka.done
 }

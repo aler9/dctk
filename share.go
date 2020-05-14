@@ -40,7 +40,7 @@ func newshareIndexer(client *Client) error {
 		client: client,
 		// must be buffered since it could otherwise cause a deadlock:
 		// - after <-indexChan and before Safe()
-		terminate: make(chan struct{}, 1),
+		terminate: make(chan struct{}),
 		indexChan: make(chan struct{}),
 	}
 	client.shareIndexer.index()
@@ -52,7 +52,7 @@ func (sm *shareIndexer) close() {
 		return
 	}
 	sm.terminateRequested = true
-	sm.terminate <- struct{}{}
+	close(sm.terminate)
 }
 
 func (sm *shareIndexer) do() {

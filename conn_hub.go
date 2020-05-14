@@ -76,7 +76,7 @@ type connHub struct {
 func newConnHub(client *Client) error {
 	client.connHub = &connHub{
 		client:     client,
-		terminate:  make(chan struct{}, 1),
+		terminate:  make(chan struct{}),
 		state:      hubDisconnected,
 		uniqueCmds: make(map[string]struct{}),
 	}
@@ -99,7 +99,7 @@ func (h *connHub) close() {
 		return
 	}
 	h.terminateRequested = true
-	h.terminate <- struct{}{}
+	close(h.terminate)
 }
 
 func (h *connHub) do() {

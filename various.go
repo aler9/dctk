@@ -89,13 +89,14 @@ type connEstablisher struct {
 
 func newConnEstablisher(address string, timeout time.Duration, retries uint) *connEstablisher {
 	ce := &connEstablisher{
-		Wait: make(chan struct{}, 1),
+		Wait: make(chan struct{}),
 	}
 
 	go func() {
 		ce.Conn, ce.Error = connWithTimeoutAndRetries(address, timeout, retries)
-		ce.Wait <- struct{}{}
+		close(ce.Wait)
 	}()
+
 	return ce
 }
 

@@ -44,7 +44,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 		client:      client,
 		isEncrypted: isEncrypted,
 		isActive:    isActive,
-		terminate:   make(chan struct{}, 1),
+		terminate:   make(chan struct{}),
 		adcToken:    adcToken,
 	}
 	p.client.connPeers[p] = struct{}{}
@@ -87,7 +87,7 @@ func (p *connPeer) close() {
 		return
 	}
 	p.terminateRequested = true
-	p.terminate <- struct{}{}
+	close(p.terminate)
 }
 
 func (p *connPeer) do() {

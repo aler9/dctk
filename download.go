@@ -141,7 +141,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 	d := &Download{
 		conf:         conf,
 		client:       c,
-		terminate:    make(chan struct{}, 1),
+		terminate:    make(chan struct{}),
 		state:        "uninitialized",
 		activeDlChan: make(chan struct{}),
 		slotChan:     make(chan struct{}),
@@ -184,7 +184,7 @@ func (d *Download) Close() {
 	d.terminateRequested = true
 
 	if d.state != "processing" {
-		d.terminate <- struct{}{}
+		close(d.terminate)
 	} else {
 		d.pconn.close()
 	}
