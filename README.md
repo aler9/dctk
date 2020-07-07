@@ -1,9 +1,9 @@
 
 # dctoolkit
 
-[![GoDoc](https://godoc.org/github.com/aler9/dctoolkit?status.svg)](https://godoc.org/github.com/aler9/dctoolkit)
-[![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctoolkit)](https://goreportcard.com/report/github.com/aler9/dctoolkit)
 [![Build Status](https://travis-ci.org/aler9/dctoolkit.svg?branch=master)](https://travis-ci.org/aler9/dctoolkit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctoolkit)](https://goreportcard.com/report/github.com/aler9/dctoolkit)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/aler9/dctoolkit?tab=doc)
 
 dctoolkit implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
 * a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
@@ -57,7 +57,7 @@ import (
 
 #### Documentation
 
-https://godoc.org/github.com/aler9/dctoolkit
+https://pkg.go.dev/github.com/aler9/dctoolkit
 
 #### Testing
 
