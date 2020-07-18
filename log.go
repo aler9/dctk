@@ -5,11 +5,6 @@ import (
 	"os"
 )
 
-// set up log once
-func init() {
-	log.SetOutput(os.Stdout)
-}
-
 // LogLevel contains the available log levels.
 type LogLevel int
 
