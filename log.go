@@ -2,7 +2,6 @@ package dctoolkit
 
 import (
 	"log"
-	"os"
 )
 
 // LogLevel contains the available log levels.
