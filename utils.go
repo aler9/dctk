@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aler9/dctoolkit/tiger"
 )
 
-var dirTTH = TigerHashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+var dirTTH = tiger.HashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
 var errorArgsFormat = fmt.Errorf("not formatted correctly")
 

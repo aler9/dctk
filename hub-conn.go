@@ -9,10 +9,11 @@ import (
 
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
-	"github.com/aler9/go-dc/tiger"
+	godctiger "github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 // HubField is a name of a hub information field.
@@ -316,10 +317,10 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		}
 		h.state = hubGetPass
 
-		hasher := newTiger()
+		hasher := tiger.NewHash()
 		hasher.Write([]byte(h.client.conf.Password))
 		hasher.Write(msg.Msg.Salt)
-		var data tiger.Hash
+		var data godctiger.Hash
 		hasher.Sum(data[:0])
 
 		h.passwordSent = true

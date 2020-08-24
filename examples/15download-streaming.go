@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 	// or otherwise start a search like it is done in this example
 	var filePeer *dctk.Peer
 	fileSize := uint64(0)
-	fileTTH := dctk.TigerHash{}
+	fileTTH := tiger.Hash{}
 	fileCurPos := uint64(0)
 	dlStarted := false
 	const chunkMaxLen = uint64(1024 * 1024)

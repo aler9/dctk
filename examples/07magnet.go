@@ -7,6 +7,7 @@ import (
 	"os"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 	}
 
 	// compute and print file TTH
-	tth, err := dctk.TTHFromFile(filepath)
+	tth, err := tiger.HashFromFile(filepath)
 	if err != nil {
 		panic(err)
 	}

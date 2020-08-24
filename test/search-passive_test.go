@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func TestSearchPassive(t *testing.T) {
@@ -94,7 +95,7 @@ func TestSearchPassive(t *testing.T) {
 				case 1:
 					if res.IsDir != false ||
 						res.Path != "/aliasname/inner folder/test file.txt" ||
-						*res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+						*res.TTH != tiger.HashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 						res.Size != 10000 ||
 						res.IsActive != false {
 						t.Errorf("wrong result (2): %+v", res)
@@ -102,13 +103,13 @@ func TestSearchPassive(t *testing.T) {
 					step++
 					client.Search(dctk.SearchConf{
 						Type: dctk.SearchTTH,
-						TTH:  dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+						TTH:  tiger.HashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 					})
 
 				case 2:
 					if res.IsDir != false ||
 						res.Path != "/aliasname/inner folder/test file.txt" ||
-						*res.TTH != dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
+						*res.TTH != tiger.HashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY") ||
 						res.Size != 10000 ||
 						res.IsActive != false {
 						t.Errorf("wrong result (3): %+v", res)

@@ -5,12 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 var testCasesTTH = []struct {
 	b []byte
-	l dctk.TigerLeaves
+	l tiger.Leaves
 }{
 	{
 		[]byte{
@@ -27,24 +27,24 @@ var testCasesTTH = []struct {
 			0x36, 0xe2, 0x67, 0xff, 0xe1, 0xe1, 0xbd, 0xb2,
 			0x7d, 0x2c, 0xae, 0xd1, 0xfd, 0x98, 0x2e, 0x34,
 		},
-		dctk.TigerLeaves{
-			dctk.TigerHashMust("BR4BVJBMHDFVCFI4WBPSL63W5TWXWVBSC574BLI"),
-			dctk.TigerHashMust("CZQUWH3IYXBF5L3BGYUGZHASSMXU647IP2IKE4Y"),
-			dctk.TigerHashMust("PT2BL57H4JJ5LHXBDA6CJ5KEOO5XEKNIFYINE7I"),
-			dctk.TigerHashMust("3ZTFBW4Y65OGGNXCM776DYN5WJ6SZLWR7WMC4NA"),
+		tiger.Leaves{
+			tiger.HashMust("BR4BVJBMHDFVCFI4WBPSL63W5TWXWVBSC574BLI"),
+			tiger.HashMust("CZQUWH3IYXBF5L3BGYUGZHASSMXU647IP2IKE4Y"),
+			tiger.HashMust("PT2BL57H4JJ5LHXBDA6CJ5KEOO5XEKNIFYINE7I"),
+			tiger.HashMust("3ZTFBW4Y65OGGNXCM776DYN5WJ6SZLWR7WMC4NA"),
 		},
 	},
 }
 
-func TestTTHLeavesLoad(t *testing.T) {
+func TestTigerLeavesLoad(t *testing.T) {
 	for _, c := range testCasesTTH {
-		l, err := dctk.TTHLeavesLoadFromBytes(c.b)
+		l, err := tiger.LeavesLoadFromBytes(c.b)
 		require.NoError(t, err)
 		require.Equal(t, c.l, l)
 	}
 }
 
-func TestTTHLeavesSave(t *testing.T) {
+func TestTigerLeavesSave(t *testing.T) {
 	for _, c := range testCasesTTH {
 		b, err := c.l.SaveToBytes()
 		require.NoError(t, err)

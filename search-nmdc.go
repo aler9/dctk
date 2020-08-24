@@ -7,9 +7,10 @@ import (
 	"strings"
 
 	"github.com/aler9/go-dc/nmdc"
-	"github.com/aler9/go-dc/tiger"
+	godctiger "github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func nmdcSearchEscape(in string) string {
@@ -32,7 +33,7 @@ func (c *Client) handleNmdcSearchResult(isActive bool, msg *nmdc.SR) {
 		Path:      strings.Join(msg.Path, "/"),
 		SlotAvail: uint(msg.FreeSlots),
 		Size:      msg.Size,
-		TTH:       (*TigerHash)(msg.TTH),
+		TTH:       (*tiger.Hash)(msg.TTH),
 		IsDir:     msg.IsDir,
 	}
 	c.handleSearchResult(sr)
@@ -67,9 +68,9 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 			}
 			return ""
 		}(),
-		TTH: func() *tiger.Hash {
+		TTH: func() *godctiger.Hash {
 			if conf.Type == SearchTTH {
-				ptr := tiger.Hash(conf.TTH)
+				ptr := godctiger.Hash(conf.TTH)
 				return &ptr
 			}
 			return nil
@@ -127,7 +128,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 		}
 
 		if req.DataType == nmdc.DataTypeTTH {
-			sr.tth = TigerHash(*req.TTH)
+			sr.tth = tiger.Hash(*req.TTH)
 		} else {
 			sr.query = req.Pattern
 		}
@@ -158,9 +159,9 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 				}
 				return 0
 			}(),
-			TTH: func() *tiger.Hash {
+			TTH: func() *godctiger.Hash {
 				if f, ok := res.(*shareFile); ok {
-					ptr := tiger.Hash(f.tth)
+					ptr := godctiger.Hash(f.tth)
 					return &ptr
 				}
 				return nil

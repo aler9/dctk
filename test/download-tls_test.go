@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func TestDownloadTls(t *testing.T) {
@@ -65,7 +66,7 @@ func TestDownloadTls(t *testing.T) {
 				if p.Nick == "client1" {
 					client.DownloadFile(dctk.DownloadConf{
 						Peer: p,
-						TTH:  dctk.TigerHashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
+						TTH:  tiger.HashMust("UJUIOGYVALWRB56PRJEB6ZH3G4OLTELOEQ3UKMY"),
 					})
 				}
 			}

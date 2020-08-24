@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/aler9/go-dc/adc"
-	"github.com/aler9/go-dc/tiger"
+	godctiger "github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {
@@ -23,10 +24,10 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.Searc
 	sr.Size = uint64(msg.Size)
 	sr.SlotAvail = uint(msg.Slots)
 	if msg.TTH != nil {
-		if *msg.TTH == tiger.Hash(dirTTH) {
+		if tiger.Hash(*msg.TTH) == dirTTH {
 			sr.IsDir = true
 		} else {
-			sr.TTH = (*TigerHash)(msg.TTH)
+			sr.TTH = (*tiger.Hash)(msg.TTH)
 		}
 	}
 
@@ -52,7 +53,7 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 		req.And = append(req.And, conf.Query)
 
 	case SearchTTH:
-		req.TTH = (*tiger.Hash)(&conf.TTH)
+		req.TTH = (*godctiger.Hash)(&conf.TTH)
 	}
 
 	// MaxSize and MinSize are used only for files. They can be used for
@@ -131,7 +132,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		}
 
 		if req.TTH != nil {
-			sr.tth = TigerHash(*req.TTH)
+			sr.tth = tiger.Hash(*req.TTH)
 		} else {
 			sr.query = req.And[0]
 		}
@@ -152,13 +153,13 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		switch o := res.(type) {
 		case *shareFile:
 			msg.Path = o.aliasPath
-			msg.TTH = (*tiger.Hash)(&o.tth)
+			msg.TTH = (*godctiger.Hash)(&o.tth)
 			msg.Size = int64(o.size)
 
 		case *shareDirectory:
 			// if directory, add a trailing slash
 			msg.Path = o.aliasPath + "/"
-			msg.TTH = (*tiger.Hash)(&dirTTH)
+			msg.TTH = (*godctiger.Hash)(&dirTTH)
 			msg.Size = int64(o.size)
 		}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func TestDownloadDir(t *testing.T) {
@@ -71,20 +72,20 @@ func TestDownloadDir(t *testing.T) {
 				}
 			}
 
-			paths := map[dctk.TigerHash]string{
-				dctk.TigerHashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/tmp/testshare/folder/first file.txt",
-				dctk.TigerHashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/tmp/testshare/folder/second file.txt",
-				dctk.TigerHashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/tmp/testshare/folder/third file.txt",
-				dctk.TigerHashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/tmp/testshare/folder/subdir/fourth file.txt",
-				dctk.TigerHashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/tmp/testshare/folder/subdir/fifth file.txt",
+			paths := map[tiger.Hash]string{
+				tiger.HashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): "/tmp/testshare/folder/first file.txt",
+				tiger.HashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): "/tmp/testshare/folder/second file.txt",
+				tiger.HashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): "/tmp/testshare/folder/third file.txt",
+				tiger.HashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): "/tmp/testshare/folder/subdir/fourth file.txt",
+				tiger.HashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): "/tmp/testshare/folder/subdir/fifth file.txt",
 			}
 
-			downloaded := map[dctk.TigerHash]bool{
-				dctk.TigerHashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): false,
-				dctk.TigerHashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): false,
-				dctk.TigerHashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): false,
-				dctk.TigerHashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): false,
-				dctk.TigerHashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): false,
+			downloaded := map[tiger.Hash]bool{
+				tiger.HashMust("I3M75IU7XNESOE6ZJ2AGG2J5CQZIBBKYZLBQ5NI"): false,
+				tiger.HashMust("PZBH3XI6AFTZHB2UCG35FDILNVOT6JAELGOX3AA"): false,
+				tiger.HashMust("GMSFH3RI6S3THNCDSM3RHHDY6XKIIQ64VLLZJQI"): false,
+				tiger.HashMust("V6O5IVOZHCSB5FDMU7ZQ7L4XTF6BTCD2SIZEISI"): false,
+				tiger.HashMust("7PYQKBYSMSNOLMQWS2QKCNBQC65RK5VKNOWTCMY"): false,
 			}
 
 			filelistDownloaded := false
@@ -110,7 +111,7 @@ func TestDownloadDir(t *testing.T) {
 					}
 					downloaded[d.Conf().TTH] = true
 
-					tth, err := dctk.TTHFromFile(paths[d.Conf().TTH])
+					tth, err := tiger.HashFromFile(paths[d.Conf().TTH])
 					require.NoError(t, err)
 
 					require.Equal(t, tth, d.Conf().TTH)

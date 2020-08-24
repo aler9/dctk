@@ -9,13 +9,15 @@ import (
 	"time"
 
 	"github.com/dsnet/compress/bzip2"
+
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 type shareFile struct {
 	size      uint64
 	modTime   time.Time
-	tth       TigerHash
-	tthl      TigerLeaves
+	tth       tiger.Hash
+	tthl      tiger.Leaves
 	realPath  string
 	aliasPath string
 }
@@ -112,8 +114,8 @@ func (sm *shareIndexer) index() {
 					dir.dirs[file.Name()] = subdir
 
 				} else {
-					var tthl TigerLeaves
-					var tth TigerHash
+					var tthl tiger.Leaves
+					var tth tiger.Hash
 
 					aliasPath := filepath.Join(apath, file.Name())
 					origPath := filepath.Join(dpath, file.Name())
@@ -142,7 +144,7 @@ func (sm *shareIndexer) index() {
 
 					} else {
 						var err error
-						tthl, err = TTHLeavesFromFile(realPath)
+						tthl, err = tiger.LeavesFromFile(realPath)
 						if err != nil {
 							return nil, err
 						}

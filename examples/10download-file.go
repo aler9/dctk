@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 		if p.Nick == "nickname" {
 			client.DownloadFile(dctk.DownloadConf{
 				Peer: p,
-				TTH:  dctk.TigerHashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
+				TTH:  tiger.HashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
 			})
 		}
 	}

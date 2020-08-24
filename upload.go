@@ -14,6 +14,7 @@ import (
 
 	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 var errorNoSlots = fmt.Errorf("no slots available")
@@ -75,7 +76,7 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 		tthString := u.query[9:]
 
 		// upload is file by TTH or its tthl
-		tth, err := TigerHashFromBase32(tthString)
+		tth, err := tiger.HashFromBase32(tthString)
 		if err != nil {
 			return err
 		}

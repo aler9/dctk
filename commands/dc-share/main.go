@@ -1,8 +1,9 @@
 package main
 
 import (
-	dctk "github.com/aler9/dctoolkit"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	dctk "github.com/aler9/dctoolkit"
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 // SearchType contains the search type.
@@ -32,7 +33,7 @@ type SearchResult struct {
 	// size (file only in NMDC, both files and directories in ADC)
 	Size uint64
 	// TTH (file only)
-	TTH *TigerHash
+	TTH *tiger.Hash
 	// the available upload slots of the peer
 	SlotAvail uint
 }
@@ -49,7 +50,7 @@ type SearchConf struct {
 	// (if type is SearchAny or SearchDirectory)
 	Query string
 	// file TTH (if type is SearchTTH)
-	TTH TigerHash
+	TTH tiger.Hash
 }
 
 type searchIncomingRequest struct {
@@ -57,8 +58,8 @@ type searchIncomingRequest struct {
 	stype    SearchType
 	minSize  uint64
 	maxSize  uint64
-	query    string    // if type is SearchAny or SearchDirectory
-	tth      TigerHash // if type is SearchTTH
+	query    string     // if type is SearchAny or SearchDirectory
+	tth      tiger.Hash // if type is SearchTTH
 }
 
 // Search starts a file search asynchronously. See SearchConf for the available options.

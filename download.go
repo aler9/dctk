@@ -16,6 +16,7 @@ import (
 
 	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 const (
@@ -27,7 +28,7 @@ type DownloadConf struct {
 	// the peer from which downloading
 	Peer *Peer
 	// the TTH of the file to download
-	TTH TigerHash
+	TTH tiger.Hash
 	// the starting point of the file part to download, in bytes
 	Start uint64
 	// the length of the file part. Leave zero to download the entire file
@@ -442,17 +443,17 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 					log.Log(d.client.conf.LogLevel, LogLevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
 
 					// file in disk
-					var contentTTH TigerHash
+					var contentTTH tiger.Hash
 					if d.conf.SavePath != "" {
 						var err error
-						contentTTH, err = TTHFromFile(d.conf.SavePath + ".tmp")
+						contentTTH, err = tiger.HashFromFile(d.conf.SavePath + ".tmp")
 						if err != nil {
 							return err
 						}
 
 						// file in ram
 					} else {
-						contentTTH = TTHFromBytes(d.content)
+						contentTTH = tiger.HashFromBytes(d.content)
 					}
 
 					if contentTTH != d.conf.TTH {

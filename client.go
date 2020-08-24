@@ -53,6 +53,7 @@ import (
 
 	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctoolkit/tiger"
 )
 
 const (
@@ -322,7 +323,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 	}
 
 	// generate clientId (hash of privateId)
-	hasher := newTiger()
+	hasher := tiger.NewHash()
 	hasher.Write(c.privateId[:])
 	hasher.Sum(c.clientId[:0])
 
