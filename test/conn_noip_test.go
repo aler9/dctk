@@ -12,9 +12,9 @@ import (
 func TestConnNoIp(t *testing.T) {
 	foreachExternalHub(t, "ConnNoIp", func(t *testing.T, e *externalHub) {
 		ok := false
-		dctk.SetLogLevel(dctk.LevelError)
 
 		client, err := dctk.NewClient(dctk.ClientConf{
+			LogLevel:   dctk.LogLevelError,
 			HubUrl:     e.Url(),
 			Nick:       "testdctk",
 			Ip:         dockerIp,

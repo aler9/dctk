@@ -8,6 +8,8 @@ import (
 
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/tiger"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {
@@ -136,7 +138,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		return c.handleSearchIncomingRequest(sr)
 	}()
 	if err != nil {
-		dolog(LevelDebug, "[search] error: %s", err)
+		log.Log(c.conf.LogLevel, LogLevelDebug, "[search] error: %s", err)
 		return
 	}
 

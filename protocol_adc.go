@@ -10,6 +10,8 @@ import (
 	"reflect"
 
 	"github.com/aler9/go-dc/adc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 const (
@@ -37,10 +39,10 @@ type protocolAdc struct {
 	*protocolBase
 }
 
-func newProtocolAdc(remoteLabel string, nconn net.Conn,
+func newProtocolAdc(logLevel LogLevel, remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool) protocol {
 	p := &protocolAdc{
-		protocolBase: newProtocolBase(remoteLabel,
+		protocolBase: newProtocolBase(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
 	}
 	return p
@@ -149,7 +151,7 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.logLevel, LogLevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
 
 	} else {
@@ -162,7 +164,7 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 }
 
 func (p *protocolAdc) Write(pktMsg msgEncodable) {
-	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
+	log.Log(p.logLevel, LogLevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
 
 	pkt := reflect.ValueOf(pktMsg).Elem().FieldByName("Pkt").Interface().(adc.Packet)
 	msg := reflect.ValueOf(pktMsg).Elem().FieldByName("Msg").Interface().(adc.Message)

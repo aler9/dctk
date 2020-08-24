@@ -8,6 +8,8 @@ import (
 
 	"github.com/aler9/go-dc/nmdc"
 	"github.com/aler9/go-dc/tiger"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 func nmdcSearchEscape(in string) string {
@@ -133,7 +135,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 		return c.handleSearchIncomingRequest(sr)
 	}()
 	if err != nil {
-		dolog(LevelDebug, "[search] error: %s", err)
+		log.Log(c.conf.LogLevel, LogLevelDebug, "[search] error: %s", err)
 		return
 	}
 

@@ -10,6 +10,8 @@ import (
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
 	"github.com/aler9/go-dc/tiger"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 // HubField is a name of a hub information field.
@@ -146,7 +148,7 @@ func (h *connHub) do() {
 				h.client.OnHubTLS(st)
 			}
 			if st.NegotiatedProtocol != "" {
-				dolog(LevelInfo, "[hub] negotiated %q", st.NegotiatedProtocol)
+				log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] negotiated %q", st.NegotiatedProtocol)
 				// ALPN negotiation
 				switch st.NegotiatedProtocol {
 				case "adc":
@@ -161,10 +163,10 @@ func (h *connHub) do() {
 		proto := ""
 		if h.client.protoIsAdc() {
 			proto = "adc"
-			h.conn = newProtocolAdc("h", rawconn, false, true)
+			h.conn = newProtocolAdc(h.client.conf.LogLevel, "h", rawconn, false, true)
 		} else {
 			proto = "nmdc"
-			h.conn = newProtocolNmdc("h", rawconn, false, true)
+			h.conn = newProtocolNmdc(h.client.conf.LogLevel, "h", rawconn, false, true)
 		}
 		if h.client.OnHubProto != nil {
 			h.client.OnHubProto(proto)
@@ -175,7 +177,7 @@ func (h *connHub) do() {
 			defer keepaliver.Close()
 		}
 
-		dolog(LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
+		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
 		if h.client.protoIsAdc() {
 			features := adc.ModFeatures{
@@ -230,14 +232,14 @@ func (h *connHub) do() {
 
 	h.client.Safe(func() {
 		if h.terminateRequested != true {
-			dolog(LevelInfo, "ERR: %s", err)
+			log.Log(h.client.conf.LogLevel, LogLevelInfo, "ERR: %s", err)
 
 			if h.client.OnHubError != nil {
 				h.client.OnHubError(err)
 			}
 		}
 
-		dolog(LevelInfo, "[hub] disconnected")
+		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] disconnected")
 
 		// close client too
 		h.client.Close()
@@ -261,7 +263,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		case adc.Success:
 
 		case adc.Recoverable:
-			dolog(LevelInfo, "[hub] [WARN] %s (%d)", msg.Msg.Msg, msg.Msg.Code)
+			log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [WARN] %s (%d)", msg.Msg.Msg, msg.Msg.Code)
 
 		case adc.Fatal:
 			return fmt.Errorf("fatal: %s (%d)", msg.Msg.Msg, msg.Msg.Code)
@@ -286,7 +288,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			if h.client.OnHubInfo != nil {
 				h.client.OnHubInfo(k, v)
 			}
-			dolog(LevelInfo, "[hub] [%s] %s", k, v)
+			log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [%s] %s", k, v)
 		}
 
 		if msg.Msg.Name != "" {
@@ -305,7 +307,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 	case *adcIMsg:
 		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Msg.Text)
-		dolog(LevelInfo, "[hub] %s", msg.Msg.Text)
+		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] %s", msg.Msg.Text)
 
 	case *adcIGetPass:
 		if h.state != hubSessionID {
@@ -440,7 +442,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 
 		if h.client.conf.IsPassive == true && hasFeature(adc.FeaTCP4) {
-			dolog(LevelDebug, "we are in passive and author requires active")
+			log.Log(h.client.conf.LogLevel, LogLevelDebug, "we are in passive and author requires active")
 			return nil
 		}
 
@@ -573,7 +575,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		if h.client.OnHubInfo != nil {
 			h.client.OnHubInfo(HubName, string(msg.String))
 		}
-		dolog(LevelInfo, "[hub] [name] %s", string(msg.String))
+		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [name] %s", string(msg.String))
 
 	case *nmdc.HubTopic:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
@@ -582,7 +584,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		if h.client.OnHubInfo != nil {
 			h.client.OnHubInfo(HubTopic, msg.Text)
 		}
-		dolog(LevelInfo, "[hub] [topic] %s", msg.Text)
+		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [topic] %s", msg.Text)
 
 	case *nmdc.GetPass:
 		if h.state != hubPreInitialized {
@@ -769,9 +771,9 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
 		}
 		if msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption {
-			dolog(LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
+			log.Log(h.client.conf.LogLevel, LogLevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
 		} else if !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption {
-			dolog(LevelInfo, "received plain connect to me request but encryption is forced, skipping")
+			log.Log(h.client.conf.LogLevel, LogLevelInfo, "received plain connect to me request but encryption is forced, skipping")
 		} else {
 			newConnPeer(h.client, msg.Secure, false, nil, ip, port, "")
 		}
@@ -806,7 +808,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 }
 
 func (h *connHub) handleHubInitialized() {
-	dolog(LevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
+	log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
 	if h.client.OnHubConnected != nil {
 		h.client.OnHubConnected()
 	}

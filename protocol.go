@@ -113,6 +113,7 @@ func (c *monitoredConn) PullWriteCounter() uint {
 }
 
 type protocolBase struct {
+	logLevel    LogLevel
 	remoteLabel string
 	terminated  uint32 // atomic
 	msgDelim    byte
@@ -126,7 +127,7 @@ type protocolBase struct {
 	writerJoined chan struct{}
 }
 
-func newProtocolBase(remoteLabel string, nconn net.Conn,
+func newProtocolBase(logLevel LogLevel, remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *protocolBase {
 
 	readTimeout := func() time.Duration {
@@ -148,6 +149,7 @@ func newProtocolBase(remoteLabel string, nconn net.Conn,
 	wri := lineproto.NewWriter(mc)
 
 	p := &protocolBase{
+		logLevel:          logLevel,
 		remoteLabel:       remoteLabel,
 		msgDelim:          msgDelim,
 		writerJoined:      make(chan struct{}),

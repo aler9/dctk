@@ -11,6 +11,8 @@ import (
 
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 var errorNoSlots = fmt.Errorf("no slots available")
@@ -44,7 +46,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 			reqCompressed == true),
 	}
 
-	dolog(LevelInfo, "[upload] [%s] request %s (s=%d l=%d)",
+	log.Log(client.conf.LogLevel, LogLevelInfo, "[upload] [%s] request %s (s=%d l=%d)",
 		pconn.peer.Nick, dcReadableQuery(u.query), u.start, reqLength)
 
 	err := func() error {
@@ -149,7 +151,7 @@ func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64
 		return nil
 	}()
 	if err != nil {
-		dolog(LevelInfo, "[peer] cannot start upload: %s", err)
+		log.Log(u.client.conf.LogLevel, LogLevelInfo, "[peer] cannot start upload: %s", err)
 		if err == errorNoSlots {
 			if u.client.protoIsAdc() {
 				u.pconn.conn.Write(&adcCStatus{
@@ -257,7 +259,7 @@ func (u *upload) handleUpload() error {
 		if since >= (1 * time.Second) {
 			u.lastPrintTime = time.Now()
 			speed := float64(u.pconn.conn.PullWriteCounter()) / 1024 / (float64(since) / float64(time.Second))
-			dolog(LevelInfo, "[sent] %d/%d (%.1f KiB/s)", u.offset, u.length, speed)
+			log.Log(u.client.conf.LogLevel, LogLevelInfo, "[sent] %d/%d (%.1f KiB/s)", u.offset, u.length, speed)
 		}
 	}
 
@@ -271,7 +273,7 @@ func (u *upload) handleUpload() error {
 
 func (u *upload) handleExit(err error) {
 	if u.terminateRequested != true && err != nil {
-		dolog(LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
+		log.Log(u.client.conf.LogLevel, LogLevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
 	}
 
 	delete(u.client.transfers, u)
@@ -281,10 +283,10 @@ func (u *upload) handleExit(err error) {
 	u.client.uploadSlotAvail += 1
 
 	if err == nil {
-		dolog(LevelInfo, "[upload] [%s] finished %s (s=%d l=%d)",
+		log.Log(u.client.conf.LogLevel, LogLevelInfo, "[upload] [%s] finished %s (s=%d l=%d)",
 			u.pconn.peer.Nick, dcReadableQuery(u.query), u.start, u.length)
 	} else {
-		dolog(LevelInfo, "[upload] [%s] failed %s",
+		log.Log(u.client.conf.LogLevel, LogLevelInfo, "[upload] [%s] failed %s",
 			u.pconn.peer.Nick, dcReadableQuery(u.query))
 	}
 }

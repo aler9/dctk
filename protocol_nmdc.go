@@ -7,6 +7,8 @@ import (
 	"regexp"
 
 	"github.com/aler9/go-dc/nmdc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 var reNmdcAddress = regexp.MustCompile("^(" + reStrIp + "):(" + reStrPort + ")$")
@@ -17,10 +19,10 @@ type protocolNmdc struct {
 	*protocolBase
 }
 
-func newProtocolNmdc(remoteLabel string, nconn net.Conn,
+func newProtocolNmdc(logLevel LogLevel, remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool) protocol {
 	p := &protocolNmdc{
-		protocolBase: newProtocolBase(remoteLabel,
+		protocolBase: newProtocolBase(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '|'),
 	}
 	return p
@@ -127,7 +129,7 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		dolog(LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.logLevel, LogLevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
 
 	} else {
@@ -140,7 +142,7 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 }
 
 func (p *protocolNmdc) Write(msg msgEncodable) {
-	dolog(LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
+	log.Log(p.logLevel, LogLevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
 
 	if c, ok := msg.(*nmdc.ChatMessage); ok {
 		var buf bytes.Buffer

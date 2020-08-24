@@ -14,6 +14,7 @@ func TestChatPrivate(t *testing.T) {
 
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
+				LogLevel:  dctk.LogLevelError,
 				HubUrl:    e.Url(),
 				Nick:      "client1",
 				IsPassive: true,
@@ -33,6 +34,7 @@ func TestChatPrivate(t *testing.T) {
 
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
+				LogLevel:  dctk.LogLevelError,
 				HubUrl:    e.Url(),
 				Nick:      "client2",
 				IsPassive: true,
@@ -60,8 +62,6 @@ func TestChatPrivate(t *testing.T) {
 
 			client.Run()
 		}
-
-		dctk.SetLogLevel(dctk.LevelError)
 
 		client2()
 

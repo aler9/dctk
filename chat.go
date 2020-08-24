@@ -3,6 +3,8 @@ package dctoolkit
 import (
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 // MessagePublic publishes a message in the hub public chat.
@@ -37,14 +39,14 @@ func (c *Client) MessagePrivate(dest *Peer, content string) {
 }
 
 func (c *Client) handlePublicMessage(author *Peer, content string) {
-	dolog(LevelInfo, "[PUB] <%s> %s", author.Nick, content)
+	log.Log(c.conf.LogLevel, LogLevelInfo, "[PUB] <%s> %s", author.Nick, content)
 	if c.OnMessagePublic != nil {
 		c.OnMessagePublic(author, content)
 	}
 }
 
 func (c *Client) handlePrivateMessage(author *Peer, content string) {
-	dolog(LevelInfo, "[PRIV] <%s> %s", author.Nick, content)
+	log.Log(c.conf.LogLevel, LogLevelInfo, "[PRIV] <%s> %s", author.Nick, content)
 	if c.OnMessagePrivate != nil {
 		c.OnMessagePrivate(author, content)
 	}

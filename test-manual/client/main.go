@@ -27,6 +27,6 @@ func main() {
 		client.HubConnect()
 	}
 
-	dctk.SetLogLevel(dctk.LevelDebug)
+	dctk.SetLogLevel(dctk.LogLevelDebug)
 	client.Run()
 }

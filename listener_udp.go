@@ -6,6 +6,8 @@ import (
 
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 type listenerUdp struct {
@@ -108,7 +110,7 @@ func (u *listenerUdp) do() {
 				}
 			}()
 			if err != nil {
-				dolog(LevelDebug, "[udp] unable to parse: %s", err)
+				log.Log(u.client.conf.LogLevel, LogLevelDebug, "[udp] unable to parse: %s", err)
 			}
 		})
 	}

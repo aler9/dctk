@@ -50,6 +50,8 @@ import (
 	atypes "github.com/aler9/go-dc/adc/types"
 	"github.com/aler9/go-dc/nmdc"
 	"github.com/aler9/go-dc/types"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 const (
@@ -57,12 +59,6 @@ const (
 )
 
 var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
-
-type transfer interface {
-	isTransfer()
-	Close()
-	handleExit(error)
-}
 
 // EncryptionMode contains the options regarding encryption.
 type EncryptionMode int
@@ -77,8 +73,28 @@ const (
 	ForceEncryption
 )
 
+type LogLevel = log.Level
+
+const (
+	// LevelDebug prints everything
+	LogLevelDebug = log.LevelDebug
+	// LevelInfo prints only important messages
+	LogLevelInfo = log.LevelInfo
+	// LevelError prints only error messages
+	LogLevelError = log.LevelError
+)
+
+type transfer interface {
+	isTransfer()
+	Close()
+	handleExit(error)
+}
+
 // ClientConf allows to configure a client.
 type ClientConf struct {
+	// verbosity of the library
+	LogLevel LogLevel
+
 	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
 	// and TcpTlsPort but functionalities are limited
 	IsPassive bool
@@ -89,13 +105,16 @@ type ClientConf struct {
 	TcpPort    uint
 	UdpPort    uint
 	TcpTlsPort uint
+
 	// the maximum number of file to download in parallel. When this number is
 	// exceeded, the other downloads are queued and started when a slot becomes available
 	DownloadMaxParallel uint
 	// the maximum number of file to upload in parallel
 	UploadMaxParallel uint
+
 	// set the policy regarding encryption with other peers. See EncryptionMode for options
 	PeerEncryptionMode EncryptionMode
+
 	// The hub url in the format protocol://address:port
 	// supported protocols are adc, adcs, nmdc and nmdcs
 	HubUrl string
@@ -104,6 +123,7 @@ type ClientConf struct {
 	// if turned on, connection to hub is not automatic and HubConnect() must be
 	// called manually
 	HubManualConnect bool
+
 	// the nickname to use in the hub and with other peers
 	Nick string
 	// the password associated with the nick, if requested by the hub

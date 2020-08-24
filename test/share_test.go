@@ -15,9 +15,9 @@ import (
 func TestShare(t *testing.T) {
 	foreachExternalHub(t, "Share", func(t *testing.T, e *externalHub) {
 		ok := false
-		dctk.SetLogLevel(dctk.LevelError)
 
 		client, err := dctk.NewClient(dctk.ClientConf{
+			LogLevel:         dctk.LogLevelError,
 			HubUrl:           e.Url(),
 			HubManualConnect: true,
 			Nick:             "testdctk",

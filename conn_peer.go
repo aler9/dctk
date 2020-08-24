@@ -8,6 +8,8 @@ import (
 
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 var errorDelegatedUpload = fmt.Errorf("delegated upload")
@@ -50,7 +52,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 	p.client.connPeers[p] = struct{}{}
 
 	if isActive == true {
-		dolog(LevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
+		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
 			if p.isEncrypted == true {
 				return " (secure)"
 			}
@@ -61,12 +63,12 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
 		if client.protoIsAdc() {
-			p.conn = newProtocolAdc("p", rawconn, true, true)
+			p.conn = newProtocolAdc(p.client.conf.LogLevel, "p", rawconn, true, true)
 		} else {
-			p.conn = newProtocolNmdc("p", rawconn, true, true)
+			p.conn = newProtocolNmdc(p.client.conf.LogLevel, "p", rawconn, true, true)
 		}
 	} else {
-		dolog(LevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
+		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
 			if p.isEncrypted == true {
 				return " (secure)"
 			}
@@ -123,16 +125,16 @@ func (p *connPeer) do() {
 			}
 
 			if p.client.protoIsAdc() {
-				p.conn = newProtocolAdc("p", rawconn, true, true)
+				p.conn = newProtocolAdc(p.client.conf.LogLevel, "p", rawconn, true, true)
 			} else {
-				p.conn = newProtocolNmdc("p", rawconn, true, true)
+				p.conn = newProtocolNmdc(p.client.conf.LogLevel, "p", rawconn, true, true)
 			}
 
 			p.client.Safe(func() {
 				p.state = "connected"
 			})
 
-			dolog(LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
+			log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
 				func() string {
 					if p.isEncrypted == true {
 						return " (secure)"
@@ -226,7 +228,7 @@ func (p *connPeer) do() {
 
 	p.client.Safe(func() {
 		if p.terminateRequested == false {
-			dolog(LevelInfo, "ERR (connPeer): %s", err)
+			log.Log(p.client.conf.LogLevel, LogLevelInfo, "ERR (connPeer): %s", err)
 		}
 
 		// transfer abruptly interrupted, doesnt care if the conn was terminated or not
@@ -245,7 +247,7 @@ func (p *connPeer) do() {
 			delete(p.client.connPeersByKey, nickDirectionPair{p.peer.Nick, p.direction})
 		}
 
-		dolog(LevelInfo, "[peer] disconnected")
+		log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] disconnected")
 	})
 }
 
@@ -323,7 +325,7 @@ func (p *connPeer) handleMessage(msgi msgDecodable) error {
 					return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
 						connFingerprint, p.peer.adcFingerprint)
 				}
-				dolog(LevelInfo, "[peer] fingerprint validated")
+				log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] fingerprint validated")
 			}
 		}
 
