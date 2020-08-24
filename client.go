@@ -52,13 +52,14 @@ import (
 	"github.com/aler9/go-dc/types"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/proto"
 )
 
 const (
 	_PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
 )
 
-var rePublicIp = regexp.MustCompile("(" + reStrIp + ")")
+var rePublicIp = regexp.MustCompile("(" + proto.ReStrIp + ")")
 
 // EncryptionMode contains the options regarding encryption.
 type EncryptionMode int
@@ -511,7 +512,7 @@ func (c *Client) sendInfos(firstTime bool) {
 			}
 		}
 
-		c.connHub.conn.Write(&adcBInfos{
+		c.connHub.conn.Write(&proto.AdcBInfos{
 			&adc.BroadcastPacket{ID: c.adcSessionId},
 			info,
 		})

@@ -10,6 +10,7 @@ import (
 	"github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/proto"
 )
 
 func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {
@@ -39,7 +40,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.Searc
 func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	req := &adc.SearchRequest{
 		// always add token even if we're not using it
-		Token: adcRandomToken(),
+		Token: proto.AdcRandomToken(),
 	}
 
 	switch conf.Type {
@@ -73,12 +74,12 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	}
 
 	if len(features) > 0 {
-		c.connHub.conn.Write(&adcFSearchRequest{
+		c.connHub.conn.Write(&proto.AdcFSearchRequest{
 			&adc.FeaturePacket{ID: c.adcSessionId, Sel: features},
 			req,
 		})
 	} else {
-		c.connHub.conn.Write(&adcBSearchRequest{
+		c.connHub.conn.Write(&proto.AdcBSearchRequest{
 			&adc.BroadcastPacket{ID: c.adcSessionId},
 			req,
 		})
@@ -177,7 +178,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 			defer conn.Close()
 
 			for _, msg := range msgs {
-				amsg := &adcUSearchResult{
+				amsg := &proto.AdcUSearchResult{
 					&adc.UDPPacket{ID: peer.adcClientId},
 					msg,
 				}
@@ -196,7 +197,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			c.connHub.conn.Write(&adcDSearchResult{
+			c.connHub.conn.Write(&proto.AdcDSearchResult{
 				&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 				msg,
 			})

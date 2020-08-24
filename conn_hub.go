@@ -12,6 +12,7 @@ import (
 	"github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/proto"
 )
 
 // HubField is a name of a hub information field.
@@ -70,7 +71,7 @@ type connHub struct {
 	terminateRequested bool
 	terminate          chan struct{}
 	state              hubConnState
-	conn               protocol
+	conn               proto.Protocol
 	passwordSent       bool
 	uniqueCmds         map[string]struct{}
 }
@@ -122,7 +123,7 @@ func (h *connHub) do() {
 
 		select {
 		case <-h.terminate:
-			return errorTerminated
+			return proto.ErrorTerminated
 		case <-ce.Wait:
 		}
 
@@ -160,16 +161,16 @@ func (h *connHub) do() {
 		}
 
 		// do not use read timeout since hub does not send data continuously
-		proto := ""
+		protoName := ""
 		if h.client.protoIsAdc() {
-			proto = "adc"
-			h.conn = newProtocolAdc(h.client.conf.LogLevel, "h", rawconn, false, true)
+			protoName = "adc"
+			h.conn = proto.NewProtocolAdc(h.client.conf.LogLevel, "h", rawconn, false, true)
 		} else {
-			proto = "nmdc"
-			h.conn = newProtocolNmdc(h.client.conf.LogLevel, "h", rawconn, false, true)
+			protoName = "nmdc"
+			h.conn = proto.NewProtocolNmdc(h.client.conf.LogLevel, "h", rawconn, false, true)
 		}
 		if h.client.OnHubProto != nil {
-			h.client.OnHubProto(proto)
+			h.client.OnHubProto(protoName)
 		}
 
 		if h.client.conf.HubDisableKeepAlive == false {
@@ -189,7 +190,7 @@ func (h *connHub) do() {
 			if h.client.conf.HubDisableCompression == false {
 				features[adc.FeaZLIF] = true
 			}
-			h.conn.Write(&adcHSupports{
+			h.conn.Write(&proto.AdcHSupports{
 				&adc.HubPacket{},
 				&adc.Supported{features},
 			})
@@ -222,7 +223,7 @@ func (h *connHub) do() {
 		case <-h.terminate:
 			h.conn.Close()
 			<-readDone
-			return errorTerminated
+			return proto.ErrorTerminated
 
 		case err := <-readDone:
 			h.conn.Close()
@@ -246,11 +247,11 @@ func (h *connHub) do() {
 	})
 }
 
-func (h *connHub) handleMessage(msgi msgDecodable) error {
+func (h *connHub) handleMessage(msgi proto.MsgDecodable) error {
 	switch msg := msgi.(type) {
-	case *adcKeepAlive:
+	case *proto.AdcKeepAlive:
 
-	case *adcIZon:
+	case *proto.AdcIZon:
 		if h.client.conf.HubDisableCompression == true {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
@@ -258,7 +259,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return err
 		}
 
-	case *adcIStatus:
+	case *proto.AdcIStatus:
 		switch msg.Msg.Sev {
 		case adc.Success:
 
@@ -269,13 +270,13 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			return fmt.Errorf("fatal: %s (%d)", msg.Msg.Msg, msg.Msg.Code)
 		}
 
-	case *adcISupports:
+	case *proto.AdcISupports:
 		if h.state != hubConnected {
 			return fmt.Errorf("[Supports] invalid state: %s", h.state)
 		}
 		h.state = hubSupports
 
-	case *adcISessionId:
+	case *proto.AdcISessionId:
 		if h.state != hubSupports {
 			return fmt.Errorf("[SessionId] invalid state: %s", h.state)
 		}
@@ -283,7 +284,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.client.adcSessionId = msg.Msg.SID
 		h.client.sendInfos(true)
 
-	case *adcIInfos:
+	case *proto.AdcIInfos:
 		onHubInfo := func(k HubField, v string) {
 			if h.client.OnHubInfo != nil {
 				h.client.OnHubInfo(k, v)
@@ -305,11 +306,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			onHubInfo(HubDescription, msg.Msg.Desc)
 		}
 
-	case *adcIMsg:
+	case *proto.AdcIMsg:
 		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Msg.Text)
 		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] %s", msg.Msg.Text)
 
-	case *adcIGetPass:
+	case *proto.AdcIGetPass:
 		if h.state != hubSessionID {
 			return fmt.Errorf("[Sup] invalid state: %s", h.state)
 		}
@@ -322,12 +323,12 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		hasher.Sum(data[:0])
 
 		h.passwordSent = true
-		h.conn.Write(&adcHPass{
+		h.conn.Write(&proto.AdcHPass{
 			&adc.HubPacket{},
 			&adc.Password{Hash: data},
 		})
 
-	case *adcBInfos:
+	case *proto.AdcBInfos:
 		exists := true
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
@@ -396,7 +397,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			h.client.handlePeerUpdated(p)
 		}
 
-	case *adcIQuit:
+	case *proto.AdcIQuit:
 		// self quit, used instead of ForceMove
 		if msg.Msg.ID == h.client.adcSessionId {
 			return fmt.Errorf("received Quit message: %s", msg.Msg.Message)
@@ -407,31 +408,31 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			h.client.handlePeerDisconnected(p)
 		}
 
-	case *adcICommand:
+	case *proto.AdcICommand:
 		// switch to initialized
 		if h.state != hubInitialized {
 			h.state = hubInitialized
 			h.handleHubInitialized()
 		}
 
-	case *adcBMessage:
+	case *proto.AdcBMessage:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("public message with unknown author")
 		}
 		h.client.handlePublicMessage(p, msg.Msg.Text)
 
-	case *adcDMessage:
+	case *proto.AdcDMessage:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("private message with unknown author")
 		}
 		h.client.handlePrivateMessage(p, msg.Msg.Text)
 
-	case *adcBSearchRequest:
+	case *proto.AdcBSearchRequest:
 		h.client.handleAdcSearchIncomingRequest(msg.Pkt.ID, msg.Msg)
 
-	case *adcFSearchRequest:
+	case *proto.AdcFSearchRequest:
 		hasFeature := func(f adc.Feature) bool {
 			for _, s := range msg.Pkt.Sel {
 				if s.Fea == f {
@@ -448,14 +449,14 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		h.client.handleAdcSearchIncomingRequest(msg.Pkt.ID, msg.Msg)
 
-	case *adcDSearchResult:
+	case *proto.AdcDSearchResult:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("search result with unknown author")
 		}
 		h.client.handleAdcSearchResult(false, p, msg.Msg)
 
-	case *adcDConnectToMe:
+	case *proto.AdcDConnectToMe:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("connecttome with unknown author")
@@ -469,11 +470,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			adc.ProtoADC:  {},
 			adc.ProtoADCS: {},
 		}[msg.Msg.Proto]; ok == false {
-			h.conn.Write(&adcDStatus{
+			h.conn.Write(&proto.AdcDStatus{
 				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
 				&adc.Status{
 					Sev:  adc.Recoverable,
-					Code: adcCodeProtocolUnsupported,
+					Code: proto.AdcCodeProtocolUnsupported,
 					Msg:  "Transfer protocol unsupported",
 					// TODO: add additional fields
 					/*map[string]string{
@@ -492,11 +493,11 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 			(msg.Msg.Proto == adc.ProtoADC &&
 				h.client.conf.PeerEncryptionMode == ForceEncryption) {
 
-			h.conn.Write(&adcDStatus{
+			h.conn.Write(&proto.AdcDStatus{
 				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
 				&adc.Status{
 					Sev:  adc.Recoverable,
-					Code: adcCodeProtocolUnsupported,
+					Code: proto.AdcCodeProtocolUnsupported,
 					Msg:  "Transfer protocol unsupported",
 					// TODO: add additional fields
 					/*map[string]string{
@@ -510,7 +511,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 
 		newConnPeer(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.Ip, uint(msg.Msg.Port), msg.Msg.Token)
 
-	case *adcDRevConnectToMe:
+	case *proto.AdcDRevConnectToMe:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("revconnecttome with unknown author")
@@ -520,7 +521,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		}
 		h.client.handlePeerRevConnectToMe(p, msg.Msg.Token)
 
-	case *nmdcKeepAlive:
+	case *proto.NmdcKeepAlive:
 
 	case *nmdc.ZOn:
 		if h.client.conf.HubDisableCompression == true {
@@ -761,7 +762,7 @@ func (h *connHub) handleMessage(msgi msgDecodable) error {
 		h.client.handleNmdcSearchResult(false, msg)
 
 	case *nmdc.ConnectToMe:
-		matches := reNmdcAddress.FindStringSubmatch(msg.Address)
+		matches := proto.ReNmdcAddress.FindStringSubmatch(msg.Address)
 		if matches == nil {
 			return fmt.Errorf("invalid address")
 		}

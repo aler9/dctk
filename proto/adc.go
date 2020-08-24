@@ -1,13 +1,15 @@
-package dctoolkit
+package proto
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base32"
 	"fmt"
 	"math/rand"
 	"net"
 	"reflect"
+	"strings"
 
 	"github.com/aler9/go-dc/adc"
 
@@ -15,12 +17,17 @@ import (
 )
 
 const (
-	adcCodeProtocolUnsupported = 41
-	adcCodeFileNotAvailable    = 51
-	adcCodeSlotsFull           = 53
+	AdcCodeProtocolUnsupported = 41
+	AdcCodeFileNotAvailable    = 51
+	AdcCodeSlotsFull           = 53
 )
 
-func adcRandomToken() string {
+// base32 without padding, which can be one or multiple =
+func dcBase32Encode(in []byte) string {
+	return strings.TrimRight(base32.StdEncoding.EncodeToString(in), "=")
+}
+
+func AdcRandomToken() string {
 	const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	buf := make([]byte, 10)
 	for i := range buf {
@@ -29,35 +36,35 @@ func adcRandomToken() string {
 	return string(buf)
 }
 
-func adcCertFingerprint(cert *x509.Certificate) string {
+func AdcCertFingerprint(cert *x509.Certificate) string {
 	h := sha256.New()
 	h.Write(cert.Raw)
 	return "SHA256/" + dcBase32Encode(h.Sum(nil))
 }
 
-type protocolAdc struct {
-	*protocolBase
+type ProtocolAdc struct {
+	*ProtocolBase
 }
 
-func newProtocolAdc(logLevel LogLevel, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) protocol {
-	p := &protocolAdc{
-		protocolBase: newProtocolBase(logLevel, remoteLabel,
+func NewProtocolAdc(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) Protocol {
+	p := &ProtocolAdc{
+		ProtocolBase: newProtocolBase(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
 	}
 	return p
 }
 
-func (p *protocolAdc) Read() (msgDecodable, error) {
+func (p *ProtocolAdc) Read() (MsgDecodable, error) {
 	if p.readBinary == false {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
 		}
 
-		msg, err := func() (msgDecodable, error) {
+		msg, err := func() (MsgDecodable, error) {
 			if len(msgStr) == 0 {
-				return &adcKeepAlive{}, nil
+				return &AdcKeepAlive{}, nil
 			}
 
 			pkt, err := adc.DecodePacket([]byte(msgStr + "\n"))
@@ -70,73 +77,73 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 				case *adc.BroadcastPacket:
 					switch msg := pkt.Message().(type) {
 					case adc.UserInfo:
-						return &adcBInfos{tpkt, &msg}
+						return &AdcBInfos{tpkt, &msg}
 					case adc.ChatMessage:
-						return &adcBMessage{tpkt, &msg}
+						return &AdcBMessage{tpkt, &msg}
 					case adc.SearchRequest:
-						return &adcBSearchRequest{tpkt, &msg}
+						return &AdcBSearchRequest{tpkt, &msg}
 					}
 
 				case *adc.ClientPacket:
 					switch msg := pkt.Message().(type) {
 					case adc.GetRequest:
-						return &adcCGetFile{tpkt, &msg}
+						return &AdcCGetFile{tpkt, &msg}
 					case adc.UserInfo:
-						return &adcCInfos{tpkt, &msg}
+						return &AdcCInfos{tpkt, &msg}
 					case adc.GetResponse:
-						return &adcCSendFile{tpkt, &msg}
+						return &AdcCSendFile{tpkt, &msg}
 					case adc.Supported:
-						return &adcCSupports{tpkt, &msg}
+						return &AdcCSupports{tpkt, &msg}
 					case adc.Status:
-						return &adcCStatus{tpkt, &msg}
+						return &AdcCStatus{tpkt, &msg}
 					}
 
 				case *adc.DirectPacket:
 					switch msg := pkt.Message().(type) {
 					case adc.ConnectRequest:
-						return &adcDConnectToMe{tpkt, &msg}
+						return &AdcDConnectToMe{tpkt, &msg}
 					case adc.ChatMessage:
-						return &adcDMessage{tpkt, &msg}
+						return &AdcDMessage{tpkt, &msg}
 					case adc.RevConnectRequest:
-						return &adcDRevConnectToMe{tpkt, &msg}
+						return &AdcDRevConnectToMe{tpkt, &msg}
 					case adc.SearchResult:
-						return &adcDSearchResult{tpkt, &msg}
+						return &AdcDSearchResult{tpkt, &msg}
 					}
 
 				case *adc.FeaturePacket:
 					switch msg := pkt.Message().(type) {
 					case adc.SearchRequest:
-						return &adcFSearchRequest{tpkt, &msg}
+						return &AdcFSearchRequest{tpkt, &msg}
 					}
 
 				case *adc.HubPacket:
 					switch msg := pkt.Message().(type) {
 					case adc.Password:
-						return &adcHPass{tpkt, &msg}
+						return &AdcHPass{tpkt, &msg}
 					case adc.Supported:
-						return &adcHSupports{tpkt, &msg}
+						return &AdcHSupports{tpkt, &msg}
 					}
 
 				case *adc.InfoPacket:
 					switch msg := pkt.Message().(type) {
 					case adc.UserCommand:
-						return &adcICommand{tpkt, &msg}
+						return &AdcICommand{tpkt, &msg}
 					case adc.GetPassword:
-						return &adcIGetPass{tpkt, &msg}
+						return &AdcIGetPass{tpkt, &msg}
 					case adc.HubInfo:
-						return &adcIInfos{tpkt, &msg}
+						return &AdcIInfos{tpkt, &msg}
 					case adc.ChatMessage:
-						return &adcIMsg{tpkt, &msg}
+						return &AdcIMsg{tpkt, &msg}
 					case adc.Disconnect:
-						return &adcIQuit{tpkt, &msg}
+						return &AdcIQuit{tpkt, &msg}
 					case adc.SIDAssign:
-						return &adcISessionId{tpkt, &msg}
+						return &AdcISessionId{tpkt, &msg}
 					case adc.Status:
-						return &adcIStatus{tpkt, &msg}
+						return &AdcIStatus{tpkt, &msg}
 					case adc.Supported:
-						return &adcISupports{tpkt, &msg}
+						return &AdcISupports{tpkt, &msg}
 					case adc.ZOn:
-						return &adcIZon{tpkt, &msg}
+						return &AdcIZon{tpkt, &msg}
 					}
 				}
 				return nil
@@ -151,7 +158,7 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		log.Log(p.logLevel, LogLevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
 
 	} else {
@@ -159,12 +166,12 @@ func (p *protocolAdc) Read() (msgDecodable, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &msgBinary{buf}, nil
+		return &MsgBinary{buf}, nil
 	}
 }
 
-func (p *protocolAdc) Write(pktMsg msgEncodable) {
-	log.Log(p.logLevel, LogLevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
+func (p *ProtocolAdc) Write(pktMsg MsgEncodable) {
+	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
 
 	pkt := reflect.ValueOf(pktMsg).Elem().FieldByName("Pkt").Interface().(adc.Packet)
 	msg := reflect.ValueOf(pktMsg).Elem().FieldByName("Msg").Interface().(adc.Message)
@@ -175,145 +182,145 @@ func (p *protocolAdc) Write(pktMsg msgEncodable) {
 		panic(err)
 	}
 
-	p.protocolBase.Write(buf.Bytes())
+	p.ProtocolBase.Write(buf.Bytes())
 }
 
-type adcKeepAlive struct{}
+type AdcKeepAlive struct{}
 
-func (*adcKeepAlive) AdcKeyEncode() string {
+func (*AdcKeepAlive) AdcKeyEncode() string {
 	return ""
 }
 
-func (*adcKeepAlive) AdcTypeEncode(keyEncoded string) string {
+func (*AdcKeepAlive) AdcTypeEncode(keyEncoded string) string {
 	return ""
 }
 
-type adcBInfos struct {
+type AdcBInfos struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.UserInfo
 }
 
-type adcBMessage struct {
+type AdcBMessage struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.ChatMessage
 }
 
-type adcBSearchRequest struct {
+type AdcBSearchRequest struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.SearchRequest
 }
 
-type adcCGetFile struct {
+type AdcCGetFile struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.GetRequest
 }
 
-type adcCInfos struct {
+type AdcCInfos struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.UserInfo
 }
 
-type adcCSendFile struct {
+type AdcCSendFile struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.GetResponse
 }
 
-type adcCStatus struct {
+type AdcCStatus struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.Status
 }
 
-type adcCSupports struct {
+type AdcCSupports struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.Supported
 }
 
-type adcDConnectToMe struct {
+type AdcDConnectToMe struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.ConnectRequest
 }
 
-type adcDMessage struct {
+type AdcDMessage struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.ChatMessage
 }
 
-type adcDRevConnectToMe struct {
+type AdcDRevConnectToMe struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.RevConnectRequest
 }
 
-type adcDSearchResult struct {
+type AdcDSearchResult struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.SearchResult
 }
 
-type adcDStatus struct {
+type AdcDStatus struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.Status
 }
 
-type adcFSearchRequest struct {
+type AdcFSearchRequest struct {
 	Pkt *adc.FeaturePacket
 	Msg *adc.SearchRequest
 }
 
-type adcHPass struct {
+type AdcHPass struct {
 	Pkt *adc.HubPacket
 	Msg *adc.Password
 }
 
-type adcHSupports struct {
+type AdcHSupports struct {
 	Pkt *adc.HubPacket
 	Msg *adc.Supported
 }
 
-type adcICommand struct {
+type AdcICommand struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.UserCommand
 }
 
-type adcIGetPass struct {
+type AdcIGetPass struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.GetPassword
 }
 
-type adcIInfos struct {
+type AdcIInfos struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.HubInfo
 }
 
-type adcIMsg struct {
+type AdcIMsg struct {
 	*adc.InfoPacket
 	Msg *adc.ChatMessage
 }
 
-type adcIQuit struct {
+type AdcIQuit struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.Disconnect
 }
 
-type adcISessionId struct {
+type AdcISessionId struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.SIDAssign
 }
 
-type adcIStatus struct {
+type AdcIStatus struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.Status
 }
 
-type adcISupports struct {
+type AdcISupports struct {
 	*adc.InfoPacket
 	Msg *adc.Supported
 }
 
-type adcIZon struct {
+type AdcIZon struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.ZOn
 }
 
-type adcUSearchResult struct {
+type AdcUSearchResult struct {
 	Pkt *adc.UDPPacket
 	Msg *adc.SearchResult
 }

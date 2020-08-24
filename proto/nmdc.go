@@ -1,4 +1,4 @@
-package dctoolkit
+package proto
 
 import (
 	"bytes"
@@ -11,36 +11,36 @@ import (
 	"github.com/aler9/dctoolkit/log"
 )
 
-var reNmdcAddress = regexp.MustCompile("^(" + reStrIp + "):(" + reStrPort + ")$")
-var reNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9:]+)( (.+))?$")
+var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIp + "):(" + reStrPort + ")$")
+var ReNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9:]+)( (.+))?$")
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 
-type protocolNmdc struct {
-	*protocolBase
+type ProtocolNmdc struct {
+	*ProtocolBase
 }
 
-func newProtocolNmdc(logLevel LogLevel, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) protocol {
-	p := &protocolNmdc{
-		protocolBase: newProtocolBase(logLevel, remoteLabel,
+func NewProtocolNmdc(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) Protocol {
+	p := &ProtocolNmdc{
+		ProtocolBase: newProtocolBase(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '|'),
 	}
 	return p
 }
 
-func (p *protocolNmdc) Read() (msgDecodable, error) {
+func (p *ProtocolNmdc) Read() (MsgDecodable, error) {
 	if p.readBinary == false {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
 		}
 
-		msg, err := func() (msgDecodable, error) {
+		msg, err := func() (MsgDecodable, error) {
 			if len(msgStr) == 0 {
-				return &nmdcKeepAlive{}, nil
+				return &NmdcKeepAlive{}, nil
 			}
 
-			if matches := reNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
+			if matches := ReNmdcCommand.FindStringSubmatch(msgStr); matches != nil {
 				key, args := matches[1], matches[3]
 
 				cmd := func() nmdc.Message {
@@ -129,7 +129,7 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		log.Log(p.logLevel, LogLevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
 
 	} else {
@@ -137,12 +137,12 @@ func (p *protocolNmdc) Read() (msgDecodable, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &msgBinary{buf}, nil
+		return &MsgBinary{buf}, nil
 	}
 }
 
-func (p *protocolNmdc) Write(msg msgEncodable) {
-	log.Log(p.logLevel, LogLevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
+func (p *ProtocolNmdc) Write(msg MsgEncodable) {
+	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
 
 	if c, ok := msg.(*nmdc.ChatMessage); ok {
 		var buf bytes.Buffer
@@ -150,12 +150,12 @@ func (p *protocolNmdc) Write(msg msgEncodable) {
 			panic(err)
 		}
 		buf.WriteByte('|')
-		p.protocolBase.Write(buf.Bytes())
+		p.ProtocolBase.Write(buf.Bytes())
 		return
 	}
 
-	if _, ok := msg.(*nmdcKeepAlive); ok {
-		p.protocolBase.Write([]byte{'|'})
+	if _, ok := msg.(*NmdcKeepAlive); ok {
+		p.ProtocolBase.Write([]byte{'|'})
 		return
 	}
 
@@ -179,7 +179,7 @@ func (p *protocolNmdc) Write(msg msgEncodable) {
 	}
 
 	buf.WriteByte('|')
-	p.protocolBase.Write(buf.Bytes())
+	p.ProtocolBase.Write(buf.Bytes())
 }
 
-type nmdcKeepAlive struct{}
+type NmdcKeepAlive struct{}

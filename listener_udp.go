@@ -8,6 +8,7 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/proto"
 )
 
 type listenerUdp struct {
@@ -70,7 +71,7 @@ func (u *listenerUdp) do() {
 					msge := pkt.Message().(adc.SearchResult)
 					msg := &msge
 
-					pktMsg := &adcUSearchResult{
+					pktMsg := &proto.AdcUSearchResult{
 						pkt.(*adc.UDPPacket),
 						msg,
 					}
@@ -89,7 +90,7 @@ func (u *listenerUdp) do() {
 					}
 					msgStr = msgStr[:len(msgStr)-1]
 
-					matches := reNmdcCommand.FindStringSubmatch(msgStr)
+					matches := proto.ReNmdcCommand.FindStringSubmatch(msgStr)
 					if matches == nil {
 						return fmt.Errorf("wrong syntax")
 					}

@@ -1,12 +1,15 @@
-package dctoolkit
+package proto
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"sync/atomic"
 	"time"
 
 	"github.com/aler9/go-dc/lineproto"
+
+	"github.com/aler9/dctoolkit/log"
 )
 
 const (
@@ -15,25 +18,36 @@ const (
 	_MAX_MESSAGE_SIZE   = 10 * 1024
 )
 
-type msgDecodable interface{}
-type msgEncodable interface{}
+const reStrNick = "[^\\$ \\|\n]+"
+const reStrAddress = "[a-z0-9\\.-_]+"
+const ReStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+const reStrPort = "[0-9]{1,5}"
+
+var ErrorTerminated = fmt.Errorf("terminated")
+
+type MsgDecodable interface{}
+type MsgEncodable interface{}
 
 type monitoredConnIntf interface {
 	PullReadCounter() uint
 	PullWriteCounter() uint
 }
 
-type protocol interface {
+type Protocol interface {
 	Close() error
 	SetSyncMode(val bool)
 	SetReadBinary(val bool)
-	Read() (msgDecodable, error)
-	Write(msg msgEncodable)
+	Read() (MsgDecodable, error)
+	Write(msg MsgEncodable)
 	WriteSync(in []byte) error
 	monitoredConnIntf
 	ReaderEnableZlib() error
 	WriterEnableZlib()
 	WriterDisableZlib()
+}
+
+type MsgBinary struct {
+	Content []byte
 }
 
 // timedConn forces net.Conn to use timeouts.
@@ -112,8 +126,8 @@ func (c *monitoredConn) PullWriteCounter() uint {
 	return ret
 }
 
-type protocolBase struct {
-	logLevel    LogLevel
+type ProtocolBase struct {
+	logLevel    log.Level
 	remoteLabel string
 	terminated  uint32 // atomic
 	msgDelim    byte
@@ -127,8 +141,8 @@ type protocolBase struct {
 	writerJoined chan struct{}
 }
 
-func newProtocolBase(logLevel LogLevel, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *protocolBase {
+func newProtocolBase(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *ProtocolBase {
 
 	readTimeout := func() time.Duration {
 		if applyReadTimeout == true {
@@ -148,7 +162,7 @@ func newProtocolBase(logLevel LogLevel, remoteLabel string, nconn net.Conn,
 	rdr := lineproto.NewReader(mc, msgDelim)
 	wri := lineproto.NewWriter(mc)
 
-	p := &protocolBase{
+	p := &ProtocolBase{
 		logLevel:          logLevel,
 		remoteLabel:       remoteLabel,
 		msgDelim:          msgDelim,
@@ -163,11 +177,11 @@ func newProtocolBase(logLevel LogLevel, remoteLabel string, nconn net.Conn,
 	return p
 }
 
-func (p *protocolBase) isTerminated() bool {
+func (p *ProtocolBase) isTerminated() bool {
 	return atomic.LoadUint32(&p.terminated) != 0
 }
 
-func (p *protocolBase) Close() error {
+func (p *ProtocolBase) Close() error {
 	if !atomic.CompareAndSwapUint32(&p.terminated, 0, 1) {
 		return nil // already closing
 	}
@@ -180,7 +194,7 @@ func (p *protocolBase) Close() error {
 	return nil
 }
 
-func (p *protocolBase) SetSyncMode(val bool) {
+func (p *ProtocolBase) SetSyncMode(val bool) {
 	if val == p.syncMode {
 		return
 	}
@@ -196,33 +210,33 @@ func (p *protocolBase) SetSyncMode(val bool) {
 	}
 }
 
-func (p *protocolBase) SetReadBinary(val bool) {
+func (p *ProtocolBase) SetReadBinary(val bool) {
 	if val == p.readBinary {
 		return
 	}
 	p.readBinary = val
 }
 
-func (p *protocolBase) ReadMessage() (string, error) {
+func (p *ProtocolBase) ReadMessage() (string, error) {
 	// Close() was called in a previous run
 	if p.isTerminated() {
-		return "", errorTerminated
+		return "", ErrorTerminated
 	}
 
 	msg, err := p.reader.ReadLine()
 	if err != nil {
 		if p.isTerminated() {
-			return "", errorTerminated
+			return "", ErrorTerminated
 		}
 		return "", err
 	}
 	return string(msg[:len(msg)-1]), nil
 }
 
-func (p *protocolBase) ReadBinary() ([]byte, error) {
+func (p *ProtocolBase) ReadBinary() ([]byte, error) {
 	// Close() was called in a previous run
 	if p.isTerminated() {
-		return nil, errorTerminated
+		return nil, ErrorTerminated
 	}
 
 	// TODO: move buf out or make static
@@ -230,14 +244,14 @@ func (p *protocolBase) ReadBinary() ([]byte, error) {
 	read, err := p.reader.Read(buf[:])
 	if read == 0 {
 		if p.isTerminated() {
-			return nil, errorTerminated
+			return nil, ErrorTerminated
 		}
 		return nil, err
 	}
 	return buf[:read], nil
 }
 
-func (p *protocolBase) writeReceiver() {
+func (p *ProtocolBase) writeReceiver() {
 	for buf := range p.sendChan {
 		// do not handle errors here
 		p.WriteSync(buf)
@@ -245,7 +259,7 @@ func (p *protocolBase) writeReceiver() {
 	p.writerJoined <- struct{}{}
 }
 
-func (p *protocolBase) WriteSync(in []byte) error {
+func (p *ProtocolBase) WriteSync(in []byte) error {
 	err := p.writer.WriteLine(in)
 	if err != nil {
 		return err
@@ -253,25 +267,21 @@ func (p *protocolBase) WriteSync(in []byte) error {
 	return p.writer.Flush()
 }
 
-func (p *protocolBase) Write(in []byte) {
+func (p *ProtocolBase) Write(in []byte) {
 	if p.isTerminated() {
 		return
 	}
 	p.sendChan <- in
 }
 
-func (p *protocolBase) ReaderEnableZlib() error {
+func (p *ProtocolBase) ReaderEnableZlib() error {
 	return p.reader.EnableZlib()
 }
 
-func (p *protocolBase) WriterEnableZlib() {
+func (p *ProtocolBase) WriterEnableZlib() {
 	p.writer.EnableZlib()
 }
 
-func (p *protocolBase) WriterDisableZlib() {
+func (p *ProtocolBase) WriterDisableZlib() {
 	p.writer.DisableZlib()
-}
-
-type msgBinary struct {
-	Content []byte
 }

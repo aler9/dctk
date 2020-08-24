@@ -8,6 +8,7 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctoolkit/proto"
 )
 
 // Peer represents a remote client connected to a Hub.
@@ -102,7 +103,7 @@ func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
 
 func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&adcDConnectToMe{
+		c.connHub.conn.Write(&proto.AdcDConnectToMe{
 			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 			&adc.ConnectRequest{
 				func() string {
@@ -137,7 +138,7 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 
 func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&adcDRevConnectToMe{
+		c.connHub.conn.Write(&proto.AdcDRevConnectToMe{
 			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 			&adc.RevConnectRequest{
 				func() string {

@@ -11,20 +11,9 @@ import (
 	"time"
 )
 
-const reStrNick = "[^\\$ \\|\n]+"
-const reStrAddress = "[a-z0-9\\.-_]+"
-const reStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
-const reStrPort = "[0-9]{1,5}"
-
 var dirTTH = TigerHashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
-var errorTerminated = fmt.Errorf("terminated")
 var errorArgsFormat = fmt.Errorf("not formatted correctly")
-
-// base32 without padding, which can be one or multiple =
-func dcBase32Encode(in []byte) string {
-	return strings.TrimRight(base32.StdEncoding.EncodeToString(in), "=")
-}
 
 // base32 without padding, which can be one or multiple =
 func dcBase32Decode(in string) []byte {
