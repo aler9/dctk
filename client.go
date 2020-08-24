@@ -178,7 +178,7 @@ type Client struct {
 	listenerTcp        *listenerTcp
 	tcpTlsListener     *listenerTcp
 	listenerUdp        *listenerUdp
-	connHub            *connHub
+	hubConn            *hubConn
 	// we follow the ADC way to handle IDs, even when using NMDC
 	privateId             atypes.PID
 	clientId              atypes.CID
@@ -187,8 +187,8 @@ type Client struct {
 	peers                 map[string]*Peer
 	downloadSlotAvail     uint
 	uploadSlotAvail       uint
-	connPeers             map[*connPeer]struct{}
-	connPeersByKey        map[nickDirectionPair]*connPeer
+	peerConns             map[*peerConn]struct{}
+	peerConnsByKey        map[nickDirectionPair]*peerConn
 	transfers             map[transfer]struct{}
 	activeDownloadsByPeer map[string]*Download
 
@@ -306,8 +306,8 @@ func NewClient(conf ClientConf) (*Client, error) {
 		peers:                 make(map[string]*Peer),
 		downloadSlotAvail:     conf.DownloadMaxParallel,
 		uploadSlotAvail:       conf.UploadMaxParallel,
-		connPeers:             make(map[*connPeer]struct{}),
-		connPeersByKey:        make(map[nickDirectionPair]*connPeer),
+		peerConns:             make(map[*peerConn]struct{}),
+		peerConnsByKey:        make(map[nickDirectionPair]*peerConn),
 		transfers:             make(map[transfer]struct{}),
 		activeDownloadsByPeer: make(map[string]*Download),
 	}
@@ -326,7 +326,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 	hasher.Write(c.privateId[:])
 	hasher.Sum(c.clientId[:0])
 
-	if err := newConnHub(c); err != nil {
+	if err := newHubConn(c); err != nil {
 		return nil, err
 	}
 
@@ -419,11 +419,11 @@ func (c *Client) Run() {
 	<-c.terminate
 
 	c.Safe(func() {
-		c.connHub.close()
+		c.hubConn.close()
 		for t := range c.transfers {
 			t.Close()
 		}
-		for p := range c.connPeers {
+		for p := range c.peerConns {
 			p.close()
 		}
 		if c.listenerUdp != nil {
@@ -467,7 +467,7 @@ func (c *Client) sendInfos(firstTime bool) {
 	hubRegisteredCount := uint(0)
 	hubOperatorCount := uint(0)
 
-	if c.connHub.passwordSent == true {
+	if c.hubConn.passwordSent == true {
 		hubRegisteredCount = 1
 	} else {
 		hubUnregisteredCount = 1
@@ -512,7 +512,7 @@ func (c *Client) sendInfos(firstTime bool) {
 			}
 		}
 
-		c.connHub.conn.Write(&proto.AdcBInfos{
+		c.hubConn.conn.Write(&proto.AdcBInfos{
 			&adc.BroadcastPacket{ID: c.adcSessionId},
 			info,
 		})
@@ -527,7 +527,7 @@ func (c *Client) sendInfos(firstTime bool) {
 			userFlag |= nmdc.FlagTLSDownload | nmdc.FlagTLSUpload
 		}
 
-		c.connHub.conn.Write(&nmdc.MyINFO{
+		c.hubConn.conn.Write(&nmdc.MyINFO{
 			Name: c.conf.Nick,
 			Desc: c.conf.Description,
 			Client: types.Software{

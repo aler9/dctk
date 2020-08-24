@@ -22,7 +22,7 @@ type upload struct {
 	client             *Client
 	terminateRequested bool
 	state              string
-	pconn              *connPeer
+	pconn              *peerConn
 	reader             io.ReadCloser
 	isCompressed       bool
 	query              string
@@ -34,7 +34,7 @@ type upload struct {
 
 func (*upload) isTransfer() {}
 
-func newUpload(client *Client, pconn *connPeer, reqQuery string, reqStart uint64,
+func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64,
 	reqLength int64, reqCompressed bool) bool {
 
 	u := &upload{

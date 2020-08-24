@@ -104,7 +104,7 @@ func (t *listenerTcp) do() {
 		}
 
 		t.client.Safe(func() {
-			newConnPeer(t.client, t.isEncrypted, true, rawconn, "", 0, "")
+			newPeerConn(t.client, t.isEncrypted, true, rawconn, "", 0, "")
 		})
 	}
 }

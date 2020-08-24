@@ -11,26 +11,26 @@ import (
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&proto.AdcBMessage{
+		c.hubConn.conn.Write(&proto.AdcBMessage{
 			&adc.BroadcastPacket{ID: c.adcSessionId},
 			&adc.ChatMessage{Text: content},
 		})
 
 	} else {
-		c.connHub.conn.Write(&nmdc.ChatMessage{c.conf.Nick, content})
+		c.hubConn.conn.Write(&nmdc.ChatMessage{c.conf.Nick, content})
 	}
 }
 
 // MessagePrivate sends a private message to a specific peer connected to the hub.
 func (c *Client) MessagePrivate(dest *Peer, content string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&proto.AdcDMessage{
+		c.hubConn.conn.Write(&proto.AdcDMessage{
 			&adc.DirectPacket{ID: c.adcSessionId, To: dest.adcSessionId},
 			&adc.ChatMessage{Text: content},
 		})
 
 	} else {
-		c.connHub.conn.Write(&nmdc.PrivateMessage{
+		c.hubConn.conn.Write(&nmdc.PrivateMessage{
 			From: c.conf.Nick,
 			Name: c.conf.Nick,
 			To:   dest.Nick,

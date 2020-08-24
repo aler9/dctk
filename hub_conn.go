@@ -65,7 +65,7 @@ func (s hubConnState) String() string {
 	}
 }
 
-type connHub struct {
+type hubConn struct {
 	client             *Client
 	name               string
 	terminateRequested bool
@@ -76,8 +76,8 @@ type connHub struct {
 	uniqueCmds         map[string]struct{}
 }
 
-func newConnHub(client *Client) error {
-	client.connHub = &connHub{
+func newHubConn(client *Client) error {
+	client.hubConn = &hubConn{
 		client:     client,
 		terminate:  make(chan struct{}),
 		state:      hubDisconnected,
@@ -89,15 +89,15 @@ func newConnHub(client *Client) error {
 // HubConnect starts the connection to the hub. It must be called only when
 // HubManualConnect is true.
 func (c *Client) HubConnect() {
-	if c.connHub.state != hubDisconnected {
+	if c.hubConn.state != hubDisconnected {
 		return
 	}
-	c.connHub.state = hubConnecting
+	c.hubConn.state = hubConnecting
 	c.wg.Add(1)
-	go c.connHub.do()
+	go c.hubConn.do()
 }
 
-func (h *connHub) close() {
+func (h *hubConn) close() {
 	if h.terminateRequested == true {
 		return
 	}
@@ -105,7 +105,7 @@ func (h *connHub) close() {
 	close(h.terminate)
 }
 
-func (h *connHub) do() {
+func (h *hubConn) do() {
 	defer h.client.wg.Done()
 
 	err := func() error {
@@ -247,7 +247,7 @@ func (h *connHub) do() {
 	})
 }
 
-func (h *connHub) handleMessage(msgi proto.MsgDecodable) error {
+func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 	switch msg := msgi.(type) {
 	case *proto.AdcKeepAlive:
 
@@ -509,7 +509,7 @@ func (h *connHub) handleMessage(msgi proto.MsgDecodable) error {
 			return nil
 		}
 
-		newConnPeer(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.Ip, uint(msg.Msg.Port), msg.Msg.Token)
+		newPeerConn(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.Ip, uint(msg.Msg.Port), msg.Msg.Token)
 
 	case *proto.AdcDRevConnectToMe:
 		p := h.client.peerBySessionId(msg.Pkt.ID)
@@ -776,7 +776,7 @@ func (h *connHub) handleMessage(msgi proto.MsgDecodable) error {
 		} else if !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption {
 			log.Log(h.client.conf.LogLevel, LogLevelInfo, "received plain connect to me request but encryption is forced, skipping")
 		} else {
-			newConnPeer(h.client, msg.Secure, false, nil, ip, port, "")
+			newPeerConn(h.client, msg.Secure, false, nil, ip, port, "")
 		}
 
 	case *nmdc.RevConnectToMe:
@@ -808,7 +808,7 @@ func (h *connHub) handleMessage(msgi proto.MsgDecodable) error {
 	return nil
 }
 
-func (h *connHub) handleHubInitialized() {
+func (h *hubConn) handleHubInitialized() {
 	log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
 	if h.client.OnHubConnected != nil {
 		h.client.OnHubConnected()

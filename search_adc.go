@@ -74,12 +74,12 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	}
 
 	if len(features) > 0 {
-		c.connHub.conn.Write(&proto.AdcFSearchRequest{
+		c.hubConn.conn.Write(&proto.AdcFSearchRequest{
 			&adc.FeaturePacket{ID: c.adcSessionId, Sel: features},
 			req,
 		})
 	} else {
-		c.connHub.conn.Write(&proto.AdcBSearchRequest{
+		c.hubConn.conn.Write(&proto.AdcBSearchRequest{
 			&adc.BroadcastPacket{ID: c.adcSessionId},
 			req,
 		})
@@ -197,7 +197,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			c.connHub.conn.Write(&proto.AdcDSearchResult{
+			c.hubConn.conn.Write(&proto.AdcDSearchResult{
 				&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 				msg,
 			})

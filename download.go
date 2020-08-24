@@ -50,7 +50,7 @@ type Download struct {
 	activeDlChan       chan struct{}
 	slotChan           chan struct{}
 	peerChan           chan struct{}
-	pconn              *connPeer
+	pconn              *peerConn
 	query              string
 	adcToken           string
 	writer             io.WriteCloser
@@ -238,7 +238,7 @@ func (d *Download) do() {
 		// check if there is a connection with peer and eventually wait
 		wait = false
 		d.client.Safe(func() {
-			if pconn, ok := d.client.connPeersByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
+			if pconn, ok := d.client.peerConnsByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
 				log.Log(d.client.conf.LogLevel, LogLevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
 
 				// generate new token

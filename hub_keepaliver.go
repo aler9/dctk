@@ -15,7 +15,7 @@ type hubKeepAliver struct {
 	done      chan struct{}
 }
 
-func newHubKeepAliver(h *connHub) *hubKeepAliver {
+func newHubKeepAliver(h *hubConn) *hubKeepAliver {
 	ka := &hubKeepAliver{
 		terminate: make(chan struct{}),
 		done:      make(chan struct{}),

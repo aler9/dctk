@@ -103,7 +103,7 @@ func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
 
 func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&proto.AdcDConnectToMe{
+		c.hubConn.conn.Write(&proto.AdcDConnectToMe{
 			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 			&adc.ConnectRequest{
 				func() string {
@@ -123,7 +123,7 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&nmdc.ConnectToMe{
+		c.hubConn.conn.Write(&nmdc.ConnectToMe{
 			Targ: peer.Nick,
 			Address: fmt.Sprintf("%s:%d", c.ip, func() uint {
 				if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
@@ -138,7 +138,7 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 
 func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.connHub.conn.Write(&proto.AdcDRevConnectToMe{
+		c.hubConn.conn.Write(&proto.AdcDRevConnectToMe{
 			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
 			&adc.RevConnectRequest{
 				func() string {
@@ -152,7 +152,7 @@ func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 		})
 
 	} else {
-		c.connHub.conn.Write(&nmdc.RevConnectToMe{
+		c.hubConn.conn.Write(&nmdc.RevConnectToMe{
 			From: c.conf.Nick,
 			To:   peer.Nick,
 		})

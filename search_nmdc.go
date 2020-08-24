@@ -43,7 +43,7 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 		return fmt.Errorf("max size and min size cannot be used together in NMDC")
 	}
 
-	c.connHub.conn.Write(&nmdc.Search{
+	c.hubConn.conn.Write(&nmdc.Search{
 		DataType: func() nmdc.DataType {
 			switch conf.Type {
 			case SearchAny:
@@ -194,7 +194,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 	} else {
 		for _, msg := range msgs {
 			msg.To = req.User
-			c.connHub.conn.Write(msg)
+			c.hubConn.conn.Write(msg)
 		}
 	}
 }

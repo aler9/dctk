@@ -20,7 +20,7 @@ type nickDirectionPair struct {
 	direction string
 }
 
-type connPeer struct {
+type peerConn struct {
 	client             *Client
 	isEncrypted        bool
 	isActive           bool
@@ -41,16 +41,16 @@ type connPeer struct {
 	transfer           transfer
 }
 
-func newConnPeer(client *Client, isEncrypted bool, isActive bool,
-	rawconn net.Conn, ip string, port uint, adcToken string) *connPeer {
-	p := &connPeer{
+func newPeerConn(client *Client, isEncrypted bool, isActive bool,
+	rawconn net.Conn, ip string, port uint, adcToken string) *peerConn {
+	p := &peerConn{
 		client:      client,
 		isEncrypted: isEncrypted,
 		isActive:    isActive,
 		terminate:   make(chan struct{}),
 		adcToken:    adcToken,
 	}
-	p.client.connPeers[p] = struct{}{}
+	p.client.peerConns[p] = struct{}{}
 
 	if isActive == true {
 		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
@@ -85,7 +85,7 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 	return p
 }
 
-func (p *connPeer) close() {
+func (p *peerConn) close() {
 	if p.terminateRequested == true {
 		return
 	}
@@ -93,7 +93,7 @@ func (p *connPeer) close() {
 	close(p.terminate)
 }
 
-func (p *connPeer) do() {
+func (p *peerConn) do() {
 	defer p.client.wg.Done()
 
 	err := func() error {
@@ -229,7 +229,7 @@ func (p *connPeer) do() {
 
 	p.client.Safe(func() {
 		if p.terminateRequested == false {
-			log.Log(p.client.conf.LogLevel, LogLevelInfo, "ERR (connPeer): %s", err)
+			log.Log(p.client.conf.LogLevel, LogLevelInfo, "ERR (peerConn): %s", err)
 		}
 
 		// transfer abruptly interrupted, doesnt care if the conn was terminated or not
@@ -242,17 +242,17 @@ func (p *connPeer) do() {
 			p.conn.Close()
 		}
 
-		delete(p.client.connPeers, p)
+		delete(p.client.peerConns, p)
 
 		if p.peer != nil && p.direction != "" {
-			delete(p.client.connPeersByKey, nickDirectionPair{p.peer.Nick, p.direction})
+			delete(p.client.peerConnsByKey, nickDirectionPair{p.peer.Nick, p.direction})
 		}
 
 		log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] disconnected")
 	})
 }
 
-func (p *connPeer) handleMessage(msgi proto.MsgDecodable) error {
+func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 	switch msg := msgi.(type) {
 	case *proto.AdcCStatus:
 		if msg.Msg.Sev != adc.Success {
@@ -333,10 +333,10 @@ func (p *connPeer) handleMessage(msgi proto.MsgDecodable) error {
 		dl := p.client.downloadByAdcToken(p.adcToken)
 		if dl != nil {
 			key := nickDirectionPair{p.peer.Nick, "download"}
-			if _, ok := p.client.connPeersByKey[key]; ok {
+			if _, ok := p.client.peerConnsByKey[key]; ok {
 				return fmt.Errorf("a connection with this peer and direction already exists")
 			}
-			p.client.connPeersByKey[key] = p
+			p.client.peerConnsByKey[key] = p
 
 			p.direction = "download"
 			p.state = "delegated_download"
@@ -347,10 +347,10 @@ func (p *connPeer) handleMessage(msgi proto.MsgDecodable) error {
 
 		} else {
 			key := nickDirectionPair{p.peer.Nick, "upload"}
-			if _, ok := p.client.connPeersByKey[key]; ok {
+			if _, ok := p.client.peerConnsByKey[key]; ok {
 				return fmt.Errorf("a connection with this peer and direction already exists")
 			}
-			p.client.connPeersByKey[key] = p
+			p.client.peerConnsByKey[key] = p
 
 			p.direction = "upload"
 			p.state = "wait_upload"
@@ -473,11 +473,11 @@ func (p *connPeer) handleMessage(msgi proto.MsgDecodable) error {
 		}
 
 		key := nickDirectionPair{p.peer.Nick, direction}
-		if _, ok := p.client.connPeersByKey[key]; ok {
+		if _, ok := p.client.peerConnsByKey[key]; ok {
 			return fmt.Errorf("a connection with this peer and direction already exists")
 		}
 
-		p.client.connPeersByKey[key] = p
+		p.client.peerConnsByKey[key] = p
 		p.direction = direction
 
 		// upload

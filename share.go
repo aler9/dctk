@@ -243,7 +243,7 @@ func (sm *shareIndexer) index() {
 		sm.client.shareSize = shareSize
 
 		// inform hub
-		if sm.client.connHub.terminateRequested == false && sm.client.connHub.state == hubInitialized {
+		if sm.client.hubConn.terminateRequested == false && sm.client.hubConn.state == hubInitialized {
 			sm.client.sendInfos(false)
 		}
 
