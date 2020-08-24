@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/log"
 	"github.com/aler9/dctoolkit/tiger"
 )
 
@@ -15,7 +16,7 @@ func TestDownloadError(t *testing.T) {
 
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
-				LogLevel:           dctk.LogLevelError,
+				LogLevel:           log.LevelError,
 				HubUrl:             e.Url(),
 				Nick:               "client1",
 				Ip:                 dockerIp,
@@ -30,7 +31,7 @@ func TestDownloadError(t *testing.T) {
 
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
-				LogLevel:           dctk.LogLevelError,
+				LogLevel:           log.LevelError,
 				HubUrl:             e.Url(),
 				Nick:               "client2",
 				Ip:                 dockerIp,

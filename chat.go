@@ -40,14 +40,14 @@ func (c *Client) MessagePrivate(dest *Peer, content string) {
 }
 
 func (c *Client) handlePublicMessage(author *Peer, content string) {
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[PUB] <%s> %s", author.Nick, content)
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[PUB] <%s> %s", author.Nick, content)
 	if c.OnMessagePublic != nil {
 		c.OnMessagePublic(author, content)
 	}
 }
 
 func (c *Client) handlePrivateMessage(author *Peer, content string) {
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[PRIV] <%s> %s", author.Nick, content)
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[PRIV] <%s> %s", author.Nick, content)
 	if c.OnMessagePrivate != nil {
 		c.OnMessagePrivate(author, content)
 	}

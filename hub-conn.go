@@ -150,7 +150,7 @@ func (h *hubConn) do() {
 				h.client.OnHubTLS(st)
 			}
 			if st.NegotiatedProtocol != "" {
-				log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] negotiated %q", st.NegotiatedProtocol)
+				log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] negotiated %q", st.NegotiatedProtocol)
 				// ALPN negotiation
 				switch st.NegotiatedProtocol {
 				case "adc":
@@ -179,7 +179,7 @@ func (h *hubConn) do() {
 			defer keepaliver.Close()
 		}
 
-		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
+		log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] connected (%s)", rawconn.RemoteAddr())
 
 		if h.client.protoIsAdc() {
 			features := adc.ModFeatures{
@@ -234,14 +234,14 @@ func (h *hubConn) do() {
 
 	h.client.Safe(func() {
 		if h.terminateRequested != true {
-			log.Log(h.client.conf.LogLevel, LogLevelInfo, "ERR: %s", err)
+			log.Log(h.client.conf.LogLevel, log.LevelInfo, "ERR: %s", err)
 
 			if h.client.OnHubError != nil {
 				h.client.OnHubError(err)
 			}
 		}
 
-		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] disconnected")
+		log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] disconnected")
 
 		// close client too
 		h.client.Close()
@@ -265,7 +265,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		case adc.Success:
 
 		case adc.Recoverable:
-			log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [WARN] %s (%d)", msg.Msg.Msg, msg.Msg.Code)
+			log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] [WARN] %s (%d)", msg.Msg.Msg, msg.Msg.Code)
 
 		case adc.Fatal:
 			return fmt.Errorf("fatal: %s (%d)", msg.Msg.Msg, msg.Msg.Code)
@@ -290,7 +290,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			if h.client.OnHubInfo != nil {
 				h.client.OnHubInfo(k, v)
 			}
-			log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [%s] %s", k, v)
+			log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] [%s] %s", k, v)
 		}
 
 		if msg.Msg.Name != "" {
@@ -309,7 +309,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 
 	case *proto.AdcIMsg:
 		h.client.handlePublicMessage(&Peer{Nick: h.name}, msg.Msg.Text)
-		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] %s", msg.Msg.Text)
+		log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] %s", msg.Msg.Text)
 
 	case *proto.AdcIGetPass:
 		if h.state != hubSessionID {
@@ -444,7 +444,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		}
 
 		if h.client.conf.IsPassive == true && hasFeature(adc.FeaTCP4) {
-			log.Log(h.client.conf.LogLevel, LogLevelDebug, "we are in passive and author requires active")
+			log.Log(h.client.conf.LogLevel, log.LevelDebug, "we are in passive and author requires active")
 			return nil
 		}
 
@@ -577,7 +577,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		if h.client.OnHubInfo != nil {
 			h.client.OnHubInfo(HubName, string(msg.String))
 		}
-		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [name] %s", string(msg.String))
+		log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] [name] %s", string(msg.String))
 
 	case *nmdc.HubTopic:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
@@ -586,7 +586,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		if h.client.OnHubInfo != nil {
 			h.client.OnHubInfo(HubTopic, msg.Text)
 		}
-		log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] [topic] %s", msg.Text)
+		log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] [topic] %s", msg.Text)
 
 	case *nmdc.GetPass:
 		if h.state != hubPreInitialized {
@@ -773,9 +773,9 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
 		}
 		if msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption {
-			log.Log(h.client.conf.LogLevel, LogLevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
+			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
 		} else if !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption {
-			log.Log(h.client.conf.LogLevel, LogLevelInfo, "received plain connect to me request but encryption is forced, skipping")
+			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received plain connect to me request but encryption is forced, skipping")
 		} else {
 			newPeerConn(h.client, msg.Secure, false, nil, ip, port, "")
 		}
@@ -810,7 +810,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 }
 
 func (h *hubConn) handleHubInitialized() {
-	log.Log(h.client.conf.LogLevel, LogLevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
+	log.Log(h.client.conf.LogLevel, log.LevelInfo, "[hub] initialized, %d peers", len(h.client.peers))
 	if h.client.OnHubConnected != nil {
 		h.client.OnHubConnected()
 	}

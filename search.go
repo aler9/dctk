@@ -142,12 +142,12 @@ func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]inte
 		}
 	}
 
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[search] req: %+v | sent %d results", req, len(results))
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[search] req: %+v | sent %d results", req, len(results))
 	return results, nil
 }
 
 func (c *Client) handleSearchResult(sr *SearchResult) {
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[search] res: %+v", sr)
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[search] res: %+v", sr)
 	if c.OnSearchResult != nil {
 		c.OnSearchResult(sr)
 	}

@@ -111,7 +111,7 @@ func (u *listenerUdp) do() {
 				}
 			}()
 			if err != nil {
-				log.Log(u.client.conf.LogLevel, LogLevelDebug, "[udp] unable to parse: %s", err)
+				log.Log(u.client.conf.LogLevel, log.LevelDebug, "[udp] unable to parse: %s", err)
 			}
 		})
 	}

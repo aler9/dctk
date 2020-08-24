@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctoolkit/log"
 )
 
 func TestConnNoIp(t *testing.T) {
@@ -14,7 +15,7 @@ func TestConnNoIp(t *testing.T) {
 		ok := false
 
 		client, err := dctk.NewClient(dctk.ClientConf{
-			LogLevel:   dctk.LogLevelError,
+			LogLevel:   log.LevelError,
 			HubUrl:     e.Url(),
 			Nick:       "testdctk",
 			Ip:         dockerIp,

@@ -161,7 +161,7 @@ func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 
 func (c *Client) handlePeerConnected(peer *Peer) {
 	c.peers[peer.Nick] = peer
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[hub] [peer on] %s (%v)", peer.Nick, peer.ShareSize)
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[hub] [peer on] %s (%v)", peer.Nick, peer.ShareSize)
 	if c.OnPeerConnected != nil {
 		c.OnPeerConnected(peer)
 	}
@@ -175,7 +175,7 @@ func (c *Client) handlePeerUpdated(peer *Peer) {
 
 func (c *Client) handlePeerDisconnected(peer *Peer) {
 	delete(c.peers, peer.Nick)
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[hub] [peer off] %s", peer.Nick)
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[hub] [peer off] %s", peer.Nick)
 	if c.OnPeerDisconnected != nil {
 		c.OnPeerDisconnected(peer)
 	}

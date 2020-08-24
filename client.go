@@ -75,17 +75,6 @@ const (
 	ForceEncryption
 )
 
-type LogLevel = log.Level
-
-const (
-	// LevelDebug prints everything
-	LogLevelDebug = log.LevelDebug
-	// LevelInfo prints only important messages
-	LogLevelInfo = log.LevelInfo
-	// LevelError prints only error messages
-	LogLevelError = log.LevelError
-)
-
 type transfer interface {
 	isTransfer()
 	Close()
@@ -95,7 +84,7 @@ type transfer interface {
 // ClientConf allows to configure a client.
 type ClientConf struct {
 	// verbosity of the library
-	LogLevel LogLevel
+	LogLevel log.Level
 
 	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
 	// and TcpTlsPort but functionalities are limited

@@ -161,7 +161,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 		return "file TTH/" + d.conf.TTH.String()
 	}()
 
-	log.Log(c.conf.LogLevel, LogLevelInfo, "[download] [%s] requesting %s (s=%d l=%d)",
+	log.Log(c.conf.LogLevel, log.LevelInfo, "[download] [%s] requesting %s (s=%d l=%d)",
 		d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, d.conf.Length)
 
 	d.client.wg.Add(1)
@@ -240,7 +240,7 @@ func (d *Download) do() {
 		wait = false
 		d.client.Safe(func() {
 			if pconn, ok := d.client.peerConnsByKey[nickDirectionPair{d.conf.Peer.Nick, "download"}]; !ok {
-				log.Log(d.client.conf.LogLevel, LogLevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
+				log.Log(d.client.conf.LogLevel, log.LevelDebug, "[download] [%s] requesting new connection", d.conf.Peer.Nick)
 
 				// generate new token
 				if d.client.protoIsAdc() {
@@ -252,7 +252,7 @@ func (d *Download) do() {
 				wait = true
 
 			} else {
-				log.Log(d.client.conf.LogLevel, LogLevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
+				log.Log(d.client.conf.LogLevel, log.LevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
 				pconn.state = "delegated_download"
 				pconn.transfer = d
 				d.pconn = pconn
@@ -271,7 +271,7 @@ func (d *Download) do() {
 		}
 
 		// process download
-		log.Log(d.client.conf.LogLevel, LogLevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
+		log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] processing", d.conf.Peer.Nick)
 
 		if d.client.protoIsAdc() {
 			queryParts := strings.Split(d.query, " ")
@@ -396,7 +396,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 		if since >= (1 * time.Second) {
 			d.lastPrintTime = time.Now()
 			speed := float64(d.pconn.conn.PullReadCounter()) / 1024 / (float64(since) / float64(time.Second))
-			log.Log(d.client.conf.LogLevel, LogLevelInfo, "[recv] %d/%d (%.1f KiB/s)", d.offset, d.length, speed)
+			log.Log(d.client.conf.LogLevel, log.LevelInfo, "[recv] %d/%d (%.1f KiB/s)", d.offset, d.length, speed)
 		}
 
 		if d.offset == d.length {
@@ -440,7 +440,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 			} else {
 				// validate
 				if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
-					log.Log(d.client.conf.LogLevel, LogLevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
+					log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
 
 					// file in disk
 					var contentTTH tiger.Hash
@@ -480,7 +480,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 
 func (d *Download) handleExit(err error) {
 	if d.terminateRequested != true && err != nil {
-		log.Log(d.client.conf.LogLevel, LogLevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
+		log.Log(d.client.conf.LogLevel, log.LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
 	}
 
 	delete(d.client.transfers, d)
@@ -513,13 +513,13 @@ func (d *Download) handleExit(err error) {
 
 	// call callbacks
 	if err == nil {
-		log.Log(d.client.conf.LogLevel, LogLevelInfo, "[download] [%s] finished %s (s=%d l=%d)",
+		log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] finished %s (s=%d l=%d)",
 			d.conf.Peer.Nick, dcReadableQuery(d.query), d.conf.Start, len(d.content))
 		if d.client.OnDownloadSuccessful != nil {
 			d.client.OnDownloadSuccessful(d)
 		}
 	} else {
-		log.Log(d.client.conf.LogLevel, LogLevelInfo, "[download] [%s] failed %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
+		log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] failed %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
 		if d.client.OnDownloadError != nil {
 			d.client.OnDownloadError(d)
 		}

@@ -5,7 +5,6 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	dctk "github.com/aler9/dctoolkit"
 	"github.com/aler9/dctoolkit/tiger"
 )
 

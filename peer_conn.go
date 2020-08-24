@@ -53,7 +53,7 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 	p.client.peerConns[p] = struct{}{}
 
 	if isActive == true {
-		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
+		log.Log(client.conf.LogLevel, log.LevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
 			if p.isEncrypted == true {
 				return " (secure)"
 			}
@@ -69,7 +69,7 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 			p.conn = proto.NewNmdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 		}
 	} else {
-		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
+		log.Log(client.conf.LogLevel, log.LevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
 			if p.isEncrypted == true {
 				return " (secure)"
 			}
@@ -135,7 +135,7 @@ func (p *peerConn) do() {
 				p.state = "connected"
 			})
 
-			log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
+			log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
 				func() string {
 					if p.isEncrypted == true {
 						return " (secure)"
@@ -229,7 +229,7 @@ func (p *peerConn) do() {
 
 	p.client.Safe(func() {
 		if p.terminateRequested == false {
-			log.Log(p.client.conf.LogLevel, LogLevelInfo, "ERR (peerConn): %s", err)
+			log.Log(p.client.conf.LogLevel, log.LevelInfo, "ERR (peerConn): %s", err)
 		}
 
 		// transfer abruptly interrupted, doesnt care if the conn was terminated or not
@@ -248,7 +248,7 @@ func (p *peerConn) do() {
 			delete(p.client.peerConnsByKey, nickDirectionPair{p.peer.Nick, p.direction})
 		}
 
-		log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] disconnected")
+		log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] disconnected")
 	})
 }
 
@@ -326,7 +326,7 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 					return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
 						connFingerprint, p.peer.adcFingerprint)
 				}
-				log.Log(p.client.conf.LogLevel, LogLevelInfo, "[peer] fingerprint validated")
+				log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] fingerprint validated")
 			}
 		}
 
