@@ -15,20 +15,20 @@ var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIp + "):(" + reStrPort + ")$"
 var ReNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9:]+)( (.+))?$")
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 
-type ProtocolNmdc struct {
-	*ProtocolBase
+type NmdcConn struct {
+	*BaseConn
 }
 
-func NewProtocolNmdc(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) Protocol {
-	p := &ProtocolNmdc{
-		ProtocolBase: newProtocolBase(logLevel, remoteLabel,
+func NewNmdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) Conn {
+	p := &NmdcConn{
+		BaseConn: newBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '|'),
 	}
 	return p
 }
 
-func (p *ProtocolNmdc) Read() (MsgDecodable, error) {
+func (p *NmdcConn) Read() (MsgDecodable, error) {
 	if p.readBinary == false {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
@@ -141,7 +141,7 @@ func (p *ProtocolNmdc) Read() (MsgDecodable, error) {
 	}
 }
 
-func (p *ProtocolNmdc) Write(msg MsgEncodable) {
+func (p *NmdcConn) Write(msg MsgEncodable) {
 	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
 
 	if c, ok := msg.(*nmdc.ChatMessage); ok {
@@ -150,12 +150,12 @@ func (p *ProtocolNmdc) Write(msg MsgEncodable) {
 			panic(err)
 		}
 		buf.WriteByte('|')
-		p.ProtocolBase.Write(buf.Bytes())
+		p.BaseConn.Write(buf.Bytes())
 		return
 	}
 
 	if _, ok := msg.(*NmdcKeepAlive); ok {
-		p.ProtocolBase.Write([]byte{'|'})
+		p.BaseConn.Write([]byte{'|'})
 		return
 	}
 
@@ -179,7 +179,7 @@ func (p *ProtocolNmdc) Write(msg MsgEncodable) {
 	}
 
 	buf.WriteByte('|')
-	p.ProtocolBase.Write(buf.Bytes())
+	p.BaseConn.Write(buf.Bytes())
 }
 
 type NmdcKeepAlive struct{}

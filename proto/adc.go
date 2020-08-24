@@ -42,20 +42,20 @@ func AdcCertFingerprint(cert *x509.Certificate) string {
 	return "SHA256/" + dcBase32Encode(h.Sum(nil))
 }
 
-type ProtocolAdc struct {
-	*ProtocolBase
+type AdcConn struct {
+	*BaseConn
 }
 
-func NewProtocolAdc(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) Protocol {
-	p := &ProtocolAdc{
-		ProtocolBase: newProtocolBase(logLevel, remoteLabel,
+func NewAdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) Conn {
+	p := &AdcConn{
+		BaseConn: newBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
 	}
 	return p
 }
 
-func (p *ProtocolAdc) Read() (MsgDecodable, error) {
+func (p *AdcConn) Read() (MsgDecodable, error) {
 	if p.readBinary == false {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
@@ -170,7 +170,7 @@ func (p *ProtocolAdc) Read() (MsgDecodable, error) {
 	}
 }
 
-func (p *ProtocolAdc) Write(pktMsg MsgEncodable) {
+func (p *AdcConn) Write(pktMsg MsgEncodable) {
 	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
 
 	pkt := reflect.ValueOf(pktMsg).Elem().FieldByName("Pkt").Interface().(adc.Packet)
@@ -182,7 +182,7 @@ func (p *ProtocolAdc) Write(pktMsg MsgEncodable) {
 		panic(err)
 	}
 
-	p.ProtocolBase.Write(buf.Bytes())
+	p.BaseConn.Write(buf.Bytes())
 }
 
 type AdcKeepAlive struct{}

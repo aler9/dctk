@@ -71,7 +71,7 @@ type connHub struct {
 	terminateRequested bool
 	terminate          chan struct{}
 	state              hubConnState
-	conn               proto.Protocol
+	conn               proto.Conn
 	passwordSent       bool
 	uniqueCmds         map[string]struct{}
 }
@@ -164,10 +164,10 @@ func (h *connHub) do() {
 		protoName := ""
 		if h.client.protoIsAdc() {
 			protoName = "adc"
-			h.conn = proto.NewProtocolAdc(h.client.conf.LogLevel, "h", rawconn, false, true)
+			h.conn = proto.NewAdcConn(h.client.conf.LogLevel, "h", rawconn, false, true)
 		} else {
 			protoName = "nmdc"
-			h.conn = proto.NewProtocolNmdc(h.client.conf.LogLevel, "h", rawconn, false, true)
+			h.conn = proto.NewNmdcConn(h.client.conf.LogLevel, "h", rawconn, false, true)
 		}
 		if h.client.OnHubProto != nil {
 			h.client.OnHubProto(protoName)

@@ -27,7 +27,7 @@ type connPeer struct {
 	terminateRequested bool
 	terminate          chan struct{}
 	state              string
-	conn               proto.Protocol
+	conn               proto.Conn
 	tlsConn            *tls.Conn
 	adcToken           string
 	passiveIp          string
@@ -64,9 +64,9 @@ func newConnPeer(client *Client, isEncrypted bool, isActive bool,
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
 		if client.protoIsAdc() {
-			p.conn = proto.NewProtocolAdc(p.client.conf.LogLevel, "p", rawconn, true, true)
+			p.conn = proto.NewAdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 		} else {
-			p.conn = proto.NewProtocolNmdc(p.client.conf.LogLevel, "p", rawconn, true, true)
+			p.conn = proto.NewNmdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 		}
 	} else {
 		log.Log(client.conf.LogLevel, LogLevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
@@ -126,9 +126,9 @@ func (p *connPeer) do() {
 			}
 
 			if p.client.protoIsAdc() {
-				p.conn = proto.NewProtocolAdc(p.client.conf.LogLevel, "p", rawconn, true, true)
+				p.conn = proto.NewAdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 			} else {
-				p.conn = proto.NewProtocolNmdc(p.client.conf.LogLevel, "p", rawconn, true, true)
+				p.conn = proto.NewNmdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 			}
 
 			p.client.Safe(func() {
