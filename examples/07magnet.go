@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	dctk "github.com/aler9/dctoolkit"
 	"github.com/aler9/dctoolkit/tiger"
 )
 
@@ -27,6 +26,6 @@ func main() {
 	fmt.Println("tth:", tth)
 
 	// get and print the magnet URL corresponding to the given file
-	magnetLink := dctk.MagnetLink("filename", uint64(finfo.Size()), tth)
+	magnetLink := tiger.MagnetLink("filename", uint64(finfo.Size()), tth)
 	fmt.Println("magnet link:", magnetLink)
 }
