@@ -11,7 +11,7 @@ import (
 	godctiger "github.com/aler9/go-dc/tiger"
 )
 
-// tiger hash used throughout the library.
+// NewHash allocates a tiger hash instance.
 func NewHash() hash.Hash {
 	return godctiger.New()
 }
@@ -52,7 +52,7 @@ func (h *Hash) UnmarshalText(text []byte) error {
 	return (*godctiger.Hash)(h).UnmarshalText(text)
 }
 
-// tiger.HashFromBytes computes the Tiger Tree Hash (TTH) of a byte slice.
+// HashFromBytes computes the Tiger Tree Hash (TTH) of a byte slice.
 func HashFromBytes(in []byte) Hash {
 	ret, _ := godctiger.TreeHash(bytes.NewReader(in))
 	return Hash(ret)
