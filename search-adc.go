@@ -1,4 +1,4 @@
-package dctoolkit
+package dctk
 
 import (
 	"bytes"
@@ -9,9 +9,9 @@ import (
 	"github.com/aler9/go-dc/adc"
 	godctiger "github.com/aler9/go-dc/tiger"
 
-	"github.com/aler9/dctoolkit/log"
-	"github.com/aler9/dctoolkit/proto"
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/proto"
+	"github.com/aler9/dctk/tiger"
 )
 
 func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.SearchResult) {

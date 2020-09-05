@@ -1,4 +1,4 @@
-package dctoolkit_test
+package dctk_test
 
 import (
 	"net"

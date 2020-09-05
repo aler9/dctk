@@ -1,4 +1,4 @@
-package dctoolkit
+package dctk
 
 import (
 	"encoding/base32"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/tiger"
 )
 
 var dirTTH = tiger.HashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")

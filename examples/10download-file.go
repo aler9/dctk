@@ -5,8 +5,8 @@ package main
 import (
 	"fmt"
 
-	dctk "github.com/aler9/dctoolkit"
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk"
+	"github.com/aler9/dctk/tiger"
 )
 
 func main() {

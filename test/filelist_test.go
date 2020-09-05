@@ -1,4 +1,4 @@
-package dctoolkit_test
+package dctk_test
 
 import (
 	"reflect"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctk"
 )
 
 func TestFileList(t *testing.T) {

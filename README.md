@@ -1,11 +1,11 @@
 
-# dctoolkit
+# dctk
 
-[![Build Status](https://travis-ci.org/aler9/dctoolkit.svg?branch=master)](https://travis-ci.org/aler9/dctoolkit)
-[![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctoolkit)](https://goreportcard.com/report/github.com/aler9/dctoolkit)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/aler9/dctoolkit?tab=doc)
+[![Build Status](https://travis-ci.org/aler9/dctk.svg?branch=master)](https://travis-ci.org/aler9/dctk)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctk)](https://goreportcard.com/report/github.com/aler9/dctk)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/aler9/dctk?tab=doc)
 
-dctoolkit implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
+dctk implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
 * a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
 * a series of [**command line utilities**](#command-line-utilities) that make use of the library.
 
@@ -33,7 +33,7 @@ Note: this project uses the rolling release development model, as it is used in 
 Go &ge; 1.12 is required, and modules must be enabled (there must be a `go.mod` file in your project folder, that can be created with the command `go mod init main`). To install the library, it is enough to write its name in the import section of the source files that will use it. Go will take care of downloading the needed files:
 ```go
 import (
-    dctk "github.com/aler9/dctoolkit"
+    "github.com/aler9/dctk"
 )
 ```
 
@@ -57,7 +57,7 @@ import (
 
 #### Documentation
 
-https://pkg.go.dev/github.com/aler9/dctoolkit
+https://pkg.go.dev/github.com/aler9/dctk
 
 #### Testing
 
@@ -72,7 +72,7 @@ make test
 
 Go &ge; 1.12 is required. Download, compile and install the binaries with:
 ```
-go get github.com/aler9/dctoolkit/commands/...
+go get github.com/aler9/dctk/commands/...
 ```
 
 #### Usage

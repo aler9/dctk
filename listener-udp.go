@@ -1,4 +1,4 @@
-package dctoolkit
+package dctk
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
 
-	"github.com/aler9/dctoolkit/log"
-	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/proto"
 )
 
 type listenerUdp struct {

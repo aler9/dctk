@@ -1,9 +1,9 @@
-package dctoolkit
+package dctk
 
 import (
 	"time"
 
-	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctk/proto"
 )
 
 const (

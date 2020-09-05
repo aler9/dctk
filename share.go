@@ -1,4 +1,4 @@
-package dctoolkit
+package dctk
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/dsnet/compress/bzip2"
 
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/tiger"
 )
 
 type shareFile struct {

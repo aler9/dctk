@@ -1,11 +1,11 @@
-package dctoolkit
+package dctk
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/aler9/dctoolkit/log"
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/tiger"
 )
 
 // SearchType contains the search type.

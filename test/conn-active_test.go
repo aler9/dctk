@@ -1,4 +1,4 @@
-package dctoolkit_test
+package dctk_test
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	dctk "github.com/aler9/dctoolkit"
-	"github.com/aler9/dctoolkit/log"
+	"github.com/aler9/dctk"
+	"github.com/aler9/dctk/log"
 )
 
 func TestConnActive(t *testing.T) {

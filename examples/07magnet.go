@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/tiger"
 )
 
 func main() {

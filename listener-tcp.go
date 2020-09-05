@@ -1,4 +1,4 @@
-package dctoolkit
+package dctk
 
 import (
 	crand "crypto/rand"
@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/aler9/dctoolkit/proto"
+	"github.com/aler9/dctk/proto"
 )
 
 type listenerTcp struct {

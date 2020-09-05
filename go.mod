@@ -1,4 +1,4 @@
-module github.com/aler9/dctoolkit
+module github.com/aler9/dctk
 
 go 1.12
 

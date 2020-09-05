@@ -1,16 +1,16 @@
 /*
-Package dctoolkit implements the client part of the Direct Connect
+Package dctk implements the client part of the Direct Connect
 peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 It allows the creation of clients that can interact with hubs and other
 clients, and can be used as backend to user interfaces or automatic bots.
 
-Basic example (more are available at https://github.com/aler9/dctoolkit/tree/master/examples)
+Basic example (more are available at https://github.com/aler9/dctk/tree/master/examples)
 
   package main
 
   import (
   	"fmt"
-  	dctk "github.com/aler9/dctoolkit"
+  	"github.com/aler9/dctk"
   )
 
   func main() {
@@ -32,7 +32,7 @@ Basic example (more are available at https://github.com/aler9/dctoolkit/tree/mas
   	client.Run()
   }
 */
-package dctoolkit
+package dctk
 
 import (
 	"crypto/tls"
@@ -51,9 +51,9 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 	"github.com/aler9/go-dc/types"
 
-	"github.com/aler9/dctoolkit/log"
-	"github.com/aler9/dctoolkit/proto"
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/proto"
+	"github.com/aler9/dctk/tiger"
 )
 
 const (

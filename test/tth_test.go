@@ -1,11 +1,11 @@
-package dctoolkit_test
+package dctk_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/aler9/dctoolkit/tiger"
+	"github.com/aler9/dctk/tiger"
 )
 
 var testCasesTTH = []struct {

@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 
-	dctk "github.com/aler9/dctoolkit"
+	"github.com/aler9/dctk"
 )
 
 func main() {
