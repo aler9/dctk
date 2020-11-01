@@ -3,7 +3,7 @@
 
 [![Build Status](https://travis-ci.com/aler9/dctk.svg?branch=master)](https://travis-ci.com/aler9/dctk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctk)](https://goreportcard.com/report/github.com/aler9/dctk)
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/aler9/dctk?tab=doc)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/aler9/dctk)](https://pkg.go.dev/github.com/aler9/dctk)
 
 dctk implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
 * a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
