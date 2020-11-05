@@ -30,7 +30,7 @@ Note: this project uses the rolling release development model, as it is used in 
 
 #### Installation
 
-Go &ge; 1.12 is required, and modules must be enabled (there must be a `go.mod` file in your project folder, that can be created with the command `go mod init main`). To install the library, it is enough to write its name in the import section of the source files that will use it. Go will take care of downloading the needed files:
+Go &ge; 1.13 is required, and modules must be enabled (there must be a `go.mod` file in your project folder, that can be created with the command `go mod init main`). To install the library, it is enough to write its name in the import section of the source files that will use it. Go will take care of downloading the needed files:
 ```go
 import (
     "github.com/aler9/dctk"
@@ -70,7 +70,7 @@ make test
 
 #### Installation
 
-Go &ge; 1.12 is required. Download, compile and install the binaries with:
+Go &ge; 1.13 is required. Download, compile and install the binaries with:
 ```
 go get github.com/aler9/dctk/commands/...
 ```
