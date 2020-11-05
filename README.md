@@ -142,3 +142,6 @@ Other libraries
 
 Inspired by
 * https://godoc.org/github.com/anacrolix/torrent
+
+Conventions
+* https://github.com/golang-standards/project-layout
