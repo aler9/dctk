@@ -6,6 +6,7 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/aler9/dctk)](https://pkg.go.dev/github.com/aler9/dctk)
 
 dctk implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
+
 * a [**library**](#library), that allows the creation of clients capable of interacting with hubs and other clients;
 * a series of [**command line utilities**](#command-line-utilities) that make use of the library.
 
@@ -31,6 +32,7 @@ Note: this project uses the rolling release development model, as it is used in 
 #### Installation
 
 Go &ge; 1.13 is required, and modules must be enabled (there must be a `go.mod` file in your project folder, that can be created with the command `go mod init main`). To install the library, it is enough to write its name in the import section of the source files that will use it. Go will take care of downloading the needed files:
+
 ```go
 import (
     "github.com/aler9/dctk"
@@ -62,6 +64,7 @@ https://pkg.go.dev/github.com/aler9/dctk
 #### Testing
 
 If you want to edit this library and test the results, you can you automated tests with:
+
 ```
 make test
 ```
@@ -71,6 +74,7 @@ make test
 #### Installation
 
 Go &ge; 1.13 is required. Download, compile and install the binaries with:
+
 ```
 go get github.com/aler9/dctk/commands/...
 ```
@@ -104,15 +108,18 @@ Share a directory in a given hub.
 ## Links
 
 Base library
+
 * https://github.com/direct-connect/go-dc
 
 Protocol references
+
 * (ADC) https://adc.dcbase.org/Protocol
 * (ADC) https://adc.dcbase.org/Extensions
 * (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
 * (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
 
 Hubs
+
 * (NMDC) http://www.ptokax.org
 * (NMDC) https://github.com/Verlihub/verlihub
 * (ADC) http://adchpp.sourceforge.net/
@@ -123,6 +130,7 @@ Hubs
 * (NMDC & ADC) https://github.com/direct-connect/go-dcpp
 
 Clients
+
 * (NMDC) https://dev.yorhel.nl/ncdc
 * (NMDC & ADC) https://github.com/eiskaltdcpp/eiskaltdcpp
 * (NMDC & ADC) http://dcplusplus.sourceforge.net/
@@ -133,6 +141,7 @@ Clients
 * (NMDC) https://github.com/lilyball/dcbot
 
 Other libraries
+
 * [Go] (NMDC & ADC) https://git.ivysaur.me/code.ivysaur.me/libnmdc
 * [Go] (ADC) https://github.com/ehmry/go-adc
 * [Go] (ADC) https://github.com/seoester/adcl
@@ -141,7 +150,9 @@ Other libraries
 * [Python] (ADC) https://pypi.org/project/pyADC/
 
 Inspired by
+
 * https://godoc.org/github.com/anacrolix/torrent
 
 Conventions
+
 * https://github.com/golang-standards/project-layout
