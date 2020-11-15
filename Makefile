@@ -52,7 +52,7 @@ test-nodocker:
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
 	go test -race -v ./test
-	go build -o /dev/null ./commands/...
+	go build -o /dev/null ./cmd/...
 	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
 
 test-manual:

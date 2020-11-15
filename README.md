@@ -76,7 +76,7 @@ make test
 Go &ge; 1.13 is required. Download, compile and install the binaries with:
 
 ```
-go get github.com/aler9/dctk/commands/...
+go get github.com/aler9/dctk/cmd/...
 ```
 
 #### Usage
