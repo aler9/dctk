@@ -7,8 +7,8 @@ import (
 	"github.com/aler9/go-dc/adc"
 	"github.com/aler9/go-dc/nmdc"
 
-	"github.com/aler9/dctk/log"
-	"github.com/aler9/dctk/proto"
+	"github.com/aler9/dctk/pkg/log"
+	"github.com/aler9/dctk/pkg/proto"
 )
 
 type listenerUdp struct {

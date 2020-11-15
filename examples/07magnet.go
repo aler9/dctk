@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 func main() {

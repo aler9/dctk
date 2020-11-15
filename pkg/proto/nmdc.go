@@ -8,7 +8,7 @@ import (
 
 	"github.com/aler9/go-dc/nmdc"
 
-	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/pkg/log"
 )
 
 var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIp + "):(" + reStrPort + ")$")

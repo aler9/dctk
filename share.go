@@ -10,7 +10,7 @@ import (
 
 	"github.com/dsnet/compress/bzip2"
 
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 type shareFile struct {

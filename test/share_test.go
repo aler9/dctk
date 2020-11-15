@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/aler9/dctk"
-	"github.com/aler9/dctk/log"
+	"github.com/aler9/dctk/pkg/log"
 )
 
 func TestShare(t *testing.T) {

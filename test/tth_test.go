@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 var testCasesTTH = []struct {

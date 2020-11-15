@@ -5,7 +5,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 var (

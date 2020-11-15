@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 var dirTTH = tiger.HashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")

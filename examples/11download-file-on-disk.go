@@ -4,7 +4,7 @@ package main
 
 import (
 	"github.com/aler9/dctk"
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package dctk
 import (
 	"time"
 
-	"github.com/aler9/dctk/proto"
+	"github.com/aler9/dctk/pkg/proto"
 )
 
 const (

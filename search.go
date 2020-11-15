@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aler9/dctk/log"
-	"github.com/aler9/dctk/tiger"
+	"github.com/aler9/dctk/pkg/log"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 // SearchType contains the search type.

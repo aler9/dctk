@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/aler9/dctk/proto"
+	"github.com/aler9/dctk/pkg/proto"
 )
 
 type listenerTcp struct {
