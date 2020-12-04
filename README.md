@@ -1,7 +1,7 @@
 
 # dctk
 
-[![Build Status](https://travis-ci.com/aler9/dctk.svg?branch=master)](https://travis-ci.com/aler9/dctk)
+[![Test](https://github.com/aler9/dctk/workflows/test/badge.svg)](https://github.com/aler9/dctk/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/aler9/dctk)](https://goreportcard.com/report/github.com/aler9/dctk)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/aler9/dctk)](https://pkg.go.dev/github.com/aler9/dctk)
 
