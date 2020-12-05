@@ -5,13 +5,13 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctk/pkg/log"
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
 )
 
 // MessagePublic publishes a message in the hub public chat.
 func (c *Client) MessagePublic(content string) {
 	if c.protoIsAdc() {
-		c.hubConn.conn.Write(&proto.AdcBMessage{ //nolint:govet
+		c.hubConn.conn.Write(&protoadc.AdcBMessage{ //nolint:govet
 			&adc.BroadcastPacket{ID: c.adcSessionID},
 			&adc.ChatMessage{Text: content},
 		})
@@ -24,7 +24,7 @@ func (c *Client) MessagePublic(content string) {
 // MessagePrivate sends a private message to a specific peer connected to the hub.
 func (c *Client) MessagePrivate(dest *Peer, content string) {
 	if c.protoIsAdc() {
-		c.hubConn.conn.Write(&proto.AdcDMessage{ //nolint:govet
+		c.hubConn.conn.Write(&protoadc.AdcDMessage{ //nolint:govet
 			&adc.DirectPacket{ID: c.adcSessionID, To: dest.adcSessionID},
 			&adc.ChatMessage{Text: content},
 		})

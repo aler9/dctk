@@ -3,7 +3,8 @@ package dctk
 import (
 	"time"
 
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
+	"github.com/aler9/dctk/pkg/protonmdc"
 )
 
 const (
@@ -33,9 +34,9 @@ func newHubKeepAliver(h *hubConn) *hubKeepAliver {
 				h.client.Safe(func() {
 					if h.client.protoIsAdc() {
 						// ADC uses the TCP keepalive feature or empty packets
-						h.conn.Write(&proto.AdcKeepAlive{})
+						h.conn.Write(&protoadc.AdcKeepAlive{})
 					} else {
-						h.conn.Write(&proto.NmdcKeepAlive{})
+						h.conn.Write(&protonmdc.NmdcKeepAlive{})
 					}
 				})
 			case <-ka.terminate:

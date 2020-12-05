@@ -1,4 +1,4 @@
-package proto
+package protonmdc
 
 import (
 	"bytes"
@@ -9,33 +9,34 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctk/pkg/log"
+	"github.com/aler9/dctk/pkg/protocommon"
 )
 
-var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIP + "):(" + reStrPort + ")$")
+var ReNmdcAddress = regexp.MustCompile("^(" + protocommon.ReStrIP + "):(" + protocommon.ReStrPort + ")$")
 var ReNmdcCommand = regexp.MustCompile(`(?s)^\$([a-zA-Z0-9:]+)( (.+))?$`)
-var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
+var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + protocommon.ReStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 
-type NmdcConn struct {
-	*BaseConn
+type Conn struct {
+	*protocommon.BaseConn
 }
 
-func NewNmdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) Conn {
-	p := &NmdcConn{
-		BaseConn: newBaseConn(logLevel, remoteLabel,
+func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) protocommon.Conn {
+	p := &Conn{
+		BaseConn: protocommon.NewBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '|'),
 	}
 	return p
 }
 
-func (p *NmdcConn) Read() (MsgDecodable, error) {
-	if !p.readBinary {
+func (p *Conn) Read() (protocommon.MsgDecodable, error) {
+	if !p.BinaryMode() {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
 		}
 
-		msg, err := func() (MsgDecodable, error) {
+		msg, err := func() (protocommon.MsgDecodable, error) {
 			if len(msgStr) == 0 {
 				return &NmdcKeepAlive{}, nil
 			}
@@ -129,7 +130,7 @@ func (p *NmdcConn) Read() (MsgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.LogLevel(), log.LevelDebug, "[%s->c] %T %+v", p.RemoteLabel(), msg, msg)
 		return msg, nil
 	}
 
@@ -137,11 +138,12 @@ func (p *NmdcConn) Read() (MsgDecodable, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &MsgBinary{buf}, nil
+
+	return &protocommon.MsgBinary{buf}, nil //nolint:govet
 }
 
-func (p *NmdcConn) Write(msg MsgEncodable) {
-	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, msg, msg)
+func (p *Conn) Write(msg protocommon.MsgEncodable) {
+	log.Log(p.LogLevel(), log.LevelDebug, "[c->%s] %T %+v", p.RemoteLabel(), msg, msg)
 
 	if c, ok := msg.(*nmdc.ChatMessage); ok {
 		var buf bytes.Buffer

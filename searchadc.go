@@ -10,7 +10,7 @@ import (
 	godctiger "github.com/aler9/go-dc/tiger"
 
 	"github.com/aler9/dctk/pkg/log"
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
@@ -41,7 +41,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.Searc
 func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	req := &adc.SearchRequest{
 		// always add token even if we're not using it
-		Token: proto.AdcRandomToken(),
+		Token: protoadc.AdcRandomToken(),
 	}
 
 	switch conf.Type {
@@ -75,12 +75,12 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	}
 
 	if len(features) > 0 {
-		c.hubConn.conn.Write(&proto.AdcFSearchRequest{ //nolint:govet
+		c.hubConn.conn.Write(&protoadc.AdcFSearchRequest{ //nolint:govet
 			&adc.FeaturePacket{ID: c.adcSessionID, Sel: features},
 			req,
 		})
 	} else {
-		c.hubConn.conn.Write(&proto.AdcBSearchRequest{ //nolint:govet
+		c.hubConn.conn.Write(&protoadc.AdcBSearchRequest{ //nolint:govet
 			&adc.BroadcastPacket{ID: c.adcSessionID},
 			req,
 		})
@@ -179,7 +179,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 			defer conn.Close()
 
 			for _, msg := range msgs {
-				amsg := &proto.AdcUSearchResult{ //nolint:govet
+				amsg := &protoadc.AdcUSearchResult{ //nolint:govet
 					&adc.UDPPacket{ID: peer.adcClientID},
 					msg,
 				}
@@ -198,7 +198,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			c.hubConn.conn.Write(&proto.AdcDSearchResult{ //nolint:govet
+			c.hubConn.conn.Write(&protoadc.AdcDSearchResult{ //nolint:govet
 				&adc.DirectPacket{ID: c.adcSessionID, To: peer.adcSessionID},
 				msg,
 			})

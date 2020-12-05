@@ -13,7 +13,7 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctk/pkg/log"
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
@@ -155,11 +155,11 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 		log.Log(u.client.conf.LogLevel, log.LevelInfo, "[peer] cannot start upload: %s", err)
 		if err == errorNoSlots {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&proto.AdcCStatus{ //nolint:govet
+				u.pconn.conn.Write(&protoadc.AdcCStatus{ //nolint:govet
 					&adc.ClientPacket{},
 					&adc.Status{
 						Sev:  adc.Recoverable,
-						Code: proto.AdcCodeSlotsFull,
+						Code: protoadc.AdcCodeSlotsFull,
 						Msg:  "Slots full",
 					},
 				})
@@ -168,11 +168,11 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 			}
 		} else {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&proto.AdcCStatus{ //nolint:govet
+				u.pconn.conn.Write(&protoadc.AdcCStatus{ //nolint:govet
 					&adc.ClientPacket{},
 					&adc.Status{
 						Sev:  adc.Recoverable,
-						Code: proto.AdcCodeFileNotAvailable,
+						Code: protoadc.AdcCodeFileNotAvailable,
 						Msg:  "File Not Available",
 					},
 				})
@@ -185,7 +185,7 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 
 	if u.client.protoIsAdc() {
 		queryParts := strings.Split(u.query, " ")
-		u.pconn.conn.Write(&proto.AdcCSendFile{ //nolint:govet
+		u.pconn.conn.Write(&protoadc.AdcCSendFile{ //nolint:govet
 			&adc.ClientPacket{},
 			&adc.GetResponse{
 				Type:       queryParts[0],

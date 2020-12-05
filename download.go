@@ -15,7 +15,8 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctk/pkg/log"
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
+	"github.com/aler9/dctk/pkg/protocommon"
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
@@ -212,7 +213,7 @@ func (d *Download) do() {
 		if wait {
 			select {
 			case <-d.terminate:
-				return proto.ErrorTerminated
+				return protocommon.ErrorTerminated
 			case <-d.activeDlChan:
 			}
 		}
@@ -231,7 +232,7 @@ func (d *Download) do() {
 		if wait {
 			select {
 			case <-d.terminate:
-				return proto.ErrorTerminated
+				return protocommon.ErrorTerminated
 			case <-d.slotChan:
 			}
 		}
@@ -244,7 +245,7 @@ func (d *Download) do() {
 
 				// generate new token
 				if d.client.protoIsAdc() {
-					d.adcToken = proto.AdcRandomToken()
+					d.adcToken = protoadc.AdcRandomToken()
 				}
 
 				d.client.peerRequestConnection(d.conf.Peer, d.adcToken)
@@ -265,7 +266,7 @@ func (d *Download) do() {
 			case <-timeout.C:
 				return fmt.Errorf("timed out")
 			case <-d.terminate:
-				return proto.ErrorTerminated
+				return protocommon.ErrorTerminated
 			case <-d.peerChan:
 			}
 		}
@@ -275,7 +276,7 @@ func (d *Download) do() {
 
 		if d.client.protoIsAdc() {
 			queryParts := strings.Split(d.query, " ")
-			d.pconn.conn.Write(&proto.AdcCGetFile{ //nolint:govet
+			d.pconn.conn.Write(&protoadc.AdcCGetFile{ //nolint:govet
 				&adc.ClientPacket{},
 				&adc.GetRequest{
 					Type:  queryParts[0],
@@ -335,7 +336,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 		return fmt.Errorf("downloading null files is not supported")
 	}
 
-	d.pconn.conn.SetReadBinary(true)
+	d.pconn.conn.SetBinaryMode(true)
 	if reqCompressed {
 		d.pconn.conn.ReaderEnableZlib()
 	}
@@ -360,12 +361,12 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 	return nil
 }
 
-func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
+func (d *Download) handleDownload(msgi protocommon.MsgDecodable) error {
 	switch msg := msgi.(type) {
-	case *proto.AdcCStatus:
+	case *protoadc.AdcCStatus:
 		return fmt.Errorf("error: %+v", msg)
 
-	case *proto.AdcCSendFile:
+	case *protoadc.AdcCSendFile:
 		query := msg.Msg.Type + " " + msg.Msg.Path
 		return d.handleSendFile(query, uint64(msg.Msg.Start), uint64(msg.Msg.Bytes), msg.Msg.Compressed)
 
@@ -379,7 +380,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 		query := string(msg.ContentType) + " " + string(msg.Identifier)
 		return d.handleSendFile(query, msg.Start, msg.Length, msg.Compressed)
 
-	case *proto.MsgBinary:
+	case *protocommon.MsgBinary:
 		newLength := d.offset + uint64(len(msg.Content))
 		if newLength > d.length {
 			return fmt.Errorf("binary content too long (%d)", newLength)
@@ -400,7 +401,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 		}
 
 		if d.offset == d.length {
-			d.pconn.conn.SetReadBinary(false)
+			d.pconn.conn.SetBinaryMode(false)
 			d.writer.Close()
 
 			// file list: unzip in final path
@@ -469,7 +470,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 				}
 			}
 
-			return proto.ErrorTerminated
+			return protocommon.ErrorTerminated
 		}
 
 	default:

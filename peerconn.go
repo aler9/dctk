@@ -10,7 +10,9 @@ import (
 	"github.com/aler9/go-dc/nmdc"
 
 	"github.com/aler9/dctk/pkg/log"
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
+	"github.com/aler9/dctk/pkg/protocommon"
+	"github.com/aler9/dctk/pkg/protonmdc"
 )
 
 var errorDelegatedUpload = fmt.Errorf("delegated upload")
@@ -27,7 +29,7 @@ type peerConn struct {
 	terminateRequested bool
 	terminate          chan struct{}
 	state              string
-	conn               proto.Conn
+	conn               protocommon.Conn
 	tlsConn            *tls.Conn
 	adcToken           string
 	passiveIP          string
@@ -64,9 +66,9 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
 		if client.protoIsAdc() {
-			p.conn = proto.NewAdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
+			p.conn = protoadc.NewConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 		} else {
-			p.conn = proto.NewNmdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
+			p.conn = protonmdc.NewConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 		}
 	} else {
 		log.Log(client.conf.LogLevel, log.LevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
@@ -111,7 +113,7 @@ func (p *peerConn) do() {
 
 			select {
 			case <-p.terminate:
-				return proto.ErrorTerminated
+				return protocommon.ErrorTerminated
 			case <-ce.Wait:
 			}
 
@@ -126,9 +128,9 @@ func (p *peerConn) do() {
 			}
 
 			if p.client.protoIsAdc() {
-				p.conn = proto.NewAdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
+				p.conn = protoadc.NewConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 			} else {
-				p.conn = proto.NewNmdcConn(p.client.conf.LogLevel, "p", rawconn, true, true)
+				p.conn = protonmdc.NewConn(p.client.conf.LogLevel, "p", rawconn, true, true)
 			}
 
 			p.client.Safe(func() {
@@ -145,7 +147,7 @@ func (p *peerConn) do() {
 
 			// if transfer is passive, we are the first to talk
 			if p.client.protoIsAdc() {
-				p.conn.Write(&proto.AdcCSupports{ //nolint:govet
+				p.conn.Write(&protoadc.AdcCSupports{ //nolint:govet
 					&adc.ClientPacket{},
 					&adc.Supported{adc.ModFeatures{ //nolint:govet
 						adc.FeaBAS0: true,
@@ -184,7 +186,7 @@ func (p *peerConn) do() {
 						} else {
 							d := p.transfer.(*Download)
 							err = d.handleDownload(msg)
-							if err == proto.ErrorTerminated {
+							if err == protocommon.ErrorTerminated {
 								p.transfer = nil
 								p.state = "wait_download"
 								d.handleExit(nil)
@@ -219,7 +221,7 @@ func (p *peerConn) do() {
 		case <-p.terminate:
 			p.conn.Close()
 			<-readDone
-			return proto.ErrorTerminated
+			return protocommon.ErrorTerminated
 
 		case err := <-readDone:
 			p.conn.Close()
@@ -252,20 +254,20 @@ func (p *peerConn) do() {
 	})
 }
 
-func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
+func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 	switch msg := msgi.(type) {
-	case *proto.AdcCStatus:
+	case *protoadc.AdcCStatus:
 		if msg.Msg.Sev != adc.Success {
 			return fmt.Errorf("error (%d): %s", msg.Msg.Code, msg.Msg.Msg)
 		}
 
-	case *proto.AdcCSupports:
+	case *protoadc.AdcCSupports:
 		if p.state != "connected" {
 			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
 		p.state = "supports"
 		if p.isActive {
-			p.conn.Write(&proto.AdcCSupports{ //nolint:govet
+			p.conn.Write(&protoadc.AdcCSupports{ //nolint:govet
 				&adc.ClientPacket{},
 				&adc.Supported{adc.ModFeatures{ //nolint:govet
 					adc.FeaBAS0: true,
@@ -281,13 +283,13 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			info.Id = p.client.clientID
 			info.Token = p.adcToken
 
-			p.conn.Write(&proto.AdcCInfos{ //nolint:govet
+			p.conn.Write(&protoadc.AdcCInfos{ //nolint:govet
 				&adc.ClientPacket{},
 				info,
 			})
 		}
 
-	case *proto.AdcCInfos:
+	case *protoadc.AdcCInfos:
 		if p.state != "supports" {
 			return fmt.Errorf("[Infos] invalid state: %s", p.state)
 		}
@@ -308,7 +310,7 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			info.Id = p.client.clientID
 			// token is not sent back when in active mode
 
-			p.conn.Write(&proto.AdcCInfos{ //nolint:govet
+			p.conn.Write(&protoadc.AdcCInfos{ //nolint:govet
 				&adc.ClientPacket{},
 				info,
 			})
@@ -319,7 +321,7 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			if p.client.protoIsAdc() && p.isEncrypted &&
 				p.peer.adcFingerprint != "" {
 
-				connFingerprint := proto.AdcCertFingerprint(
+				connFingerprint := protoadc.AdcCertFingerprint(
 					p.tlsConn.ConnectionState().PeerCertificates[0])
 
 				if connFingerprint != p.peer.adcFingerprint {
@@ -356,7 +358,7 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			p.state = "wait_upload"
 		}
 
-	case *proto.AdcCGetFile:
+	case *protoadc.AdcCGetFile:
 		if p.state != "wait_upload" {
 			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}

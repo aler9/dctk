@@ -1,4 +1,4 @@
-package proto
+package protoadc
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 	"github.com/aler9/go-dc/adc"
 
 	"github.com/aler9/dctk/pkg/log"
+	"github.com/aler9/dctk/pkg/protocommon"
 )
 
 const (
@@ -42,27 +43,27 @@ func AdcCertFingerprint(cert *x509.Certificate) string {
 	return "SHA256/" + dcBase32Encode(h.Sum(nil))
 }
 
-type AdcConn struct {
-	*BaseConn
+type Conn struct {
+	*protocommon.BaseConn
 }
 
-func NewAdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) Conn {
-	p := &AdcConn{
-		BaseConn: newBaseConn(logLevel, remoteLabel,
+func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
+	applyReadTimeout bool, applyWriteTimeout bool) protocommon.Conn {
+	p := &Conn{
+		BaseConn: protocommon.NewBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
 	}
 	return p
 }
 
-func (p *AdcConn) Read() (MsgDecodable, error) {
-	if !p.readBinary {
+func (p *Conn) Read() (protocommon.MsgDecodable, error) {
+	if !p.BinaryMode() {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
 		}
 
-		msg, err := func() (MsgDecodable, error) {
+		msg, err := func() (protocommon.MsgDecodable, error) {
 			if len(msgStr) == 0 {
 				return &AdcKeepAlive{}, nil
 			}
@@ -158,7 +159,7 @@ func (p *AdcConn) Read() (MsgDecodable, error) {
 			return nil, fmt.Errorf("Unable to parse: %s (%s)", err, msgStr)
 		}
 
-		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
+		log.Log(p.LogLevel(), log.LevelDebug, "[%s->c] %T %+v", p.RemoteLabel(), msg, msg)
 		return msg, nil
 	}
 
@@ -166,11 +167,12 @@ func (p *AdcConn) Read() (MsgDecodable, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &MsgBinary{buf}, nil
+
+	return &protocommon.MsgBinary{buf}, nil //nolint:govet
 }
 
-func (p *AdcConn) Write(pktMsg MsgEncodable) {
-	log.Log(p.logLevel, log.LevelDebug, "[c->%s] %T %+v", p.remoteLabel, pktMsg, pktMsg)
+func (p *Conn) Write(pktMsg protocommon.MsgEncodable) {
+	log.Log(p.LogLevel(), log.LevelDebug, "[c->%s] %T %+v", p.RemoteLabel(), pktMsg, pktMsg)
 
 	pkt := reflect.ValueOf(pktMsg).Elem().FieldByName("Pkt").Interface().(adc.Packet)
 	msg := reflect.ValueOf(pktMsg).Elem().FieldByName("Msg").Interface().(adc.Message)

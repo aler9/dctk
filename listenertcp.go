@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net"
 
-	"github.com/aler9/dctk/pkg/proto"
+	"github.com/aler9/dctk/pkg/protoadc"
 )
 
 type listenerTCP struct {
@@ -47,7 +47,7 @@ func newListenerTCP(client *Client, isEncrypted bool) error {
 			if err != nil {
 				return err
 			}
-			client.adcFingerprint = proto.AdcCertFingerprint(xcert)
+			client.adcFingerprint = protoadc.AdcCertFingerprint(xcert)
 		}
 
 		certPEMBlock := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: bcert})
