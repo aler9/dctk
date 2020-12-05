@@ -1,7 +1,6 @@
 package dctk
 
 import (
-	"encoding/base32"
 	"fmt"
 	"io"
 	"math/rand"
@@ -14,21 +13,6 @@ import (
 )
 
 var dirTTH = tiger.HashMust("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-
-var errorArgsFormat = fmt.Errorf("not formatted correctly")
-
-// base32 without padding, which can be one or multiple =
-func dcBase32Decode(in string) []byte {
-	// add missing padding
-	if (len(in) % 8) != 0 {
-		mlen := (8 - (len(in) % 8))
-		for n := 0; n < mlen; n++ {
-			in += "="
-		}
-	}
-	out, _ := base32.StdEncoding.DecodeString(in)
-	return out
-}
 
 func dcReadableQuery(request string) string {
 	if strings.HasPrefix(request, "tthl TTH/") {
@@ -52,24 +36,9 @@ func numtoa(num interface{}) string {
 	return fmt.Sprintf("%d", num)
 }
 
-func atoi(s string) int {
-	ret, _ := strconv.Atoi(s)
-	return ret
-}
-
 func atoui(s string) uint {
 	ret, _ := strconv.ParseUint(s, 10, 64)
 	return uint(ret)
-}
-
-func atoui64(s string) uint64 {
-	ret, _ := strconv.ParseUint(s, 10, 64)
-	return ret
-}
-
-func atoi64(s string) int64 {
-	ret, _ := strconv.ParseInt(s, 10, 64)
-	return ret
 }
 
 type connEstablisher struct {

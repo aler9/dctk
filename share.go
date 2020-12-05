@@ -50,7 +50,7 @@ func newshareIndexer(client *Client) error {
 }
 
 func (sm *shareIndexer) close() {
-	if sm.terminateRequested == true {
+	if sm.terminateRequested {
 		return
 	}
 	sm.terminateRequested = true
@@ -161,7 +161,7 @@ func (sm *shareIndexer) index() {
 						realPath:  realPath,
 					}
 					dir.size += fileSize
-					count += 1
+					count++
 					size += fileSize
 				}
 			}
@@ -186,7 +186,7 @@ func (sm *shareIndexer) index() {
 	// generate new file list
 	fileList, err := func() ([]byte, error) {
 		fl := &FileList{
-			CID:       sm.client.clientId.String(),
+			CID:       sm.client.clientID.String(),
 			Generator: sm.client.conf.ListGenerator,
 		}
 
@@ -245,7 +245,7 @@ func (sm *shareIndexer) index() {
 		sm.client.shareSize = shareSize
 
 		// inform hub
-		if sm.client.hubConn.terminateRequested == false && sm.client.hubConn.state == hubInitialized {
+		if !sm.client.hubConn.terminateRequested && sm.client.hubConn.state == hubInitialized {
 			sm.client.sendInfos(false)
 		}
 
@@ -263,7 +263,7 @@ func (c *Client) ShareAdd(alias string, dpath string) {
 	c.shareRoots[alias] = dpath
 
 	// always schedule indexing
-	if c.shareIndexer.indexRequested == false {
+	if !c.shareIndexer.indexRequested {
 		c.shareIndexer.indexRequested = true
 		c.shareIndexer.indexChan <- struct{}{}
 	}
@@ -279,7 +279,7 @@ func (c *Client) ShareDel(alias string) {
 	delete(c.shareRoots, alias)
 
 	// always schedule indexing
-	if c.shareIndexer.indexRequested == false {
+	if !c.shareIndexer.indexRequested {
 		c.shareIndexer.indexRequested = true
 		c.shareIndexer.indexChan <- struct{}{}
 	}

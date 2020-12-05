@@ -16,7 +16,7 @@ func TestChatPublic(t *testing.T) {
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:  log.LevelError,
-				HubUrl:    e.Url(),
+				HubURL:    e.URL(),
 				Nick:      "client1",
 				IsPassive: true,
 			})
@@ -36,7 +36,7 @@ func TestChatPublic(t *testing.T) {
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:  log.LevelError,
-				HubUrl:    e.Url(),
+				HubURL:    e.URL(),
 				Nick:      "client2",
 				IsPassive: true,
 			})

@@ -99,7 +99,7 @@ func (c *Client) HubConnect() {
 }
 
 func (h *hubConn) close() {
-	if h.terminateRequested == true {
+	if h.terminateRequested {
 		return
 	}
 	h.terminateRequested = true
@@ -115,11 +115,11 @@ func (h *hubConn) do() {
 		if err != nil {
 			return err
 		}
-		h.client.hubSolvedIp = ips[0].String()
+		h.client.hubSolvedIP = ips[0].String()
 
 		// connect to hub
 		ce := newConnEstablisher(
-			fmt.Sprintf("%s:%d", h.client.hubSolvedIp, h.client.hubPort),
+			fmt.Sprintf("%s:%d", h.client.hubSolvedIP, h.client.hubPort),
 			10*time.Second, h.client.conf.HubConnTries)
 
 		select {
@@ -134,7 +134,7 @@ func (h *hubConn) do() {
 
 		// hub connected
 		rawconn := ce.Conn
-		if h.client.hubIsEncrypted == true {
+		if h.client.hubIsEncrypted {
 			tlsconn := tls.Client(rawconn, &tls.Config{
 				InsecureSkipVerify: true,
 				NextProtos:         []string{"adc", "nmdc"},
@@ -174,7 +174,7 @@ func (h *hubConn) do() {
 			h.client.OnHubProto(protoName)
 		}
 
-		if h.client.conf.HubDisableKeepAlive == false {
+		if !h.client.conf.HubDisableKeepAlive {
 			keepaliver := newHubKeepAliver(h)
 			defer keepaliver.Close()
 		}
@@ -188,12 +188,12 @@ func (h *hubConn) do() {
 				adc.FeaTIGR: true,
 				adc.FeaUCM0: true,
 			}
-			if h.client.conf.HubDisableCompression == false {
+			if !h.client.conf.HubDisableCompression {
 				features[adc.FeaZLIF] = true
 			}
-			h.conn.Write(&proto.AdcHSupports{
+			h.conn.Write(&proto.AdcHSupports{ //nolint:govet
 				&adc.HubPacket{},
-				&adc.Supported{features},
+				&adc.Supported{features}, //nolint:govet
 			})
 		}
 
@@ -233,7 +233,7 @@ func (h *hubConn) do() {
 	}()
 
 	h.client.Safe(func() {
-		if h.terminateRequested != true {
+		if !h.terminateRequested {
 			log.Log(h.client.conf.LogLevel, log.LevelInfo, "ERR: %s", err)
 
 			if h.client.OnHubError != nil {
@@ -253,7 +253,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 	case *proto.AdcKeepAlive:
 
 	case *proto.AdcIZon:
-		if h.client.conf.HubDisableCompression == true {
+		if h.client.conf.HubDisableCompression {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
 		if err := h.conn.ReaderEnableZlib(); err != nil {
@@ -277,12 +277,12 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		}
 		h.state = hubSupports
 
-	case *proto.AdcISessionId:
+	case *proto.AdcISessionID:
 		if h.state != hubSupports {
 			return fmt.Errorf("[SessionId] invalid state: %s", h.state)
 		}
 		h.state = hubSessionID
-		h.client.adcSessionId = msg.Msg.SID
+		h.client.adcSessionID = msg.Msg.SID
 		h.client.sendInfos(true)
 
 	case *proto.AdcIInfos:
@@ -324,14 +324,14 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		hasher.Sum(data[:0])
 
 		h.passwordSent = true
-		h.conn.Write(&proto.AdcHPass{
+		h.conn.Write(&proto.AdcHPass{ //nolint:govet
 			&adc.HubPacket{},
 			&adc.Password{Hash: data},
 		})
 
 	case *proto.AdcBInfos:
 		exists := true
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			exists = false
 
@@ -345,7 +345,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 
 			p = &Peer{
 				Nick:         msg.Msg.Name,
-				adcSessionId: msg.Pkt.ID,
+				adcSessionID: msg.Pkt.ID,
 			}
 		}
 
@@ -360,14 +360,14 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			p.ShareSize = uint64(msg.Msg.ShareSize)
 		}
 		if msg.Msg.Ip4 != "" {
-			p.Ip = msg.Msg.Ip4
+			p.IP = msg.Msg.Ip4
 		}
 		if msg.Msg.Udp4 != 0 {
-			p.adcUdpPort = uint(msg.Msg.Udp4)
+			p.adcUDPPort = uint(msg.Msg.Udp4)
 		}
 		var zeroCID adc.CID
 		if msg.Msg.Id != zeroCID {
-			p.adcClientId = msg.Msg.Id
+			p.adcClientID = msg.Msg.Id
 		}
 		if msg.Msg.Application != "" {
 			p.Client = msg.Msg.Application
@@ -388,11 +388,11 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 
 		// a peer is active if it supports udp4, exposes udp port and ip
 		p.IsPassive = true
-		if h.client.peerSupportsAdc(p, adc.FeaUDP4) && p.Ip != "" && p.adcUdpPort != 0 {
+		if h.client.peerSupportsAdc(p, adc.FeaUDP4) && p.IP != "" && p.adcUDPPort != 0 {
 			p.IsPassive = false
 		}
 
-		if exists == false {
+		if !exists {
 			h.client.handlePeerConnected(p)
 		} else {
 			h.client.handlePeerUpdated(p)
@@ -400,11 +400,11 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 
 	case *proto.AdcIQuit:
 		// self quit, used instead of ForceMove
-		if msg.Msg.ID == h.client.adcSessionId {
+		if msg.Msg.ID == h.client.adcSessionID {
 			return fmt.Errorf("received Quit message: %s", msg.Msg.Message)
 		}
 		// peer quit
-		p := h.client.peerBySessionId(msg.Msg.ID)
+		p := h.client.peerBySessionID(msg.Msg.ID)
 		if p != nil {
 			h.client.handlePeerDisconnected(p)
 		}
@@ -417,14 +417,14 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		}
 
 	case *proto.AdcBMessage:
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("public message with unknown author")
 		}
 		h.client.handlePublicMessage(p, msg.Msg.Text)
 
 	case *proto.AdcDMessage:
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("private message with unknown author")
 		}
@@ -443,7 +443,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			return false
 		}
 
-		if h.client.conf.IsPassive == true && hasFeature(adc.FeaTCP4) {
+		if h.client.conf.IsPassive && hasFeature(adc.FeaTCP4) {
 			log.Log(h.client.conf.LogLevel, log.LevelDebug, "we are in passive and author requires active")
 			return nil
 		}
@@ -451,14 +451,14 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		h.client.handleAdcSearchIncomingRequest(msg.Pkt.ID, msg.Msg)
 
 	case *proto.AdcDSearchResult:
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("search result with unknown author")
 		}
 		h.client.handleAdcSearchResult(false, p, msg.Msg)
 
 	case *proto.AdcDConnectToMe:
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("connecttome with unknown author")
 		}
@@ -470,9 +470,9 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		if _, ok := map[string]struct{}{
 			adc.ProtoADC:  {},
 			adc.ProtoADCS: {},
-		}[msg.Msg.Proto]; ok == false {
-			h.conn.Write(&proto.AdcDStatus{
-				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
+		}[msg.Msg.Proto]; !ok {
+			h.conn.Write(&proto.AdcDStatus{ //nolint:govet
+				&adc.DirectPacket{ID: h.client.adcSessionID, To: msg.Pkt.ID},
 				&adc.Status{
 					Sev:  adc.Recoverable,
 					Code: proto.AdcCodeProtocolUnsupported,
@@ -494,8 +494,8 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			(msg.Msg.Proto == adc.ProtoADC &&
 				h.client.conf.PeerEncryptionMode == ForceEncryption) {
 
-			h.conn.Write(&proto.AdcDStatus{
-				&adc.DirectPacket{ID: h.client.adcSessionId, To: msg.Pkt.ID},
+			h.conn.Write(&proto.AdcDStatus{ //nolint:govet
+				&adc.DirectPacket{ID: h.client.adcSessionID, To: msg.Pkt.ID},
 				&adc.Status{
 					Sev:  adc.Recoverable,
 					Code: proto.AdcCodeProtocolUnsupported,
@@ -510,10 +510,10 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			return nil
 		}
 
-		newPeerConn(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.Ip, uint(msg.Msg.Port), msg.Msg.Token)
+		newPeerConn(h.client, (msg.Msg.Proto == adc.ProtoADCS), false, nil, p.IP, uint(msg.Msg.Port), msg.Msg.Token)
 
 	case *proto.AdcDRevConnectToMe:
-		p := h.client.peerBySessionId(msg.Pkt.ID)
+		p := h.client.peerBySessionID(msg.Pkt.ID)
 		if p == nil {
 			return fmt.Errorf("revconnecttome with unknown author")
 		}
@@ -525,7 +525,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 	case *proto.NmdcKeepAlive:
 
 	case *nmdc.ZOn:
-		if h.client.conf.HubDisableCompression == true {
+		if h.client.conf.HubDisableCompression {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
 		if err := h.conn.ReaderEnableZlib(); err != nil {
@@ -547,7 +547,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			nmdc.ExtUserIP2,
 			nmdc.ExtTTHSearch,
 		}
-		if h.client.conf.HubDisableCompression == false {
+		if !h.client.conf.HubDisableCompression {
 			features = append(features, nmdc.ExtZPipe0)
 		}
 		// this must be provided, otherwise the final S is stripped from ConnectToMe
@@ -555,7 +555,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			features = append(features, nmdc.ExtTLS)
 		}
 
-		h.conn.Write(&nmdc.Supports{features})
+		h.conn.Write(&nmdc.Supports{features}) //nolint:govet
 		h.conn.Write(msg.Key())
 		h.conn.Write(&nmdc.ValidateNick{Name: nmdc.Name(h.client.conf.Nick)})
 
@@ -593,7 +593,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 			return fmt.Errorf("[GetPass] invalid state: %s", h.state)
 		}
 		h.passwordSent = true
-		h.conn.Write(&nmdc.MyPass{nmdc.String(h.client.conf.Password)})
+		h.conn.Write(&nmdc.MyPass{nmdc.String(h.client.conf.Password)}) //nolint:govet
 		if _, ok := h.uniqueCmds["GetPass"]; ok {
 			return fmt.Errorf("GetPass sent twice")
 		}
@@ -652,7 +652,7 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 		p.Version = msg.Client.Version
 		p.IsPassive = (msg.Mode == nmdc.UserModePassive)
 
-		if exists == false {
+		if !exists {
 			h.client.handlePeerConnected(p)
 		} else {
 			h.client.handlePeerUpdated(p)
@@ -660,15 +660,15 @@ func (h *hubConn) handleMessage(msgi proto.MsgDecodable) error {
 
 	case *nmdc.UserIP:
 		if h.state != hubPreInitialized && h.state != hubInitialized {
-			return fmt.Errorf("[UserIp] invalid state: %s", h.state)
+			return fmt.Errorf("[UserIP] invalid state: %s", h.state)
 		}
 
-		// we do not use UserIp to get our own ip, but only to get other
+		// we do not use UserIP to get our own ip, but only to get other
 		// ips of other peers
 		for _, entry := range msg.List {
 			// update peer
 			if p := h.client.peerByNick(entry.Name); p != nil {
-				p.Ip = entry.IP
+				p.IP = entry.IP
 				h.client.handlePeerUpdated(p)
 			}
 		}

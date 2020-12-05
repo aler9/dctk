@@ -85,7 +85,7 @@ func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]inte
 
 		scanDir = func(dname string, dir *shareDirectory, dirAddToResults bool) {
 			// always add directories
-			if dirAddToResults == false {
+			if !dirAddToResults {
 				dirAddToResults = strings.Contains(strings.ToLower(dname), req.query)
 			}
 			if dirAddToResults {
@@ -95,7 +95,7 @@ func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]inte
 			if req.stype != SearchDirectory {
 				for fname, file := range dir.files {
 					fileAddToResults := dirAddToResults
-					if fileAddToResults == false {
+					if !fileAddToResults {
 						fileAddToResults = strings.Contains(strings.ToLower(fname), req.query) &&
 							(req.minSize == 0 || file.size > req.minSize) &&
 							(req.maxSize == 0 || file.size < req.maxSize)
@@ -132,7 +132,7 @@ func (c *Client) handleSearchIncomingRequest(req *searchIncomingRequest) ([]inte
 
 	// Implementations should send a maximum of 5 search results to passive users
 	// and 10 search results to active users
-	if req.isActive == true {
+	if req.isActive {
 		if len(results) > 10 {
 			results = results[:10]
 		}

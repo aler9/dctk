@@ -9,7 +9,7 @@ while true; do
 done
 
 case "$1" in
-ConnNoIp)
+ConnNoIP)
     echo "UPDATE SetupList SET val = '0' WHERE var = 'send_user_ip';" |  mysql -D verlihub
     ;;
 

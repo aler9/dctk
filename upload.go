@@ -39,13 +39,12 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 	reqLength int64, reqCompressed bool) bool {
 
 	u := &upload{
-		client: client,
-		state:  "processing",
-		pconn:  pconn,
-		query:  reqQuery,
-		start:  reqStart,
-		isCompressed: (client.conf.PeerDisableCompression == false &&
-			reqCompressed == true),
+		client:       client,
+		state:        "processing",
+		pconn:        pconn,
+		query:        reqQuery,
+		start:        reqStart,
+		isCompressed: (!client.conf.PeerDisableCompression && reqCompressed),
 	}
 
 	log.Log(client.conf.LogLevel, log.LevelInfo, "[upload] [%s] request %s (s=%d l=%d)",
@@ -91,14 +90,14 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 					}
 				}
 				for _, sdir := range dir.dirs {
-					if scanDir(sdir) == true {
+					if scanDir(sdir) {
 						return true
 					}
 				}
 				return false
 			}
 			for _, dir := range u.client.shareTree {
-				if scanDir(dir) == true {
+				if scanDir(dir) {
 					break
 				}
 			}
@@ -156,7 +155,7 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 		log.Log(u.client.conf.LogLevel, log.LevelInfo, "[peer] cannot start upload: %s", err)
 		if err == errorNoSlots {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&proto.AdcCStatus{
+				u.pconn.conn.Write(&proto.AdcCStatus{ //nolint:govet
 					&adc.ClientPacket{},
 					&adc.Status{
 						Sev:  adc.Recoverable,
@@ -169,7 +168,7 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 			}
 		} else {
 			if u.client.protoIsAdc() {
-				u.pconn.conn.Write(&proto.AdcCStatus{
+				u.pconn.conn.Write(&proto.AdcCStatus{ //nolint:govet
 					&adc.ClientPacket{},
 					&adc.Status{
 						Sev:  adc.Recoverable,
@@ -186,7 +185,7 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 
 	if u.client.protoIsAdc() {
 		queryParts := strings.Split(u.query, " ")
-		u.pconn.conn.Write(&proto.AdcCSendFile{
+		u.pconn.conn.Write(&proto.AdcCSendFile{ //nolint:govet
 			&adc.ClientPacket{},
 			&adc.GetResponse{
 				Type:       queryParts[0],
@@ -209,14 +208,14 @@ func newUpload(client *Client, pconn *peerConn, reqQuery string, reqStart uint64
 	}
 
 	client.transfers[u] = struct{}{}
-	u.client.uploadSlotAvail -= 1
+	u.client.uploadSlotAvail--
 	u.pconn.state = "delegated_upload"
 	u.pconn.transfer = u
 	return true
 }
 
 func (u *upload) Close() {
-	if u.terminateRequested == true {
+	if u.terminateRequested {
 		return
 	}
 	u.terminateRequested = true
@@ -225,7 +224,7 @@ func (u *upload) Close() {
 
 func (u *upload) handleUpload() error {
 	u.pconn.conn.SetSyncMode(true)
-	if u.isCompressed == true {
+	if u.isCompressed {
 		u.pconn.conn.WriterEnableZlib()
 	}
 
@@ -265,7 +264,7 @@ func (u *upload) handleUpload() error {
 		}
 	}
 
-	if u.isCompressed == true {
+	if u.isCompressed {
 		u.pconn.conn.WriterDisableZlib()
 	}
 	u.pconn.conn.SetSyncMode(false)
@@ -274,7 +273,7 @@ func (u *upload) handleUpload() error {
 }
 
 func (u *upload) handleExit(err error) {
-	if u.terminateRequested != true && err != nil {
+	if !u.terminateRequested && err != nil {
 		log.Log(u.client.conf.LogLevel, log.LevelInfo, "ERR (upload) [%s]: %s", u.pconn.peer.Nick, err)
 	}
 
@@ -282,7 +281,7 @@ func (u *upload) handleExit(err error) {
 
 	u.reader.Close()
 
-	u.client.uploadSlotAvail += 1
+	u.client.uploadSlotAvail++
 
 	if err == nil {
 		log.Log(u.client.conf.LogLevel, log.LevelInfo, "[upload] [%s] finished %s (s=%d l=%d)",

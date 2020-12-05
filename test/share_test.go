@@ -19,10 +19,10 @@ func TestShare(t *testing.T) {
 
 		client, err := dctk.NewClient(dctk.ClientConf{
 			LogLevel:         log.LevelError,
-			HubUrl:           e.Url(),
+			HubURL:           e.URL(),
 			HubManualConnect: true,
 			Nick:             "testdctk",
-			Ip:               dockerIp,
+			IP:               dockerIP,
 			IsPassive:        true,
 		})
 		require.NoError(t, err)

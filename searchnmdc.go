@@ -13,14 +13,6 @@ import (
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
-func nmdcSearchEscape(in string) string {
-	return strings.Replace(in, " ", "$", -1)
-}
-
-func nmdcSearchUnescape(in string) string {
-	return strings.Replace(in, "$", " ", -1)
-}
-
 func (c *Client) handleNmdcSearchResult(isActive bool, msg *nmdc.SR) {
 	peer := c.peerByNick(msg.From)
 	if peer == nil {
@@ -77,7 +69,7 @@ func (c *Client) handleNmdcSearchOutgoingRequest(conf SearchConf) error {
 		}(),
 		Address: func() string {
 			if !c.conf.IsPassive {
-				return fmt.Sprintf("%s:%d", c.ip, c.conf.UdpPort)
+				return fmt.Sprintf("%s:%d", c.ip, c.conf.UDPPort)
 			}
 			return ""
 		}(),
@@ -99,7 +91,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 			nmdc.DataTypeFolders: {},
 			nmdc.DataTypeTTH:     {},
 		}[req.DataType]; !ok {
-			return nil, fmt.Errorf("unsupported search type: %v", req.Type)
+			return nil, fmt.Errorf("unsupported search type: %v", req.DataType)
 		}
 
 		sr := &searchIncomingRequest{
@@ -169,7 +161,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 			From:       c.conf.Nick,
 			FreeSlots:  int(c.uploadSlotAvail),
 			TotalSlots: int(c.conf.UploadMaxParallel),
-			HubAddress: fmt.Sprintf("%s:%d", c.hubSolvedIp, c.hubPort),
+			HubAddress: fmt.Sprintf("%s:%d", c.hubSolvedIP, c.hubPort),
 		})
 	}
 

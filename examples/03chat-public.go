@@ -9,7 +9,7 @@ import (
 func main() {
 	// connect to hub in passive mode
 	client, err := dctk.NewClient(dctk.ClientConf{
-		HubUrl:    "nmdc://hubip:411",
+		HubURL:    "nmdc://hubip:411",
 		Nick:      "mynick",
 		IsPassive: true,
 	})

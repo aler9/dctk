@@ -20,11 +20,11 @@ func TestDownloadActive(t *testing.T) {
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:           log.LevelError,
-				HubUrl:             e.Url(),
+				HubURL:             e.URL(),
 				Nick:               "client1",
-				Ip:                 dockerIp,
-				TcpPort:            3006,
-				UdpPort:            3006,
+				IP:                 dockerIP,
+				TCPPort:            3006,
+				UDPPort:            3006,
 				PeerEncryptionMode: dctk.DisableEncryption,
 				HubManualConnect:   true,
 			})
@@ -48,11 +48,11 @@ func TestDownloadActive(t *testing.T) {
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:           log.LevelError,
-				HubUrl:             e.Url(),
+				HubURL:             e.URL(),
 				Nick:               "client2",
-				Ip:                 dockerIp,
-				TcpPort:            3005,
-				UdpPort:            3005,
+				IP:                 dockerIP,
+				TCPPort:            3005,
+				UDPPort:            3005,
 				PeerEncryptionMode: dctk.DisableEncryption,
 			})
 			require.NoError(t, err)

@@ -16,7 +16,7 @@ func TestConnCompression(t *testing.T) {
 
 		client, err := dctk.NewClient(dctk.ClientConf{
 			LogLevel:  log.LevelError,
-			HubUrl:    e.Url(),
+			HubURL:    e.URL(),
 			Nick:      "testdctk",
 			IsPassive: true,
 		})

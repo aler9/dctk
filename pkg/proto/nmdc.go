@@ -11,8 +11,8 @@ import (
 	"github.com/aler9/dctk/pkg/log"
 )
 
-var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIp + "):(" + reStrPort + ")$")
-var ReNmdcCommand = regexp.MustCompile("(?s)^\\$([a-zA-Z0-9:]+)( (.+))?$")
+var ReNmdcAddress = regexp.MustCompile("^(" + ReStrIP + "):(" + reStrPort + ")$")
+var ReNmdcCommand = regexp.MustCompile(`(?s)^\$([a-zA-Z0-9:]+)( (.+))?$`)
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + reStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 
 type NmdcConn struct {
@@ -29,7 +29,7 @@ func NewNmdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 }
 
 func (p *NmdcConn) Read() (MsgDecodable, error) {
-	if p.readBinary == false {
+	if !p.readBinary {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
@@ -131,14 +131,13 @@ func (p *NmdcConn) Read() (MsgDecodable, error) {
 
 		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
-
-	} else {
-		buf, err := p.ReadBinary()
-		if err != nil {
-			return nil, err
-		}
-		return &MsgBinary{buf}, nil
 	}
+
+	buf, err := p.ReadBinary()
+	if err != nil {
+		return nil, err
+	}
+	return &MsgBinary{buf}, nil
 }
 
 func (p *NmdcConn) Write(msg MsgEncodable) {

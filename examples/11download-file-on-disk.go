@@ -10,11 +10,11 @@ import (
 func main() {
 	// connect to hub in active mode. local ports must be opened and accessible.
 	client, err := dctk.NewClient(dctk.ClientConf{
-		HubUrl:     "nmdc://hubip:411",
-		Nick:       "mynick",
-		TcpPort:    3009,
-		UdpPort:    3009,
-		TcpTlsPort: 3010,
+		HubURL:  "nmdc://hubip:411",
+		Nick:    "mynick",
+		TCPPort: 3009,
+		UDPPort: 3009,
+		TLSPort: 3010,
 	})
 	if err != nil {
 		panic(err)

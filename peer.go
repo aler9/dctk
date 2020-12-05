@@ -32,13 +32,13 @@ type Peer struct {
 	// whether peer is in passive mode (in NMDC this could be hidden)
 	IsPassive bool
 	// peer ip (if provided by both peer and hub)
-	Ip string
+	IP string
 
-	adcSessionId   atypes.SID
-	adcClientId    atypes.CID
+	adcSessionID   atypes.SID
+	adcClientID    atypes.CID
 	adcFingerprint string
 	adcFeatures    adc.ExtFeatures
-	adcUdpPort     uint
+	adcUDPPort     uint
 	nmdcConnection string
 	nmdcFlag       nmdc.UserFlag
 }
@@ -55,18 +55,18 @@ func (c *Client) peerByNick(nick string) *Peer {
 	return nil
 }
 
-func (c *Client) peerBySessionId(sessionId adc.SID) *Peer {
+func (c *Client) peerBySessionID(sessionID adc.SID) *Peer {
 	for _, p := range c.peers {
-		if p.adcSessionId == sessionId {
+		if p.adcSessionID == sessionID {
 			return p
 		}
 	}
 	return nil
 }
 
-func (c *Client) peerByClientId(clientId adc.CID) *Peer {
+func (c *Client) peerByClientID(clientID adc.CID) *Peer {
 	for _, p := range c.peers {
-		if p.adcClientId == clientId {
+		if p.adcClientID == clientID {
 			return p
 		}
 	}
@@ -86,15 +86,14 @@ func (c *Client) peerSupportsEncryption(p *Peer) bool {
 			return true
 		}
 		return false
-
-	} else {
-		// we check only for bit 4
-		return (p.nmdcFlag & nmdc.FlagTLSDownload) != 0
 	}
+
+	// we check only for bit 4
+	return (p.nmdcFlag & nmdc.FlagTLSDownload) != 0
 }
 
 func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
-	if c.conf.IsPassive == false {
+	if !c.conf.IsPassive {
 		c.peerConnectToMe(peer, adcToken)
 	} else {
 		c.peerRevConnectToMe(peer, adcToken)
@@ -103,9 +102,9 @@ func (c *Client) peerRequestConnection(peer *Peer, adcToken string) {
 
 func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.hubConn.conn.Write(&proto.AdcDConnectToMe{
-			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
-			&adc.ConnectRequest{
+		c.hubConn.conn.Write(&proto.AdcDConnectToMe{ //nolint:govet
+			&adc.DirectPacket{ID: c.adcSessionID, To: peer.adcSessionID},
+			&adc.ConnectRequest{ //nolint:govet
 				func() string {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
 						return adc.ProtoADCS
@@ -114,9 +113,9 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 				}(),
 				func() int {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
-						return int(c.conf.TcpTlsPort)
+						return int(c.conf.TLSPort)
 					}
-					return int(c.conf.TcpPort)
+					return int(c.conf.TCPPort)
 				}(),
 				adcToken,
 			},
@@ -127,9 +126,9 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 			Targ: peer.Nick,
 			Address: fmt.Sprintf("%s:%d", c.ip, func() uint {
 				if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
-					return c.conf.TcpTlsPort
+					return c.conf.TLSPort
 				}
-				return c.conf.TcpPort
+				return c.conf.TCPPort
 			}()),
 			Secure: (c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer)),
 		})
@@ -138,9 +137,9 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 
 func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 	if c.protoIsAdc() {
-		c.hubConn.conn.Write(&proto.AdcDRevConnectToMe{
-			&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
-			&adc.RevConnectRequest{
+		c.hubConn.conn.Write(&proto.AdcDRevConnectToMe{ //nolint:govet
+			&adc.DirectPacket{ID: c.adcSessionID, To: peer.adcSessionID},
+			&adc.RevConnectRequest{ //nolint:govet
 				func() string {
 					if c.conf.PeerEncryptionMode != DisableEncryption && c.peerSupportsEncryption(peer) {
 						return adc.ProtoADCS
@@ -183,7 +182,7 @@ func (c *Client) handlePeerDisconnected(peer *Peer) {
 
 func (c *Client) handlePeerRevConnectToMe(peer *Peer, adcToken string) {
 	// we can process RevConnectToMe only in active mode
-	if c.conf.IsPassive == false {
+	if !c.conf.IsPassive {
 		c.peerConnectToMe(peer, adcToken)
 	}
 }

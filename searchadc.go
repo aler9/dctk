@@ -31,7 +31,7 @@ func (c *Client) handleAdcSearchResult(isActive bool, peer *Peer, msg *adc.Searc
 		}
 	}
 
-	if sr.IsDir == true {
+	if sr.IsDir {
 		sr.Path = strings.TrimSuffix(sr.Path, "/")
 	}
 
@@ -70,18 +70,18 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	var features []adc.FeatureSel
 
 	// if we're passive, require that the receiver is active
-	if c.conf.IsPassive == true {
-		features = append(features, adc.FeatureSel{adc.FeaTCP4, true})
+	if c.conf.IsPassive {
+		features = append(features, adc.FeatureSel{adc.FeaTCP4, true}) //nolint:govet
 	}
 
 	if len(features) > 0 {
-		c.hubConn.conn.Write(&proto.AdcFSearchRequest{
-			&adc.FeaturePacket{ID: c.adcSessionId, Sel: features},
+		c.hubConn.conn.Write(&proto.AdcFSearchRequest{ //nolint:govet
+			&adc.FeaturePacket{ID: c.adcSessionID, Sel: features},
 			req,
 		})
 	} else {
-		c.hubConn.conn.Write(&proto.AdcBSearchRequest{
-			&adc.BroadcastPacket{ID: c.adcSessionId},
+		c.hubConn.conn.Write(&proto.AdcBSearchRequest{ //nolint:govet
+			&adc.BroadcastPacket{ID: c.adcSessionID},
 			req,
 		})
 	}
@@ -91,7 +91,7 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchRequest) {
 	var peer *Peer
 	results, err := func() ([]interface{}, error) {
-		peer = c.peerBySessionId(ID)
+		peer = c.peerBySessionID(ID)
 		if peer == nil {
 			return nil, fmt.Errorf("search author not found")
 		}
@@ -117,7 +117,7 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		}
 
 		sr := &searchIncomingRequest{
-			isActive: (peer.IsPassive == false),
+			isActive: !peer.IsPassive,
 			stype: func() SearchType {
 				if req.TTH != nil {
 					return SearchTTH
@@ -170,17 +170,17 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 	}
 
 	// send to peer
-	if peer.IsPassive == false {
+	if !peer.IsPassive {
 		go func() {
-			conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", peer.Ip, peer.adcUdpPort))
+			conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", peer.IP, peer.adcUDPPort))
 			if err != nil {
 				return
 			}
 			defer conn.Close()
 
 			for _, msg := range msgs {
-				amsg := &proto.AdcUSearchResult{
-					&adc.UDPPacket{ID: peer.adcClientId},
+				amsg := &proto.AdcUSearchResult{ //nolint:govet
+					&adc.UDPPacket{ID: peer.adcClientID},
 					msg,
 				}
 
@@ -198,8 +198,8 @@ func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchReque
 		// send to hub
 	} else {
 		for _, msg := range msgs {
-			c.hubConn.conn.Write(&proto.AdcDSearchResult{
-				&adc.DirectPacket{ID: c.adcSessionId, To: peer.adcSessionId},
+			c.hubConn.conn.Write(&proto.AdcDSearchResult{ //nolint:govet
+				&adc.DirectPacket{ID: c.adcSessionID, To: peer.adcSessionID},
 				msg,
 			})
 		}

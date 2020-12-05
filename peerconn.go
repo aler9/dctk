@@ -30,7 +30,7 @@ type peerConn struct {
 	conn               proto.Conn
 	tlsConn            *tls.Conn
 	adcToken           string
-	passiveIp          string
+	passiveIP          string
 	passivePort        uint
 	peer               *Peer
 	localDirection     string
@@ -52,15 +52,15 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 	}
 	p.client.peerConns[p] = struct{}{}
 
-	if isActive == true {
+	if isActive {
 		log.Log(client.conf.LogLevel, log.LevelInfo, "[peer] incoming %s%s", rawconn.RemoteAddr(), func() string {
-			if p.isEncrypted == true {
+			if p.isEncrypted {
 				return " (secure)"
 			}
 			return ""
 		}())
 		p.state = "connected"
-		if p.isEncrypted == true {
+		if p.isEncrypted {
 			p.tlsConn = rawconn.(*tls.Conn)
 		}
 		if client.protoIsAdc() {
@@ -70,13 +70,13 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 		}
 	} else {
 		log.Log(client.conf.LogLevel, log.LevelInfo, "[peer] outgoing %s:%d%s", ip, port, func() string {
-			if p.isEncrypted == true {
+			if p.isEncrypted {
 				return " (secure)"
 			}
 			return ""
 		}())
 		p.state = "connecting"
-		p.passiveIp = ip
+		p.passiveIP = ip
 		p.passivePort = port
 	}
 
@@ -86,7 +86,7 @@ func newPeerConn(client *Client, isEncrypted bool, isActive bool,
 }
 
 func (p *peerConn) close() {
-	if p.terminateRequested == true {
+	if p.terminateRequested {
 		return
 	}
 	p.terminateRequested = true
@@ -104,9 +104,9 @@ func (p *peerConn) do() {
 				connect = true
 			}
 		})
-		if connect == true {
+		if connect {
 			ce := newConnEstablisher(
-				fmt.Sprintf("%s:%d", p.passiveIp, p.passivePort),
+				fmt.Sprintf("%s:%d", p.passiveIP, p.passivePort),
 				10*time.Second, 3)
 
 			select {
@@ -120,7 +120,7 @@ func (p *peerConn) do() {
 			}
 
 			rawconn := ce.Conn
-			if p.isEncrypted == true {
+			if p.isEncrypted {
 				p.tlsConn = tls.Client(rawconn, &tls.Config{InsecureSkipVerify: true})
 				rawconn = p.tlsConn
 			}
@@ -137,7 +137,7 @@ func (p *peerConn) do() {
 
 			log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] connected %s%s", rawconn.RemoteAddr(),
 				func() string {
-					if p.isEncrypted == true {
+					if p.isEncrypted {
 						return " (secure)"
 					}
 					return ""
@@ -145,9 +145,9 @@ func (p *peerConn) do() {
 
 			// if transfer is passive, we are the first to talk
 			if p.client.protoIsAdc() {
-				p.conn.Write(&proto.AdcCSupports{
+				p.conn.Write(&proto.AdcCSupports{ //nolint:govet
 					&adc.ClientPacket{},
-					&adc.Supported{adc.ModFeatures{
+					&adc.Supported{adc.ModFeatures{ //nolint:govet
 						adc.FeaBAS0: true,
 						adc.FeaBASE: true,
 						adc.FeaTIGR: true,
@@ -161,7 +161,7 @@ func (p *peerConn) do() {
 				p.conn.Write(&nmdc.Lock{
 					Lock: "EXTENDEDPROTOCOLABCABCABCABCABCABC",
 					PK:   p.client.conf.PkValue,
-					Ref:  fmt.Sprintf("%s:%d", p.client.hubSolvedIp, p.client.hubPort),
+					Ref:  fmt.Sprintf("%s:%d", p.client.hubSolvedIP, p.client.hubPort),
 				})
 			}
 		}
@@ -228,7 +228,7 @@ func (p *peerConn) do() {
 	}()
 
 	p.client.Safe(func() {
-		if p.terminateRequested == false {
+		if !p.terminateRequested {
 			log.Log(p.client.conf.LogLevel, log.LevelInfo, "ERR (peerConn): %s", err)
 		}
 
@@ -264,10 +264,10 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			return fmt.Errorf("[Supports] invalid state: %s", p.state)
 		}
 		p.state = "supports"
-		if p.isActive == true {
-			p.conn.Write(&proto.AdcCSupports{
+		if p.isActive {
+			p.conn.Write(&proto.AdcCSupports{ //nolint:govet
 				&adc.ClientPacket{},
-				&adc.Supported{adc.ModFeatures{
+				&adc.Supported{adc.ModFeatures{ //nolint:govet
 					adc.FeaBAS0: true,
 					adc.FeaBASE: true,
 					adc.FeaTIGR: true,
@@ -278,10 +278,10 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 
 		} else {
 			info := &adc.UserInfo{}
-			info.Id = p.client.clientId
+			info.Id = p.client.clientID
 			info.Token = p.adcToken
 
-			p.conn.Write(&proto.AdcCInfos{
+			p.conn.Write(&proto.AdcCInfos{ //nolint:govet
 				&adc.ClientPacket{},
 				info,
 			})
@@ -293,22 +293,22 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 		}
 		p.state = "infos"
 
-		p.peer = p.client.peerByClientId(msg.Msg.Id)
+		p.peer = p.client.peerByClientID(msg.Msg.Id)
 		if p.peer == nil {
 			return fmt.Errorf("unknown client id (%s)", msg.Msg.Id)
 		}
 
-		if p.isActive == true {
+		if p.isActive {
 			if msg.Msg.Token == "" {
 				return fmt.Errorf("token not provided")
 			}
 			p.adcToken = msg.Msg.Token
 
 			info := &adc.UserInfo{}
-			info.Id = p.client.clientId
+			info.Id = p.client.clientID
 			// token is not sent back when in active mode
 
-			p.conn.Write(&proto.AdcCInfos{
+			p.conn.Write(&proto.AdcCInfos{ //nolint:govet
 				&adc.ClientPacket{},
 				info,
 			})
@@ -398,10 +398,10 @@ func (p *peerConn) handleMessage(msgi proto.MsgDecodable) error {
 			nmdc.ExtTTHL,
 			nmdc.ExtTTHF,
 		}
-		if p.client.conf.PeerDisableCompression == false {
+		if !p.client.conf.PeerDisableCompression {
 			features = append(features, nmdc.ExtZLIG)
 		}
-		p.conn.Write(&nmdc.Supports{features})
+		p.conn.Write(&nmdc.Supports{features}) //nolint:govet
 
 		p.localBet = uint(randomInt(1, 0x7FFF))
 

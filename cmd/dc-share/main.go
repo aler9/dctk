@@ -23,12 +23,12 @@ func main() {
 	kingpin.Parse()
 
 	client, err := dctk.NewClient(dctk.ClientConf{
-		HubUrl:           *hub,
+		HubURL:           *hub,
 		Nick:             *nick,
 		Password:         *pwd,
-		TcpPort:          *tcpPort,
-		UdpPort:          *udpPort,
-		TcpTlsPort:       *tlsPort,
+		TCPPort:          *tcpPort,
+		UDPPort:          *udpPort,
+		TLSPort:          *tlsPort,
 		IsPassive:        *passive,
 		HubManualConnect: true,
 	})

@@ -10,7 +10,8 @@ help:
 	@echo ""
 	@echo "  mod-tidy                      run go mod tidy"
 	@echo "  format                        format source files"
-	@echo "  test                          run available tests"
+	@echo "  test                          run tests"
+	@echo "  lint                          run linter"
 	@echo "  test-manual                   start a test hub and client"
 	@echo "  run-example E=[name]          run an example by name"
 	@echo "  run-command N=[name] A=[args] run a command by name"
@@ -54,6 +55,16 @@ test-nodocker:
 	go test -race -v ./test
 	go build -o /dev/null ./cmd/...
 	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
+
+lint:
+	docker run --rm -v $(PWD):/app -w /app \
+	golangci/golangci-lint:v1.33.0 \
+	golangci-lint run -v \
+	--disable=errcheck \
+	--enable=gofmt \
+	--enable=golint \
+	--enable=misspell \
+	--timeout=60s
 
 test-manual:
 	cd ./test-manual && docker-compose up \

@@ -56,7 +56,7 @@ func NewAdcConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 }
 
 func (p *AdcConn) Read() (MsgDecodable, error) {
-	if p.readBinary == false {
+	if !p.readBinary {
 		msgStr, err := p.ReadMessage()
 		if err != nil {
 			return nil, err
@@ -137,7 +137,7 @@ func (p *AdcConn) Read() (MsgDecodable, error) {
 					case adc.Disconnect:
 						return &AdcIQuit{tpkt, &msg}
 					case adc.SIDAssign:
-						return &AdcISessionId{tpkt, &msg}
+						return &AdcISessionID{tpkt, &msg}
 					case adc.Status:
 						return &AdcIStatus{tpkt, &msg}
 					case adc.Supported:
@@ -160,14 +160,13 @@ func (p *AdcConn) Read() (MsgDecodable, error) {
 
 		log.Log(p.logLevel, log.LevelDebug, "[%s->c] %T %+v", p.remoteLabel, msg, msg)
 		return msg, nil
-
-	} else {
-		buf, err := p.ReadBinary()
-		if err != nil {
-			return nil, err
-		}
-		return &MsgBinary{buf}, nil
 	}
+
+	buf, err := p.ReadBinary()
+	if err != nil {
+		return nil, err
+	}
+	return &MsgBinary{buf}, nil
 }
 
 func (p *AdcConn) Write(pktMsg MsgEncodable) {
@@ -300,7 +299,7 @@ type AdcIQuit struct {
 	Msg *adc.Disconnect
 }
 
-type AdcISessionId struct {
+type AdcISessionID struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.SIDAssign
 }

@@ -56,7 +56,7 @@ func (fl *FileList) GetDirectory(dpath string) (*FileListDirectory, error) {
 		}
 		return nil, false
 	}()
-	if ok == false {
+	if !ok {
 		return nil, fmt.Errorf("directory not found")
 	}
 	components = components[1:]
@@ -70,7 +70,7 @@ func (fl *FileList) GetDirectory(dpath string) (*FileListDirectory, error) {
 			}
 			return nil, false
 		}()
-		if ok == false {
+		if !ok {
 			return nil, fmt.Errorf("directory not found")
 		}
 		components = components[1:]

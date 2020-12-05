@@ -15,14 +15,14 @@ func TestConnPwd(t *testing.T) {
 		ok := false
 
 		client, err := dctk.NewClient(dctk.ClientConf{
-			LogLevel:   log.LevelError,
-			HubUrl:     e.Url(),
-			Nick:       "testdctk_auth",
-			Password:   "testpa$ss",
-			Ip:         dockerIp,
-			TcpPort:    3006,
-			UdpPort:    3006,
-			TcpTlsPort: 3007,
+			LogLevel: log.LevelError,
+			HubURL:   e.URL(),
+			Nick:     "testdctk_auth",
+			Password: "testpa$ss",
+			IP:       dockerIP,
+			TCPPort:  3006,
+			UDPPort:  3006,
+			TLSPort:  3007,
 		})
 		require.NoError(t, err)
 

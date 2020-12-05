@@ -21,13 +21,13 @@ func TestSearchPassive(t *testing.T) {
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:         log.LevelError,
-				HubUrl:           e.Url(),
+				HubURL:           e.URL(),
 				Nick:             "client1",
-				Ip:               dockerIp,
+				IP:               dockerIP,
 				HubManualConnect: true,
-				TcpPort:          3006,
-				UdpPort:          3006,
-				TcpTlsPort:       3007,
+				TCPPort:          3006,
+				UDPPort:          3006,
+				TLSPort:          3007,
 			})
 			require.NoError(t, err)
 
@@ -48,12 +48,12 @@ func TestSearchPassive(t *testing.T) {
 		}
 
 		client2 := func() {
-			isAdc := strings.HasPrefix(e.Url(), "adc")
+			isAdc := strings.HasPrefix(e.URL(), "adc")
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:  log.LevelError,
-				HubUrl:    e.Url(),
+				HubURL:    e.URL(),
 				Nick:      "client2",
-				Ip:        dockerIp,
+				IP:        dockerIP,
 				IsPassive: true,
 			})
 			require.NoError(t, err)

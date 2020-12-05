@@ -19,12 +19,12 @@ func TestDownloadFromList(t *testing.T) {
 		client1 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
 				LogLevel:         log.LevelError,
-				HubUrl:           e.Url(),
+				HubURL:           e.URL(),
 				Nick:             "client1",
-				Ip:               dockerIp,
-				TcpPort:          3006,
-				UdpPort:          3006,
-				TcpTlsPort:       3007,
+				IP:               dockerIP,
+				TCPPort:          3006,
+				UDPPort:          3006,
+				TLSPort:          3007,
 				HubManualConnect: true,
 			})
 			require.NoError(t, err)
@@ -47,13 +47,13 @@ func TestDownloadFromList(t *testing.T) {
 
 		client2 := func() {
 			client, err := dctk.NewClient(dctk.ClientConf{
-				LogLevel:   log.LevelError,
-				HubUrl:     e.Url(),
-				Nick:       "client2",
-				Ip:         dockerIp,
-				TcpPort:    3005,
-				UdpPort:    3005,
-				TcpTlsPort: 3004,
+				LogLevel: log.LevelError,
+				HubURL:   e.URL(),
+				Nick:     "client2",
+				IP:       dockerIP,
+				TCPPort:  3005,
+				UDPPort:  3005,
+				TLSPort:  3004,
 			})
 			require.NoError(t, err)
 

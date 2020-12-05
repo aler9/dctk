@@ -13,14 +13,12 @@ import (
 )
 
 const (
-	_CONN_READ_TIMEOUT  = 60 * time.Second
-	_CONN_WRITE_TIMEOUT = 10 * time.Second
-	_MAX_MESSAGE_SIZE   = 10 * 1024
+	connReadTimeout  = 60 * time.Second
+	connWriteTimeout = 10 * time.Second
 )
 
 const reStrNick = "[^\\$ \\|\n]+"
-const reStrAddress = "[a-z0-9\\.-_]+"
-const ReStrIp = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+const ReStrIP = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 const reStrPort = "[0-9]{1,5}"
 
 var ErrorTerminated = fmt.Errorf("terminated")
@@ -145,14 +143,14 @@ func newBaseConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *BaseConn {
 
 	readTimeout := func() time.Duration {
-		if applyReadTimeout == true {
-			return _CONN_READ_TIMEOUT
+		if applyReadTimeout {
+			return connReadTimeout
 		}
 		return 0
 	}()
 	writeTimeout := func() time.Duration {
-		if applyWriteTimeout == true {
-			return _CONN_WRITE_TIMEOUT
+		if applyWriteTimeout {
+			return connWriteTimeout
 		}
 		return 0
 	}()
@@ -187,7 +185,7 @@ func (p *BaseConn) Close() error {
 	}
 	p.closer.Close()
 
-	if p.syncMode == false {
+	if !p.syncMode {
 		close(p.sendChan)
 		<-p.writerJoined
 	}
@@ -200,7 +198,7 @@ func (p *BaseConn) SetSyncMode(val bool) {
 	}
 	p.syncMode = val
 
-	if val == true {
+	if val {
 		close(p.sendChan)
 		<-p.writerJoined
 

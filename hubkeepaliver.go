@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	_HUB_KEEPALIVE_PERIOD = 120 * time.Second
+	hubKeepalivePeriod = 120 * time.Second
 )
 
 type hubKeepAliver struct {
@@ -24,7 +24,7 @@ func newHubKeepAliver(h *hubConn) *hubKeepAliver {
 	go func() {
 		defer close(ka.done)
 
-		ticker := time.NewTicker(_HUB_KEEPALIVE_PERIOD)
+		ticker := time.NewTicker(hubKeepalivePeriod)
 		defer ticker.Stop()
 		for {
 			select {

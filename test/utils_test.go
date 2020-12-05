@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var dockerIp = func() string {
+var dockerIP = func() string {
 	out, _ := exec.Command("docker", "network", "inspect", "bridge", "--format",
 		"{{range .IPAM.Config}}{{.Subnet}}{{end}}").Output()
 	subnetStr := string(out[:len(out)-1])
@@ -88,7 +88,7 @@ func newExternalHub(testName string, def *externalHubDef) *externalHub {
 	}
 }
 
-func (e *externalHub) Url() string {
+func (e *externalHub) URL() string {
 	return e.su
 }
 

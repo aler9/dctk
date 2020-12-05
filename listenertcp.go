@@ -13,16 +13,16 @@ import (
 	"github.com/aler9/dctk/pkg/proto"
 )
 
-type listenerTcp struct {
+type listenerTCP struct {
 	client             *Client
 	isEncrypted        bool
 	terminateRequested bool
 	listener           net.Listener
 }
 
-func newListenerTcp(client *Client, isEncrypted bool) error {
+func newListenerTCP(client *Client, isEncrypted bool) error {
 	var listener net.Listener
-	if isEncrypted == true {
+	if isEncrypted {
 		var err error
 		priv, err := rsa.GenerateKey(crand.Reader, 1024)
 		if err != nil {
@@ -58,7 +58,7 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 			return err
 		}
 
-		listener, err = tls.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TcpTlsPort),
+		listener, err = tls.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TLSPort),
 			&tls.Config{Certificates: []tls.Certificate{tcert}})
 		if err != nil {
 			return err
@@ -66,34 +66,34 @@ func newListenerTcp(client *Client, isEncrypted bool) error {
 
 	} else {
 		var err error
-		listener, err = net.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TcpPort))
+		listener, err = net.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TCPPort))
 		if err != nil {
 			return err
 		}
 	}
 
-	l := &listenerTcp{
+	l := &listenerTCP{
 		client:      client,
 		isEncrypted: isEncrypted,
 		listener:    listener,
 	}
-	if isEncrypted == true {
-		client.tcpTlsListener = l
+	if isEncrypted {
+		client.tlsListener = l
 	} else {
-		client.listenerTcp = l
+		client.listenerTCP = l
 	}
 	return nil
 }
 
-func (t *listenerTcp) close() {
-	if t.terminateRequested == true {
+func (t *listenerTCP) close() {
+	if t.terminateRequested {
 		return
 	}
 	t.terminateRequested = true
 	t.listener.Close()
 }
 
-func (t *listenerTcp) do() {
+func (t *listenerTCP) do() {
 	defer t.client.wg.Done()
 
 	for {

@@ -11,34 +11,34 @@ import (
 	"github.com/aler9/dctk/pkg/proto"
 )
 
-type listenerUdp struct {
+type listenerUDP struct {
 	client             *Client
 	terminateRequested bool
 	listener           net.PacketConn
 }
 
-func newListenerUdp(client *Client) error {
-	listener, err := net.ListenPacket("udp", fmt.Sprintf(":%d", client.conf.UdpPort))
+func newListenerUDP(client *Client) error {
+	listener, err := net.ListenPacket("udp", fmt.Sprintf(":%d", client.conf.UDPPort))
 	if err != nil {
 		return err
 	}
 
-	client.listenerUdp = &listenerUdp{
+	client.listenerUDP = &listenerUDP{
 		client:   client,
 		listener: listener,
 	}
 	return nil
 }
 
-func (u *listenerUdp) close() {
-	if u.terminateRequested == true {
+func (u *listenerUDP) close() {
+	if u.terminateRequested {
 		return
 	}
 	u.terminateRequested = true
 	u.listener.Close()
 }
 
-func (u *listenerUdp) do() {
+func (u *listenerUDP) do() {
 	defer u.client.wg.Done()
 
 	var buf [2048]byte
@@ -71,12 +71,12 @@ func (u *listenerUdp) do() {
 					msge := pkt.Message().(adc.SearchResult)
 					msg := &msge
 
-					pktMsg := &proto.AdcUSearchResult{
+					pktMsg := &proto.AdcUSearchResult{ //nolint:govet
 						pkt.(*adc.UDPPacket),
 						msg,
 					}
 
-					p := u.client.peerByClientId(pktMsg.Pkt.ID)
+					p := u.client.peerByClientID(pktMsg.Pkt.ID)
 					if p == nil {
 						return fmt.Errorf("unknown author")
 					}
@@ -84,31 +84,31 @@ func (u *listenerUdp) do() {
 					u.client.handleAdcSearchResult(true, p, pktMsg.Msg)
 					return nil
 
-				} else {
-					if msgStr[len(msgStr)-1] != '|' {
-						return fmt.Errorf("wrong terminator")
-					}
-					msgStr = msgStr[:len(msgStr)-1]
-
-					matches := proto.ReNmdcCommand.FindStringSubmatch(msgStr)
-					if matches == nil {
-						return fmt.Errorf("wrong syntax")
-					}
-
-					// udp is used only for search results
-					if matches[1] != "SR" {
-						return fmt.Errorf("wrong command")
-					}
-
-					msg := &nmdc.SR{}
-					err = msg.UnmarshalNMDC(nil, []byte(matches[3]))
-					if err != nil {
-						return fmt.Errorf("wrong search result")
-					}
-
-					u.client.handleNmdcSearchResult(true, msg)
-					return nil
 				}
+
+				if msgStr[len(msgStr)-1] != '|' {
+					return fmt.Errorf("wrong terminator")
+				}
+				msgStr = msgStr[:len(msgStr)-1]
+
+				matches := proto.ReNmdcCommand.FindStringSubmatch(msgStr)
+				if matches == nil {
+					return fmt.Errorf("wrong syntax")
+				}
+
+				// udp is used only for search results
+				if matches[1] != "SR" {
+					return fmt.Errorf("wrong command")
+				}
+
+				msg := &nmdc.SR{}
+				err = msg.UnmarshalNMDC(nil, []byte(matches[3]))
+				if err != nil {
+					return fmt.Errorf("wrong search result")
+				}
+
+				u.client.handleNmdcSearchResult(true, msg)
+				return nil
 			}()
 			if err != nil {
 				log.Log(u.client.conf.LogLevel, log.LevelDebug, "[udp] unable to parse: %s", err)

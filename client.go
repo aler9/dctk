@@ -15,11 +15,11 @@ Basic example (more are available at https://github.com/aler9/dctk/tree/master/e
 
   func main() {
   	client, err := dctk.NewClient(dctk.ClientConf{
-  		HubUrl:     "nmdc://hubip:411",
+  		HubURL:     "nmdc://hubip:411",
   		Nick:       "mynick",
-  		TcpPort:    3009,
-  		UdpPort:    3009,
-  		TcpTlsPort: 3010,
+  		TCPPort:    3009,
+  		UDPPort:    3009,
+  		TLSPort: 3010,
   	})
   	if err != nil {
   		panic(err)
@@ -57,10 +57,10 @@ import (
 )
 
 const (
-	_PUBLIC_IP_PROVIDER = "http://checkip.dyndns.org/"
+	publicIPProvider = "http://checkip.dyndns.org/"
 )
 
-var rePublicIp = regexp.MustCompile("(" + proto.ReStrIp + ")")
+var rePublicIP = regexp.MustCompile("(" + proto.ReStrIP + ")")
 
 // EncryptionMode contains the options regarding encryption.
 type EncryptionMode int
@@ -86,16 +86,16 @@ type ClientConf struct {
 	// verbosity of the library
 	LogLevel log.Level
 
-	// turns on passive mode: it is not necessary anymore to open TcpPort, UdpPort
-	// and TcpTlsPort but functionalities are limited
+	// turns on passive mode: it is not necessary anymore to open TCPPort, UDPPort
+	// and TLSPort but functionalities are limited
 	IsPassive bool
 	// (optional) an explicit ip, instead of the one obtained automatically
-	Ip string
+	IP string
 	// these are the 3 ports needed for active mode. They must be accessible from the
 	// internet, so any router/firewall in between must be configured
-	TcpPort    uint
-	UdpPort    uint
-	TcpTlsPort uint
+	TCPPort uint
+	UDPPort uint
+	TLSPort uint
 
 	// the maximum number of file to download in parallel. When this number is
 	// exceeded, the other downloads are queued and started when a slot becomes available
@@ -108,7 +108,7 @@ type ClientConf struct {
 
 	// The hub url in the format protocol://address:port
 	// supported protocols are adc, adcs, nmdc and nmdcs
-	HubUrl string
+	HubURL string
 	// how many times attempting a connection with hub before giving up
 	HubConnTries uint
 	// if turned on, connection to hub is not automatic and HubConnect() must be
@@ -157,7 +157,7 @@ type Client struct {
 	hubIsEncrypted     bool
 	hubHostname        string
 	hubPort            uint
-	hubSolvedIp        string
+	hubSolvedIP        string
 	ip                 string
 	shareIndexer       *shareIndexer
 	shareRoots         map[string]string
@@ -165,14 +165,14 @@ type Client struct {
 	shareCount         uint
 	shareSize          uint64
 	fileList           []byte
-	listenerTcp        *listenerTcp
-	tcpTlsListener     *listenerTcp
-	listenerUdp        *listenerUdp
+	listenerTCP        *listenerTCP
+	tlsListener        *listenerTCP
+	listenerUDP        *listenerUDP
 	hubConn            *hubConn
 	// we follow the ADC way to handle IDs, even when using NMDC
-	privateId             atypes.PID
-	clientId              atypes.CID
-	adcSessionId          atypes.SID
+	privateID             atypes.PID
+	clientID              atypes.CID
+	adcSessionID          atypes.SID
 	adcFingerprint        string
 	peers                 map[string]*Peer
 	downloadSlotAvail     uint
@@ -219,16 +219,16 @@ type Client struct {
 func NewClient(conf ClientConf) (*Client, error) {
 	rand.Seed(time.Now().UnixNano())
 
-	if conf.IsPassive == false && (conf.TcpPort == 0 || conf.UdpPort == 0) {
+	if !conf.IsPassive && (conf.TCPPort == 0 || conf.UDPPort == 0) {
 		return nil, fmt.Errorf("tcp and udp ports must be both set when in active mode")
 	}
-	if conf.IsPassive == false && conf.PeerEncryptionMode != ForceEncryption && conf.TcpPort == 0 {
+	if !conf.IsPassive && conf.PeerEncryptionMode != ForceEncryption && conf.TCPPort == 0 {
 		return nil, fmt.Errorf("tcp port must be set when in active mode and encryption is optional")
 	}
-	if conf.IsPassive == false && conf.PeerEncryptionMode != DisableEncryption && conf.TcpTlsPort == 0 {
+	if !conf.IsPassive && conf.PeerEncryptionMode != DisableEncryption && conf.TLSPort == 0 {
 		return nil, fmt.Errorf("tcp tls port must be set when in active mode and encryption is on")
 	}
-	if conf.TcpPort != 0 && conf.TcpPort == conf.TcpTlsPort {
+	if conf.TCPPort != 0 && conf.TCPPort == conf.TLSPort {
 		return nil, fmt.Errorf("tcp port and tcp tls port cannot be the same")
 	}
 	if conf.DownloadMaxParallel == 0 {
@@ -259,7 +259,7 @@ func NewClient(conf ClientConf) (*Client, error) {
 		conf.ListGenerator = "DC++ 0.868" // verified
 	}
 
-	u, err := url.Parse(conf.HubUrl)
+	u, err := url.Parse(conf.HubURL)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse hub url")
 	}
@@ -281,11 +281,11 @@ func NewClient(conf ClientConf) (*Client, error) {
 			u.Host = u.Hostname() + ":411"
 		}
 	}
-	conf.HubUrl = u.String()
+	conf.HubURL = u.String()
 
 	c := &Client{
 		conf:                  conf,
-		privateId:             conf.PID,
+		privateID:             conf.PID,
 		terminate:             make(chan struct{}),
 		proto:                 protocolNMDC,
 		hubIsEncrypted:        u.Scheme == "adcs" || u.Scheme == "nmdcs",
@@ -305,16 +305,16 @@ func NewClient(conf ClientConf) (*Client, error) {
 		c.proto = protocolADC
 	}
 
-	// generate privateId if not provided (random)
+	// generate privateID if not provided (random)
 	var zeroPID atypes.PID
-	if c.privateId == zeroPID {
-		c.privateId, _ = atypes.NewPID()
+	if c.privateID == zeroPID {
+		c.privateID, _ = atypes.NewPID()
 	}
 
-	// generate clientId (hash of privateId)
+	// generate clientID (hash of privateID)
 	hasher := tiger.NewHash()
-	hasher.Write(c.privateId[:])
-	hasher.Sum(c.clientId[:0])
+	hasher.Write(c.privateID[:])
+	hasher.Sum(c.clientID[:0])
 
 	if err := newHubConn(c); err != nil {
 		return nil, err
@@ -324,20 +324,20 @@ func NewClient(conf ClientConf) (*Client, error) {
 		return nil, err
 	}
 
-	if c.conf.IsPassive == false && c.conf.PeerEncryptionMode != ForceEncryption {
-		if err := newListenerTcp(c, false); err != nil {
+	if !c.conf.IsPassive && c.conf.PeerEncryptionMode != ForceEncryption {
+		if err := newListenerTCP(c, false); err != nil {
 			return nil, err
 		}
 	}
 
-	if c.conf.IsPassive == false && c.conf.PeerEncryptionMode != DisableEncryption {
-		if err := newListenerTcp(c, true); err != nil {
+	if !c.conf.IsPassive && c.conf.PeerEncryptionMode != DisableEncryption {
+		if err := newListenerTCP(c, true); err != nil {
 			return nil, err
 		}
 	}
 
-	if c.conf.IsPassive == false {
-		if err := newListenerUdp(c); err != nil {
+	if !c.conf.IsPassive {
+		if err := newListenerUDP(c); err != nil {
 			return nil, err
 		}
 	}
@@ -359,7 +359,7 @@ func (c *Client) protoIsAdc() bool {
 
 // Close every open connection and stop the client.
 func (c *Client) Close() error {
-	if c.terminateRequested == true {
+	if c.terminateRequested {
 		return nil
 	}
 	c.terminateRequested = true
@@ -370,11 +370,11 @@ func (c *Client) Close() error {
 // Run starts the client and waits until the client has been terminated.
 func (c *Client) Run() {
 	// get an ip
-	if c.conf.IsPassive == false {
-		if c.conf.Ip != "" {
-			c.ip = c.conf.Ip
+	if !c.conf.IsPassive {
+		if c.conf.IP != "" {
+			c.ip = c.conf.IP
 		} else {
-			if err := c.getPublicIp(); err != nil {
+			if err := c.getPublicIP(); err != nil {
 				panic(err)
 			}
 		}
@@ -383,17 +383,17 @@ func (c *Client) Run() {
 	c.wg.Add(1)
 	go c.shareIndexer.do()
 
-	if c.listenerTcp != nil {
+	if c.listenerTCP != nil {
 		c.wg.Add(1)
-		go c.listenerTcp.do()
+		go c.listenerTCP.do()
 	}
-	if c.tcpTlsListener != nil {
+	if c.tlsListener != nil {
 		c.wg.Add(1)
-		go c.tcpTlsListener.do()
+		go c.tlsListener.do()
 	}
-	if c.listenerUdp != nil {
+	if c.listenerUDP != nil {
 		c.wg.Add(1)
-		go c.listenerUdp.do()
+		go c.listenerUDP.do()
 	}
 
 	if c.OnInitialized != nil {
@@ -401,7 +401,7 @@ func (c *Client) Run() {
 	}
 
 	c.Safe(func() {
-		if c.conf.HubManualConnect == false {
+		if !c.conf.HubManualConnect {
 			c.HubConnect()
 		}
 	})
@@ -416,14 +416,14 @@ func (c *Client) Run() {
 		for p := range c.peerConns {
 			p.close()
 		}
-		if c.listenerUdp != nil {
-			c.listenerUdp.close()
+		if c.listenerUDP != nil {
+			c.listenerUDP.close()
 		}
-		if c.tcpTlsListener != nil {
-			c.tcpTlsListener.close()
+		if c.tlsListener != nil {
+			c.tlsListener.close()
 		}
-		if c.listenerTcp != nil {
-			c.listenerTcp.close()
+		if c.listenerTCP != nil {
+			c.listenerTCP.close()
 		}
 		c.shareIndexer.close()
 	})
@@ -431,8 +431,8 @@ func (c *Client) Run() {
 	c.wg.Wait()
 }
 
-func (c *Client) getPublicIp() error {
-	res, err := http.Get(_PUBLIC_IP_PROVIDER)
+func (c *Client) getPublicIP() error {
+	res, err := http.Get(publicIPProvider)
 	if err != nil {
 		return err
 	}
@@ -443,7 +443,7 @@ func (c *Client) getPublicIp() error {
 		return err
 	}
 
-	m := rePublicIp.FindStringSubmatch(string(body))
+	m := rePublicIP.FindStringSubmatch(string(body))
 	if m == nil {
 		return fmt.Errorf("cannot obtain ip")
 	}
@@ -457,7 +457,7 @@ func (c *Client) sendInfos(firstTime bool) {
 	hubRegisteredCount := uint(0)
 	hubOperatorCount := uint(0)
 
-	if c.hubConn.passwordSent == true {
+	if c.hubConn.passwordSent {
 		hubRegisteredCount = 1
 	} else {
 		hubUnregisteredCount = 1
@@ -478,32 +478,32 @@ func (c *Client) sendInfos(firstTime bool) {
 		}
 
 		info.Features = append(info.Features, adc.FeaADC0)
-		if c.conf.IsPassive == false {
+		if !c.conf.IsPassive {
 			info.Features = append(info.Features, adc.FeaTCP4, adc.FeaUDP4)
 		}
 		if c.conf.PeerEncryptionMode != DisableEncryption {
 			info.Features = append(info.Features, adc.FeaADCS)
 		}
 
-		if c.conf.IsPassive == false {
+		if !c.conf.IsPassive {
 			info.Ip4 = c.ip
-			info.Udp4 = int(c.conf.UdpPort)
+			info.Udp4 = int(c.conf.UDPPort)
 		}
 
 		// these must be sent only during initialization
-		if firstTime == true {
+		if firstTime {
 			info.Name = c.conf.Nick
-			info.Id = c.clientId
-			info.Pid = &c.privateId
+			info.Id = c.clientID
+			info.Pid = &c.privateID
 
 			if c.conf.PeerEncryptionMode != DisableEncryption &&
-				c.conf.IsPassive == false {
+				!c.conf.IsPassive {
 				info.KP = c.adcFingerprint
 			}
 		}
 
-		c.hubConn.conn.Write(&proto.AdcBInfos{
-			&adc.BroadcastPacket{ID: c.adcSessionId},
+		c.hubConn.conn.Write(&proto.AdcBInfos{ //nolint:govet
+			&adc.BroadcastPacket{ID: c.adcSessionID},
 			info,
 		})
 
@@ -525,7 +525,7 @@ func (c *Client) sendInfos(firstTime bool) {
 				Version: c.conf.ClientVersion,
 			},
 			Mode: func() nmdc.UserMode {
-				if c.conf.IsPassive == false {
+				if !c.conf.IsPassive {
 					return nmdc.UserModeActive
 				}
 				return nmdc.UserModePassive

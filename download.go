@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	_PEER_WAIT_TIMEOUT = 10 * time.Second
+	peerWaitPeriod = 10 * time.Second
 )
 
 // DownloadConf allows to configure a download.
@@ -87,7 +87,7 @@ func (c *Client) downloadByAdcToken(adcToken string) *Download {
 
 func (c *Client) downloadPendingByPeer(peer *Peer) *Download {
 	dl, ok := c.activeDownloadsByPeer[peer.Nick]
-	if ok && dl.terminateRequested == false && dl.state == "waiting_peer" {
+	if ok && !dl.terminateRequested && dl.state == "waiting_peer" {
 		return dl
 	}
 	return nil
@@ -155,7 +155,7 @@ func (c *Client) DownloadFile(conf DownloadConf) (*Download, error) {
 
 	// build query
 	d.query = func() string {
-		if d.conf.isFilelist == true {
+		if d.conf.isFilelist {
 			return "file files.xml.bz2"
 		}
 		return "file TTH/" + d.conf.TTH.String()
@@ -182,7 +182,7 @@ func (d *Download) Content() []byte {
 
 // Close stops the download. OnDownloadError and OnDownloadSuccessful are not called.
 func (d *Download) Close() {
-	if d.terminateRequested == true {
+	if d.terminateRequested {
 		return
 	}
 	d.terminateRequested = true
@@ -209,7 +209,7 @@ func (d *Download) do() {
 				d.client.activeDownloadsByPeer[d.conf.Peer.Nick] = d
 			}
 		})
-		if wait == true {
+		if wait {
 			select {
 			case <-d.terminate:
 				return proto.ErrorTerminated
@@ -225,10 +225,10 @@ func (d *Download) do() {
 				wait = true
 			} else {
 				d.state = "waited_slot"
-				d.client.downloadSlotAvail -= 1
+				d.client.downloadSlotAvail--
 			}
 		})
-		if wait == true {
+		if wait {
 			select {
 			case <-d.terminate:
 				return proto.ErrorTerminated
@@ -259,8 +259,8 @@ func (d *Download) do() {
 				d.state = "processing"
 			}
 		})
-		if wait == true {
-			timeout := time.NewTimer(_PEER_WAIT_TIMEOUT)
+		if wait {
+			timeout := time.NewTimer(peerWaitPeriod)
 			select {
 			case <-timeout.C:
 				return fmt.Errorf("timed out")
@@ -275,14 +275,14 @@ func (d *Download) do() {
 
 		if d.client.protoIsAdc() {
 			queryParts := strings.Split(d.query, " ")
-			d.pconn.conn.Write(&proto.AdcCGetFile{
+			d.pconn.conn.Write(&proto.AdcCGetFile{ //nolint:govet
 				&adc.ClientPacket{},
 				&adc.GetRequest{
 					Type:  queryParts[0],
 					Path:  queryParts[1],
 					Start: int64(d.conf.Start),
 					Bytes: d.conf.Length,
-					Compressed: (d.client.conf.PeerDisableCompression == false &&
+					Compressed: (!d.client.conf.PeerDisableCompression &&
 						(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
 				},
 			})
@@ -293,7 +293,7 @@ func (d *Download) do() {
 				Identifier:  nmdc.String(queryParts[1]),
 				Start:       d.conf.Start,
 				Length:      d.conf.Length,
-				Compressed: (d.client.conf.PeerDisableCompression == false &&
+				Compressed: (!d.client.conf.PeerDisableCompression &&
 					(d.conf.Length <= 0 || d.conf.Length >= (1024*10))),
 			})
 		}
@@ -318,7 +318,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 	if reqStart != d.conf.Start {
 		return fmt.Errorf("uploader returned wrong start: %d instead of %d", reqStart, d.conf.Start)
 	}
-	if reqCompressed == true && d.client.conf.PeerDisableCompression == true {
+	if reqCompressed && d.client.conf.PeerDisableCompression {
 		return fmt.Errorf("compression is active but is disabled")
 	}
 
@@ -336,7 +336,7 @@ func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
 	}
 
 	d.pconn.conn.SetReadBinary(true)
-	if reqCompressed == true {
+	if reqCompressed {
 		d.pconn.conn.ReaderEnableZlib()
 	}
 
@@ -439,7 +439,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 				// normal file
 			} else {
 				// validate
-				if d.conf.SkipValidation == false && d.conf.Start == 0 && d.conf.Length <= 0 {
+				if !d.conf.SkipValidation && d.conf.Start == 0 && d.conf.Length <= 0 {
 					log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] validating", d.conf.Peer.Nick)
 
 					// file in disk
@@ -479,7 +479,7 @@ func (d *Download) handleDownload(msgi proto.MsgDecodable) error {
 }
 
 func (d *Download) handleExit(err error) {
-	if d.terminateRequested != true && err != nil {
+	if !d.terminateRequested && err != nil {
 		log.Log(d.client.conf.LogLevel, log.LevelInfo, "ERR (download) [%s]: %s", d.conf.Peer.Nick, err)
 	}
 
@@ -489,7 +489,7 @@ func (d *Download) handleExit(err error) {
 	delete(d.client.activeDownloadsByPeer, d.conf.Peer.Nick)
 	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
-			if od.terminateRequested == false && od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
+			if !od.terminateRequested && od.state == "waiting_activedl" && d.conf.Peer == od.conf.Peer {
 				od.state = "waited_activedl"
 				od.client.activeDownloadsByPeer[od.conf.Peer.Nick] = d
 				od.activeDlChan <- struct{}{}
@@ -499,12 +499,12 @@ func (d *Download) handleExit(err error) {
 	}
 
 	// free slot and unlock next download
-	d.client.downloadSlotAvail += 1
+	d.client.downloadSlotAvail++
 	for rot := range d.client.transfers {
 		if od, ok := rot.(*Download); ok {
-			if od.terminateRequested == false && od.state == "waiting_slot" {
+			if !od.terminateRequested && od.state == "waiting_slot" {
 				od.state = "waited_slot"
-				od.client.downloadSlotAvail -= 1
+				od.client.downloadSlotAvail--
 				od.slotChan <- struct{}{}
 				break
 			}
