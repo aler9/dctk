@@ -19,7 +19,7 @@ Basic example (more are available at https://github.com/aler9/dctk/tree/master/e
   		Nick:       "mynick",
   		TCPPort:    3009,
   		UDPPort:    3009,
-  		TLSPort: 3010,
+  		TLSPort:    3010,
   	})
   	if err != nil {
   		panic(err)
