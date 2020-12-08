@@ -18,21 +18,22 @@ import (
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
-// HubField is a name of a hub information field.
+// HubField is the key of a hub information field.
 type HubField string
 
+// HubField standard keys.
 const (
-	HubName        = HubField("name")
-	HubTopic       = HubField("topic")
-	HubSoftware    = HubField("software")
-	HubVersion     = HubField("version")
-	HubDescription = HubField("description")
+	HubName        HubField = ("name")
+	HubTopic       HubField = ("topic")
+	HubSoftware    HubField = ("software")
+	HubVersion     HubField = ("version")
+	HubDescription HubField = ("description")
 )
 
 type hubConnState int
 
 const (
-	hubDisconnected = hubConnState(iota)
+	hubDisconnected hubConnState = iota
 	hubConnecting
 	hubConnected
 	hubSupports
@@ -68,13 +69,27 @@ func (s hubConnState) String() string {
 	}
 }
 
+type conn interface {
+	Close() error
+	SetSyncMode(val bool)
+	SetBinaryMode(val bool)
+	Read() (protocommon.MsgDecodable, error)
+	Write(msg protocommon.MsgEncodable)
+	WriteSync(in []byte) error
+	PullReadCounter() uint
+	PullWriteCounter() uint
+	EnableReaderZlib() error
+	EnableWriterZlib()
+	DisableWriterZlib()
+}
+
 type hubConn struct {
 	client             *Client
 	name               string
 	terminateRequested bool
 	terminate          chan struct{}
 	state              hubConnState
-	conn               protocommon.Conn
+	conn               conn
 	passwordSent       bool
 	uniqueCmds         map[string]struct{}
 }
@@ -258,7 +273,7 @@ func (h *hubConn) handleMessage(msgi protocommon.MsgDecodable) error {
 		if h.client.conf.HubDisableCompression {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
-		if err := h.conn.ReaderEnableZlib(); err != nil {
+		if err := h.conn.EnableReaderZlib(); err != nil {
 			return err
 		}
 
@@ -530,7 +545,7 @@ func (h *hubConn) handleMessage(msgi protocommon.MsgDecodable) error {
 		if h.client.conf.HubDisableCompression {
 			return fmt.Errorf("zlib requested but zlib is disabled")
 		}
-		if err := h.conn.ReaderEnableZlib(); err != nil {
+		if err := h.conn.EnableReaderZlib(); err != nil {
 			return err
 		}
 

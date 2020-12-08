@@ -225,7 +225,7 @@ func (u *upload) Close() {
 func (u *upload) handleUpload() error {
 	u.pconn.conn.SetSyncMode(true)
 	if u.isCompressed {
-		u.pconn.conn.WriterEnableZlib()
+		u.pconn.conn.EnableWriterZlib()
 	}
 
 	u.lastPrintTime = time.Now()
@@ -265,7 +265,7 @@ func (u *upload) handleUpload() error {
 	}
 
 	if u.isCompressed {
-		u.pconn.conn.WriterDisableZlib()
+		u.pconn.conn.DisableWriterZlib()
 	}
 	u.pconn.conn.SetSyncMode(false)
 

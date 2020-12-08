@@ -143,7 +143,7 @@ type ClientConf struct {
 type protocolName uint32
 
 const (
-	protocolNMDC = protocolName(iota)
+	protocolNMDC protocolName = iota
 	protocolADC
 )
 

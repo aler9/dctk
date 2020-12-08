@@ -29,7 +29,7 @@ type peerConn struct {
 	terminateRequested bool
 	terminate          chan struct{}
 	state              string
-	conn               protocommon.Conn
+	conn               conn
 	tlsConn            *tls.Conn
 	adcToken           string
 	passiveIP          string

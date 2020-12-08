@@ -12,16 +12,22 @@ import (
 	"github.com/aler9/dctk/pkg/protocommon"
 )
 
+// ReNmdcAddress is the regex to parse a NMDC address.
 var ReNmdcAddress = regexp.MustCompile("^(" + protocommon.ReStrIP + "):(" + protocommon.ReStrPort + ")$")
+
+// ReNmdcCommand is the regex to parse a NMDC command
 var ReNmdcCommand = regexp.MustCompile(`(?s)^\$([a-zA-Z0-9:]+)( (.+))?$`)
+
 var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + protocommon.ReStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
 
+// Conn is a NMDC connection.
 type Conn struct {
 	*protocommon.BaseConn
 }
 
+// NewConn allocates a Conn.
 func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) protocommon.Conn {
+	applyReadTimeout bool, applyWriteTimeout bool) *Conn {
 	p := &Conn{
 		BaseConn: protocommon.NewBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '|'),
@@ -29,6 +35,7 @@ func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 	return p
 }
 
+// Read reads a message.
 func (p *Conn) Read() (protocommon.MsgDecodable, error) {
 	if !p.BinaryMode() {
 		msgStr, err := p.ReadMessage()
@@ -142,6 +149,7 @@ func (p *Conn) Read() (protocommon.MsgDecodable, error) {
 	return &protocommon.MsgBinary{buf}, nil //nolint:govet
 }
 
+// Write writes a message.
 func (p *Conn) Write(msg protocommon.MsgEncodable) {
 	log.Log(p.LogLevel(), log.LevelDebug, "[c->%s] %T %+v", p.RemoteLabel(), msg, msg)
 
@@ -183,4 +191,5 @@ func (p *Conn) Write(msg protocommon.MsgEncodable) {
 	p.BaseConn.Write(buf.Bytes())
 }
 
+// NmdcKeepAlive is a NMDC keepalive.
 type NmdcKeepAlive struct{}

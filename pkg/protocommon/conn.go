@@ -17,13 +17,22 @@ const (
 	connWriteTimeout = 10 * time.Second
 )
 
+// ReStrNick is the regex to parse a nickname.
 const ReStrNick = "[^\\$ \\|\n]+"
+
+// ReStrIP is the regex to parse an IPv4.
 const ReStrIP = "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+
+// ReStrPort is the regex to parse a port.
 const ReStrPort = "[0-9]{1,5}"
 
+// ErrorTerminated is raised when the connection is terminated.
 var ErrorTerminated = fmt.Errorf("terminated")
 
+// MsgDecodable is implemented by all decodable messages.
 type MsgDecodable interface{}
+
+// MsgEncodable  is implemented by all encodable messages.
 type MsgEncodable interface{}
 
 type monitoredConnIntf interface {
@@ -31,23 +40,12 @@ type monitoredConnIntf interface {
 	PullWriteCounter() uint
 }
 
-type Conn interface {
-	Close() error
-	SetSyncMode(val bool)
-	SetBinaryMode(val bool)
-	Read() (MsgDecodable, error)
-	Write(msg MsgEncodable)
-	WriteSync(in []byte) error
-	monitoredConnIntf
-	ReaderEnableZlib() error
-	WriterEnableZlib()
-	WriterDisableZlib()
-}
-
+// MsgBinary is a binary message.
 type MsgBinary struct {
 	Content []byte
 }
 
+// BaseConn is the base connection used by DC protocols.
 type BaseConn struct {
 	logLevel    log.Level
 	remoteLabel string
@@ -63,6 +61,7 @@ type BaseConn struct {
 	writerJoined chan struct{}
 }
 
+// NewBaseConn allocates a BaseConn.
 func NewBaseConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *BaseConn {
 
@@ -101,22 +100,7 @@ func NewBaseConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 	return c
 }
 
-func (c *BaseConn) isTerminated() bool {
-	return atomic.LoadUint32(&c.terminated) != 0
-}
-
-func (c *BaseConn) LogLevel() log.Level {
-	return c.logLevel
-}
-
-func (c *BaseConn) RemoteLabel() string {
-	return c.remoteLabel
-}
-
-func (c *BaseConn) BinaryMode() bool {
-	return c.binaryMode
-}
-
+// Close closes the connection.
 func (c *BaseConn) Close() error {
 	if !atomic.CompareAndSwapUint32(&c.terminated, 0, 1) {
 		return nil // already closing
@@ -130,6 +114,26 @@ func (c *BaseConn) Close() error {
 	return nil
 }
 
+func (c *BaseConn) isTerminated() bool {
+	return atomic.LoadUint32(&c.terminated) != 0
+}
+
+// LogLevel returns the log level.
+func (c *BaseConn) LogLevel() log.Level {
+	return c.logLevel
+}
+
+// RemoteLabel returns the remote label.
+func (c *BaseConn) RemoteLabel() string {
+	return c.remoteLabel
+}
+
+// BinaryMode returns the binary mode.
+func (c *BaseConn) BinaryMode() bool {
+	return c.binaryMode
+}
+
+// SetSyncMode sets the sync mode.
 func (c *BaseConn) SetSyncMode(val bool) {
 	if val == c.syncMode {
 		return
@@ -146,10 +150,12 @@ func (c *BaseConn) SetSyncMode(val bool) {
 	}
 }
 
+// SetBinaryMode sets the binary mode.
 func (c *BaseConn) SetBinaryMode(val bool) {
 	c.binaryMode = val
 }
 
+// ReadMessage reads a message.
 func (c *BaseConn) ReadMessage() (string, error) {
 	// Close() was called in a previous run
 	if c.isTerminated() {
@@ -166,6 +172,7 @@ func (c *BaseConn) ReadMessage() (string, error) {
 	return string(msg[:len(msg)-1]), nil
 }
 
+// ReadBinary reads binary data.
 func (c *BaseConn) ReadBinary() ([]byte, error) {
 	// Close() was called in a previous run
 	if c.isTerminated() {
@@ -192,6 +199,7 @@ func (c *BaseConn) writeReceiver() {
 	c.writerJoined <- struct{}{}
 }
 
+// WriteSync writes a message in sync mode.
 func (c *BaseConn) WriteSync(in []byte) error {
 	err := c.writer.WriteLine(in)
 	if err != nil {
@@ -200,6 +208,7 @@ func (c *BaseConn) WriteSync(in []byte) error {
 	return c.writer.Flush()
 }
 
+// Write writes a message in asynchronous mode.
 func (c *BaseConn) Write(in []byte) {
 	if c.isTerminated() {
 		return
@@ -207,14 +216,17 @@ func (c *BaseConn) Write(in []byte) {
 	c.sendChan <- in
 }
 
-func (c *BaseConn) ReaderEnableZlib() error {
+// EnableReaderZlib enables zlib on readings.
+func (c *BaseConn) EnableReaderZlib() error {
 	return c.reader.EnableZlib()
 }
 
-func (c *BaseConn) WriterEnableZlib() {
+// EnableWriterZlib enables zlib on writings.
+func (c *BaseConn) EnableWriterZlib() {
 	c.writer.EnableZlib()
 }
 
-func (c *BaseConn) WriterDisableZlib() {
+// DisableWriterZlib disables zlib on writings.
+func (c *BaseConn) DisableWriterZlib() {
 	c.writer.DisableZlib()
 }

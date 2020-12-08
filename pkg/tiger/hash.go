@@ -58,7 +58,7 @@ func HashFromBytes(in []byte) Hash {
 	return Hash(ret)
 }
 
-// tiger.HashFromFile computes the Tiger Tree Hash (TTH) of a file.
+// HashFromFile computes the Tiger Tree Hash (TTH) of a file.
 func HashFromFile(fpath string) (Hash, error) {
 	f, err := os.Open(fpath)
 	if err != nil {

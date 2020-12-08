@@ -17,6 +17,7 @@ import (
 	"github.com/aler9/dctk/pkg/protocommon"
 )
 
+// standard ADC status codes.
 const (
 	AdcCodeProtocolUnsupported = 41
 	AdcCodeFileNotAvailable    = 51
@@ -28,6 +29,7 @@ func dcBase32Encode(in []byte) string {
 	return strings.TrimRight(base32.StdEncoding.EncodeToString(in), "=")
 }
 
+// AdcRandomToken returns a random token.
 func AdcRandomToken() string {
 	const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	buf := make([]byte, 10)
@@ -37,18 +39,21 @@ func AdcRandomToken() string {
 	return string(buf)
 }
 
+// AdcCertFingerprint returns the fingerprint of a certificate.
 func AdcCertFingerprint(cert *x509.Certificate) string {
 	h := sha256.New()
 	h.Write(cert.Raw)
 	return "SHA256/" + dcBase32Encode(h.Sum(nil))
 }
 
+// Conn is an ADC connection.
 type Conn struct {
 	*protocommon.BaseConn
 }
 
+// NewConn allocates a Conn.
 func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) protocommon.Conn {
+	applyReadTimeout bool, applyWriteTimeout bool) *Conn {
 	p := &Conn{
 		BaseConn: protocommon.NewBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
@@ -56,6 +61,7 @@ func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
 	return p
 }
 
+// Read reads a message.
 func (p *Conn) Read() (protocommon.MsgDecodable, error) {
 	if !p.BinaryMode() {
 		msgStr, err := p.ReadMessage()
@@ -171,6 +177,7 @@ func (p *Conn) Read() (protocommon.MsgDecodable, error) {
 	return &protocommon.MsgBinary{buf}, nil //nolint:govet
 }
 
+// Write writes a message.
 func (p *Conn) Write(pktMsg protocommon.MsgEncodable) {
 	log.Log(p.LogLevel(), log.LevelDebug, "[c->%s] %T %+v", p.RemoteLabel(), pktMsg, pktMsg)
 
@@ -186,141 +193,170 @@ func (p *Conn) Write(pktMsg protocommon.MsgEncodable) {
 	p.BaseConn.Write(buf.Bytes())
 }
 
+// AdcKeepAlive is an ADC keepalive.
 type AdcKeepAlive struct{}
 
+// AdcKeyEncode implements adc.Message.
 func (*AdcKeepAlive) AdcKeyEncode() string {
 	return ""
 }
 
+// AdcTypeEncode implements adc.Message.
 func (*AdcKeepAlive) AdcTypeEncode(keyEncoded string) string {
 	return ""
 }
 
+// AdcBInfos is the BINF message.
 type AdcBInfos struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.UserInfo
 }
 
+// AdcBMessage is the BMSG message.
 type AdcBMessage struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.ChatMessage
 }
 
+// AdcBSearchRequest is the BSCH message.
 type AdcBSearchRequest struct {
 	Pkt *adc.BroadcastPacket
 	Msg *adc.SearchRequest
 }
 
+// AdcCGetFile is the CGET message.
 type AdcCGetFile struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.GetRequest
 }
 
+// AdcCInfos is the CINF message.
 type AdcCInfos struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.UserInfo
 }
 
+// AdcCSendFile is the CSNF message.
 type AdcCSendFile struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.GetResponse
 }
 
+// AdcCStatus is the CSTA message.
 type AdcCStatus struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.Status
 }
 
+// AdcCSupports is the CSUP message.
 type AdcCSupports struct {
 	Pkt *adc.ClientPacket
 	Msg *adc.Supported
 }
 
+// AdcDConnectToMe is the DCTM message.
 type AdcDConnectToMe struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.ConnectRequest
 }
 
+// AdcDMessage is the DMSG message.
 type AdcDMessage struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.ChatMessage
 }
 
+// AdcDRevConnectToMe is the DRCM message.
 type AdcDRevConnectToMe struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.RevConnectRequest
 }
 
+// AdcDSearchResult is the DRES message.
 type AdcDSearchResult struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.SearchResult
 }
 
+// AdcDStatus is the DSTA message.
 type AdcDStatus struct {
 	Pkt *adc.DirectPacket
 	Msg *adc.Status
 }
 
+// AdcFSearchRequest is the FSCH message.
 type AdcFSearchRequest struct {
 	Pkt *adc.FeaturePacket
 	Msg *adc.SearchRequest
 }
 
+// AdcHPass is the HPAS message.
 type AdcHPass struct {
 	Pkt *adc.HubPacket
 	Msg *adc.Password
 }
 
+// AdcHSupports is the HSUP message.
 type AdcHSupports struct {
 	Pkt *adc.HubPacket
 	Msg *adc.Supported
 }
 
+// AdcICommand is the ICMD message.
 type AdcICommand struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.UserCommand
 }
 
+// AdcIGetPass is the IGPA message.
 type AdcIGetPass struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.GetPassword
 }
 
+// AdcIInfos is the IINF message.
 type AdcIInfos struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.HubInfo
 }
 
+// AdcIMsg is the IMSG message.
 type AdcIMsg struct {
 	*adc.InfoPacket
 	Msg *adc.ChatMessage
 }
 
+// AdcIQuit is the IQUI message.
 type AdcIQuit struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.Disconnect
 }
 
+// AdcISessionID is the ISID message.
 type AdcISessionID struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.SIDAssign
 }
 
+// AdcIStatus is the ISTA message.
 type AdcIStatus struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.Status
 }
 
+// AdcISupports is the ISUP message.
 type AdcISupports struct {
 	*adc.InfoPacket
 	Msg *adc.Supported
 }
 
+// AdcIZon is the IZON message.
 type AdcIZon struct {
 	Pkt *adc.InfoPacket
 	Msg *adc.ZOn
 }
 
+// AdcUSearchResult is the URES message.
 type AdcUSearchResult struct {
 	Pkt *adc.UDPPacket
 	Msg *adc.SearchResult
