@@ -14,7 +14,7 @@ Direct Connect is semi-centralized peer-to-peer system in which peers connect to
 
 This project is based on the [**go-dc**](https://github.com/direct-connect/go-dc) project, that provides a base layer for building DC-related software.
 
-## Features
+Features:
 
 * ADC and NMDC transparent protocol support
 * **Active** and **passive** mode
@@ -27,9 +27,21 @@ This project is based on the [**go-dc**](https://github.com/direct-connect/go-dc
 
 Note: this project uses the rolling release development model, as it is used in a production environment which requires the latest updates. The public API may suffer minor changes. The master branch is to be considered stable.
 
+## Table of contents
+
+* [Library](#library)
+  * [Installation](#installation)
+  * [Examples](#examples)
+  * [API Documentation](#api-documentation)
+  * [Testing](#testing)
+* [Command-line utilities](#command-line-utilities)
+  * [Installation](#installation-1)
+  * [Usage](#usage)
+* [Links](#links)
+
 ## Library
 
-#### Installation
+### Installation
 
 Go &ge; 1.13 is required, and modules must be enabled (there must be a `go.mod` file in your project folder, that can be created with the command `go mod init main`). To install the library, it is enough to write its name in the import section of the source files that will use it. Go will take care of downloading the needed files:
 
@@ -39,7 +51,7 @@ import (
 )
 ```
 
-#### Examples
+### Examples
 
 * [connection-active](examples/01connection-active.go)
 * [connection-passive](examples/02connection-passive.go)
@@ -57,11 +69,11 @@ import (
 * [download-directory-from-list](examples/14download-directory-from-list.go)
 * [download-streaming](examples/15download-streaming.go)
 
-#### Documentation
+### API Documentation
 
 https://pkg.go.dev/github.com/aler9/dctk
 
-#### Testing
+### Testing
 
 If you want to edit this library and test the results, you can you automated tests with:
 
@@ -71,7 +83,7 @@ make test
 
 ## Command-line utilities
 
-#### Installation
+### Installation
 
 Go &ge; 1.13 is required. Download, compile and install the binaries with:
 
@@ -79,7 +91,7 @@ Go &ge; 1.13 is required. Download, compile and install the binaries with:
 go get github.com/aler9/dctk/cmd/...
 ```
 
-#### Usage
+### Usage
 
 ```
 dc-tth [<flags>] <filepath>
