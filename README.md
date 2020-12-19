@@ -71,7 +71,7 @@ import (
 
 ### API Documentation
 
-https://pkg.go.dev/github.com/aler9/dctk
+https://pkg.go.dev/github.com/aler9/dctk#pkg-index
 
 ### Testing
 
