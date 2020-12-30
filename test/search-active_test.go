@@ -94,9 +94,9 @@ func TestSearchActive(t *testing.T) {
 						t.Errorf("wrong result (1): %+v", res)
 					}
 					step++
-					client.Search(dctk.SearchConf{
+					require.NoError(t, client.Search(dctk.SearchConf{
 						Query: "test file",
-					})
+					}))
 
 				case 1:
 					if res.IsDir != false ||

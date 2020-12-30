@@ -79,8 +79,8 @@ type conn interface {
 	PullReadCounter() uint
 	PullWriteCounter() uint
 	EnableReaderZlib() error
-	EnableWriterZlib()
-	DisableWriterZlib()
+	EnableWriterZlib() error
+	DisableWriterZlib() error
 }
 
 type hubConn struct {

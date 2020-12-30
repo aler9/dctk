@@ -363,7 +363,8 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 			return fmt.Errorf("[AdcGet] invalid state: %s", p.state)
 		}
 		query := msg.Msg.Type + " " + msg.Msg.Path
-		ok := newUpload(p.client, p, query, uint64(msg.Msg.Start), int64(msg.Msg.Bytes), msg.Msg.Compressed)
+		ok := newUpload(p.client, p, query, uint64(msg.Msg.Start),
+			msg.Msg.Bytes, msg.Msg.Compressed)
 		if ok {
 			return errorDelegatedUpload
 		}

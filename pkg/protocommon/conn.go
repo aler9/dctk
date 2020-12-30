@@ -222,11 +222,11 @@ func (c *BaseConn) EnableReaderZlib() error {
 }
 
 // EnableWriterZlib enables zlib on writings.
-func (c *BaseConn) EnableWriterZlib() {
-	c.writer.EnableZlib()
+func (c *BaseConn) EnableWriterZlib() error {
+	return c.writer.EnableZlib()
 }
 
 // DisableWriterZlib disables zlib on writings.
-func (c *BaseConn) DisableWriterZlib() {
-	c.writer.DisableZlib()
+func (c *BaseConn) DisableWriterZlib() error {
+	return c.writer.DisableZlib()
 }

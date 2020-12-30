@@ -130,6 +130,6 @@ func (l Leaves) TreeHash() Hash {
 		ttl = append(ttl, godctiger.Hash(h))
 	}
 
-	h := godctiger.Leaves(ttl).TreeHash()
+	h := ttl.TreeHash()
 	return Hash(h)
 }
