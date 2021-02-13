@@ -1,8 +1,8 @@
 
 # dctk
 
-[![Test](https://github.com/aler9/dctk/workflows/test/badge.svg)](https://github.com/aler9/dctk/actions)
-[![Lint](https://github.com/aler9/dctk/workflows/lint/badge.svg)](https://github.com/aler9/dctk/actions)
+[![Test](https://github.com/aler9/dctk/workflows/test/badge.svg)](https://github.com/aler9/dctk/actions?query=workflow:test)
+[![Lint](https://github.com/aler9/dctk/workflows/lint/badge.svg)](https://github.com/aler9/dctk/actions?query=workflow:lint)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/aler9/dctk)](https://pkg.go.dev/github.com/aler9/dctk#pkg-index)
 
 dctk implements the client part of the Direct Connect peer-to-peer system (ADC and NMDC protocols) in the Go programming language. It includes:
