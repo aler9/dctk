@@ -51,7 +51,7 @@ test-examples:
 test-root:
 	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
 	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
-	go test -race -v ./test
+	go test -v -race  -coverprofile=coverage-test.txt ./test
 
 test-nodocker: test-cmd test-examples test-root
 
