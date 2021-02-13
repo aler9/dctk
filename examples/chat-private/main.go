@@ -1,5 +1,3 @@
-// +build ignore
-
 package main
 
 import (
@@ -19,9 +17,9 @@ func main() {
 		panic(err)
 	}
 
-	// we are connected to the hub
-	client.OnHubConnected = func() {
-		fmt.Println("connected to hub")
+	// a private message has been received: reply to sender
+	client.OnMessagePrivate = func(p *dctk.Peer, content string) {
+		client.MessagePrivate(p, fmt.Sprintf("message received! (%s)", content))
 	}
 
 	client.Run()

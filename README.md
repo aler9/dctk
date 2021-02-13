@@ -53,21 +53,21 @@ import (
 
 ### Examples
 
-* [connection-active](examples/01connection-active.go)
-* [connection-passive](examples/02connection-passive.go)
-* [chat-public](examples/03chat-public.go)
-* [chat-private](examples/04chat-private.go)
-* [search](examples/05search.go)
-* [share](examples/06share.go)
-* [magnet](examples/07magnet.go)
-* [download-list](examples/08download-list.go)
-* [download-all-lists](examples/09download-all-lists.go)
-* [download-file](examples/10download-file.go)
-* [download-file-on-disk](examples/11download-file-on-disk.go)
-* [download-file-from-search](examples/12download-file-from-search.go)
-* [download-file-from-list](examples/13download-file-from-list.go)
-* [download-directory-from-list](examples/14download-directory-from-list.go)
-* [download-streaming](examples/15download-streaming.go)
+* [connection-active](examples/connection-active/main.go)
+* [connection-passive](examples/connection-passive/main.go)
+* [chat-public](examples/chat-public/main.go)
+* [chat-private](examples/chat-private/main.go)
+* [search](examples/search/main.go)
+* [share](examples/share/main.go)
+* [magnet](examples/magnet/main.go)
+* [download-list](examples/download-list/main.go)
+* [download-all-lists](examples/download-all-lists/main.go)
+* [download-file](examples/download-file/main.go)
+* [download-file-on-disk](examples/download-file-on-disk/main.go)
+* [download-file-from-search](examples/download-file-from-search/main.go)
+* [download-file-from-list](examples/download-file-from-list/main.go)
+* [download-directory-from-list](examples/download-directory-from-list/main.go)
+* [download-streaming](examples/download-streaming/main.go)
 
 ### API Documentation
 
@@ -163,7 +163,7 @@ Other libraries
 
 Inspired by
 
-* https://godoc.org/github.com/anacrolix/torrent
+* https://github.com/anacrolix/torrent
 
 Conventions
 

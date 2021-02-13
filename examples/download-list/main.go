@@ -1,12 +1,9 @@
-// +build ignore
-
 package main
 
 import (
 	"fmt"
 
 	"github.com/aler9/dctk"
-	"github.com/aler9/dctk/pkg/tiger"
 )
 
 func main() {
@@ -22,13 +19,10 @@ func main() {
 		panic(err)
 	}
 
-	// download a file by tth, keep it in RAM
+	// download file list of a certain user
 	client.OnPeerConnected = func(p *dctk.Peer) {
 		if p.Nick == "nickname" {
-			client.DownloadFile(dctk.DownloadConf{
-				Peer: p,
-				TTH:  tiger.HashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
-			})
+			client.DownloadFileList(p, "")
 		}
 	}
 

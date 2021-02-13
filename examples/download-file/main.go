@@ -1,8 +1,8 @@
-// +build ignore
-
 package main
 
 import (
+	"fmt"
+
 	"github.com/aler9/dctk"
 	"github.com/aler9/dctk/pkg/tiger"
 )
@@ -20,19 +20,19 @@ func main() {
 		panic(err)
 	}
 
-	// download a file by tth
+	// download a file by tth, keep it in RAM
 	client.OnPeerConnected = func(p *dctk.Peer) {
 		if p.Nick == "nickname" {
 			client.DownloadFile(dctk.DownloadConf{
-				Peer:     p,
-				TTH:      tiger.HashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
-				SavePath: "/path/to/outfile",
+				Peer: p,
+				TTH:  tiger.HashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
 			})
 		}
 	}
 
-	// download has finished: close
+	// download has finished
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
+		fmt.Printf("downloaded: %d\n", len(d.Content()))
 		client.Close()
 	}
 

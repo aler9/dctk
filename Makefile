@@ -42,6 +42,19 @@ COPY . ./
 endef
 export DOCKERFILE_TEST
 
+test-cmd:
+	go build -o /dev/null ./cmd/...
+
+test-examples:
+	go build -o /dev/null ./examples/...
+
+test-root:
+	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
+	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
+	go test -race -v ./test
+
+test-nodocker: test-cmd test-examples test-root
+
 test:
 	echo "$$DOCKERFILE_TEST" | docker build -q . -f - -t dctk-test
 	docker run --rm -it \
@@ -49,13 +62,6 @@ test:
 	-v /var/run/docker.sock:/var/run/docker.sock:ro \
 	dctk-test \
 	make test-nodocker
-
-test-nodocker:
-	$(foreach HUB,$(shell echo test/*/ | xargs -n1 basename), \
-	docker build -q test/$(HUB) -t dctk-test-hub-$(HUB)$(NL))
-	go test -race -v ./test
-	go build -o /dev/null ./cmd/...
-	$(foreach f,$(shell echo examples/*),go build -o /dev/null ./$(f)$(NL))
 
 lint:
 	docker run --rm -v $(PWD):/app -w /app \

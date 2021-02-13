@@ -1,11 +1,8 @@
-// +build ignore
-
 package main
 
 import (
-	"fmt"
-
 	"github.com/aler9/dctk"
+	"github.com/aler9/dctk/pkg/tiger"
 )
 
 func main() {
@@ -21,28 +18,19 @@ func main() {
 		panic(err)
 	}
 
-	// search file by name
-	client.OnHubConnected = func() {
-		client.Search(dctk.SearchConf{
-			Query: "ubuntu",
-		})
-	}
-
-	// download first result found
-	downloadStarted := false
-	client.OnSearchResult = func(res *dctk.SearchResult) {
-		if downloadStarted == false {
-			downloadStarted = true
+	// download a file by tth
+	client.OnPeerConnected = func(p *dctk.Peer) {
+		if p.Nick == "nickname" {
 			client.DownloadFile(dctk.DownloadConf{
-				Peer: res.Peer,
-				TTH:  *res.TTH,
+				Peer:     p,
+				TTH:      tiger.HashMust("AJ64KGNQ7OKNE7O4ARMYNWQ2VJF677BMUUQAR3Y"),
+				SavePath: "/path/to/outfile",
 			})
 		}
 	}
 
-	// download has finished
+	// download has finished: close
 	client.OnDownloadSuccessful = func(d *dctk.Download) {
-		fmt.Println("file downloaded and available in d.Content()")
 		client.Close()
 	}
 

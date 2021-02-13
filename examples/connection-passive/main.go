@@ -1,5 +1,3 @@
-// +build ignore
-
 package main
 
 import (
@@ -9,13 +7,11 @@ import (
 )
 
 func main() {
-	// connect to hub in active mode. ports must be opened and accessible.
+	// connect to hub in passive mode
 	client, err := dctk.NewClient(dctk.ClientConf{
-		HubURL:  "nmdc://hubip:411",
-		Nick:    "mynick",
-		TCPPort: 3009,
-		UDPPort: 3009,
-		TLSPort: 3010,
+		HubURL:    "nmdc://hubip:411",
+		Nick:      "mynick",
+		IsPassive: true,
 	})
 	if err != nil {
 		panic(err)
