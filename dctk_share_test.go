@@ -1,4 +1,4 @@
-package dctk_test
+package dctk
 
 import (
 	"io/ioutil"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/aler9/dctk"
 	"github.com/aler9/dctk/pkg/log"
 )
 
@@ -17,7 +16,7 @@ func TestShare(t *testing.T) {
 	foreachExternalHub(t, "Share", func(t *testing.T, e *externalHub) {
 		ok := false
 
-		client, err := dctk.NewClient(dctk.ClientConf{
+		client, err := NewClient(ClientConf{
 			LogLevel:         log.LevelError,
 			HubURL:           e.URL(),
 			HubManualConnect: true,

@@ -1,4 +1,4 @@
-package dctk_test
+package dctk
 
 import (
 	"testing"

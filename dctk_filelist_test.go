@@ -1,12 +1,10 @@
-package dctk_test
+package dctk
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/aler9/dctk"
 )
 
 func TestFileList(t *testing.T) {
@@ -18,7 +16,7 @@ func TestFileList(t *testing.T) {
     </Directory>
 </FileListing>`)
 
-	fl, err := dctk.FileListParse(inout)
+	fl, err := FileListParse(inout)
 	require.NoError(t, err)
 
 	cmp, err := fl.Export()
