@@ -132,9 +132,9 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 		return
 	}
 
-	var msgs []*nmdc.SR
-	for _, res := range results {
-		msgs = append(msgs, &nmdc.SR{
+	msgs := make([]*nmdc.SR, len(results))
+	for i, res := range results {
+		msgs[i] = &nmdc.SR{
 			Path: strings.Split(func() string {
 				if f, ok := res.(*shareFile); ok {
 					return f.aliasPath
@@ -162,7 +162,7 @@ func (c *Client) handleNmdcSearchIncomingRequest(req *nmdc.Search) {
 			FreeSlots:  int(c.uploadSlotAvail),
 			TotalSlots: int(c.conf.UploadMaxParallel),
 			HubAddress: fmt.Sprintf("%s:%d", c.hubSolvedIP, c.hubPort),
-		})
+		}
 	}
 
 	// if request was active, send to peer

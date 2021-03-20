@@ -144,8 +144,8 @@ func (c *Client) handleAdcSearchIncomingRequest(id adc.SID, req *adc.SearchReque
 		return
 	}
 
-	var msgs []*adc.SearchResult
-	for _, res := range results {
+	msgs := make([]*adc.SearchResult, len(results))
+	for i, res := range results {
 		msg := &adc.SearchResult{
 			Slots: int(c.conf.UploadMaxParallel),
 		}
@@ -166,7 +166,7 @@ func (c *Client) handleAdcSearchIncomingRequest(id adc.SID, req *adc.SearchReque
 		// add token if sent by author
 		msg.Token = req.Token
 
-		msgs = append(msgs, msg)
+		msgs[i] = msg
 	}
 
 	// send to peer

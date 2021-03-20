@@ -65,9 +65,9 @@ func LeavesFromReader(in io.Reader) (Leaves, error) {
 		return nil, err
 	}
 
-	var ret Leaves
-	for _, l := range ttl {
-		ret = append(ret, Hash(l))
+	ret := make(Leaves, len(ttl))
+	for i, l := range ttl {
+		ret[i] = Hash(l)
 	}
 	return ret, nil
 }
