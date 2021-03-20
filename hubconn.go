@@ -789,11 +789,15 @@ func (h *hubConn) handleMessage(msgi protocommon.MsgDecodable) error {
 		if h.state != hubInitialized && h.state != hubPreInitialized {
 			return fmt.Errorf("[ConnectToMe] invalid state: %s", h.state)
 		}
-		if msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption {
+
+		switch {
+		case msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption:
 			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
-		} else if !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption {
+
+		case !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption:
 			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received plain connect to me request but encryption is forced, skipping")
-		} else {
+
+		default:
 			newPeerConn(h.client, msg.Secure, false, nil, ip, port, "")
 		}
 

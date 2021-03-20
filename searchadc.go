@@ -88,10 +88,10 @@ func (c *Client) handleAdcSearchOutgoingRequest(conf SearchConf) error {
 	return nil
 }
 
-func (c *Client) handleAdcSearchIncomingRequest(ID adc.SID, req *adc.SearchRequest) {
+func (c *Client) handleAdcSearchIncomingRequest(id adc.SID, req *adc.SearchRequest) {
 	var peer *Peer
 	results, err := func() ([]interface{}, error) {
-		peer = c.peerBySessionID(ID)
+		peer = c.peerBySessionID(id)
 		if peer == nil {
 			return nil, fmt.Errorf("search author not found")
 		}

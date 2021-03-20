@@ -118,8 +118,7 @@ func (p *Conn) Read() (protocommon.MsgDecodable, error) {
 					}
 
 				case *adc.FeaturePacket:
-					switch msg := pkt.Message().(type) {
-					case adc.SearchRequest:
+					if msg, ok := pkt.Message().(adc.SearchRequest); ok {
 						return &AdcFSearchRequest{tpkt, &msg}
 					}
 

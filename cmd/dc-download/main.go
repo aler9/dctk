@@ -84,10 +84,8 @@ func main() {
 
 			panic("file or directory not found")
 
-		} else {
-			if client.DownloadCount() == 0 {
-				client.Close()
-			}
+		} else if client.DownloadCount() == 0 {
+			client.Close()
 		}
 	}
 

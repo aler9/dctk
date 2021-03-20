@@ -274,11 +274,14 @@ func NewClient(conf ClientConf) (*Client, error) {
 		return nil, fmt.Errorf("unsupported protocol: %s", u.Scheme)
 	}
 	if u.Port() == "" {
-		if u.Scheme == "adc" {
+		switch u.Scheme {
+		case "adc":
 			u.Host = u.Hostname() + ":5000"
-		} else if u.Scheme == "adcs" {
+
+		case "adcs":
 			u.Host = u.Hostname() + ":5001"
-		} else {
+
+		default:
 			u.Host = u.Hostname() + ":411"
 		}
 	}
@@ -374,10 +377,8 @@ func (c *Client) Run() {
 	if !c.conf.IsPassive {
 		if c.conf.IP != "" {
 			c.ip = c.conf.IP
-		} else {
-			if err := c.getPublicIP(); err != nil {
-				panic(err)
-			}
+		} else if err := c.getPublicIP(); err != nil {
+			panic(err)
 		}
 	}
 

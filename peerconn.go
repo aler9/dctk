@@ -314,22 +314,21 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 				&adc.ClientPacket{},
 				info,
 			})
-		} else {
+
 			// validate peer fingerprint
 			// can be performed on client-side only since many clients do not send
 			// their certificate when in passive mode
-			if p.client.protoIsAdc() && p.isEncrypted &&
-				p.peer.adcFingerprint != "" {
+		} else if p.client.protoIsAdc() && p.isEncrypted &&
+			p.peer.adcFingerprint != "" {
 
-				connFingerprint := protoadc.AdcCertFingerprint(
-					p.tlsConn.ConnectionState().PeerCertificates[0])
+			connFingerprint := protoadc.AdcCertFingerprint(
+				p.tlsConn.ConnectionState().PeerCertificates[0])
 
-				if connFingerprint != p.peer.adcFingerprint {
-					return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
-						connFingerprint, p.peer.adcFingerprint)
-				}
-				log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] fingerprint validated")
+			if connFingerprint != p.peer.adcFingerprint {
+				return fmt.Errorf("unable to validate peer fingerprint (%s vs %s)",
+					connFingerprint, p.peer.adcFingerprint)
 			}
+			log.Log(p.client.conf.LogLevel, log.LevelInfo, "[peer] fingerprint validated")
 		}
 
 		dl := p.client.downloadByAdcToken(p.adcToken)
@@ -447,19 +446,22 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 		p.state = "key"
 
 		var direction string
-		if p.localDirection == "upload" && !p.remoteIsUpload {
+
+		switch {
+		case p.localDirection == "upload" && !p.remoteIsUpload:
 			direction = "upload"
 
-		} else if p.localDirection == "download" && p.remoteIsUpload {
+		case p.localDirection == "download" && p.remoteIsUpload:
 			direction = "download"
 
-		} else if p.localDirection == "download" && !p.remoteIsUpload {
+		case p.localDirection == "download" && !p.remoteIsUpload:
+			switch {
 			// bet win
-			if p.localBet > p.remoteBet {
+			case p.localBet > p.remoteBet:
 				direction = "download"
 
-				// bet lost
-			} else if p.localBet < p.remoteBet {
+			// bet lost
+			case p.localBet < p.remoteBet:
 				direction = "upload"
 
 				// if there's a pending download, request another connection
@@ -467,11 +469,11 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 					p.client.peerRequestConnection(dl.conf.Peer, "")
 				}
 
-			} else {
+			default:
 				return fmt.Errorf("equal random numbers")
 			}
 
-		} else {
+		default:
 			return fmt.Errorf("double upload request")
 		}
 
