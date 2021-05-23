@@ -120,7 +120,6 @@ func (c *Client) peerConnectToMe(peer *Peer, adcToken string) {
 				adcToken,
 			},
 		})
-
 	} else {
 		c.hubConn.conn.Write(&nmdc.ConnectToMe{
 			Targ: peer.Nick,
@@ -149,7 +148,6 @@ func (c *Client) peerRevConnectToMe(peer *Peer, adcToken string) {
 				adcToken,
 			},
 		})
-
 	} else {
 		c.hubConn.conn.Write(&nmdc.RevConnectToMe{
 			From: c.conf.Nick,

@@ -62,9 +62,12 @@ type BaseConn struct {
 }
 
 // NewBaseConn allocates a BaseConn.
-func NewBaseConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool, msgDelim byte) *BaseConn {
-
+func NewBaseConn(logLevel log.Level,
+	remoteLabel string,
+	nconn net.Conn,
+	applyReadTimeout bool,
+	applyWriteTimeout bool,
+	msgDelim byte) *BaseConn {
 	readTimeout := func() time.Duration {
 		if applyReadTimeout {
 			return connReadTimeout

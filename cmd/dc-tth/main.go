@@ -8,9 +8,7 @@ import (
 	"github.com/aler9/dctk/pkg/tiger"
 )
 
-var (
-	fpath = kingpin.Arg("fpath", "Path to a file").Required().String()
-)
+var fpath = kingpin.Arg("fpath", "Path to a file").Required().String()
 
 func main() {
 	kingpin.CommandLine.Help = "Compute the Tiger Tree Hash (TTH) of a given file."

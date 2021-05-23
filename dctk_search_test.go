@@ -31,9 +31,9 @@ func TestSearchActive(t *testing.T) {
 			require.NoError(t, err)
 
 			os.RemoveAll("/tmp/testshare")
-			os.Mkdir("/tmp/testshare", 0755)
-			os.Mkdir("/tmp/testshare/inner folder", 0755)
-			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+			os.Mkdir("/tmp/testshare", 0o755)
+			os.Mkdir("/tmp/testshare/inner folder", 0o755)
+			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("aliasname", "/tmp/testshare")
@@ -151,9 +151,9 @@ func TestSearchPassive(t *testing.T) {
 			require.NoError(t, err)
 
 			os.RemoveAll("/tmp/testshare")
-			os.Mkdir("/tmp/testshare", 0755)
-			os.Mkdir("/tmp/testshare/inner folder", 0755)
-			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0644)
+			os.Mkdir("/tmp/testshare", 0o755)
+			os.Mkdir("/tmp/testshare/inner folder", 0o755)
+			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("aliasname", "/tmp/testshare")

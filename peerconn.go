@@ -157,7 +157,6 @@ func (p *peerConn) do() {
 						adc.FeaZLIG: true,
 					}},
 				})
-
 			} else {
 				p.conn.Write(&nmdc.MyNick{Name: nmdc.Name(p.client.conf.Nick)})
 				p.conn.Write(&nmdc.Lock{
@@ -277,7 +276,6 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 					adc.FeaZLIG: true,
 				}},
 			})
-
 		} else {
 			info := &adc.UserInfo{}
 			info.Id = p.client.clientID

@@ -15,7 +15,6 @@ func (c *Client) MessagePublic(content string) {
 			&adc.BroadcastPacket{ID: c.adcSessionID},
 			&adc.ChatMessage{Text: content},
 		})
-
 	} else {
 		c.hubConn.conn.Write(&nmdc.ChatMessage{c.conf.Nick, content}) //nolint:govet
 	}
@@ -28,7 +27,6 @@ func (c *Client) MessagePrivate(dest *Peer, content string) {
 			&adc.DirectPacket{ID: c.adcSessionID, To: dest.adcSessionID},
 			&adc.ChatMessage{Text: content},
 		})
-
 	} else {
 		c.hubConn.conn.Write(&nmdc.PrivateMessage{
 			From: c.conf.Nick,

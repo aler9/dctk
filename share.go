@@ -141,7 +141,6 @@ func (sm *shareIndexer) index() {
 						fileSize == oldDir.files[file.Name()].size &&
 						fileModTime.Equal(oldDir.files[file.Name()].modTime) {
 						tth = oldDir.files[file.Name()].tth
-
 					} else {
 						var err error
 						tthl, err = tiger.LeavesFromFile(realPath)

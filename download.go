@@ -118,7 +118,7 @@ func (c *Client) DownloadFLDirectory(peer *Peer, dir *FileListDirectory, savePat
 	var dlDir func(sdir *FileListDirectory, dpath string) error
 	dlDir = func(sdir *FileListDirectory, dpath string) error {
 		// create destionation directory if does not exist
-		os.Mkdir(dpath, 0755)
+		os.Mkdir(dpath, 0o755)
 
 		for _, file := range sdir.Files {
 			_, err := c.DownloadFLFile(peer, file, filepath.Join(dpath, file.Name))
@@ -302,7 +302,6 @@ func (d *Download) do() {
 		// exit this routine and do the work in the peer routine
 		return nil
 	}()
-
 	if err != nil {
 		d.client.Safe(func() {
 			d.handleExit(err)
@@ -310,9 +309,10 @@ func (d *Download) do() {
 	}
 }
 
-func (d *Download) handleSendFile(reqQuery string, reqStart uint64,
-	reqLength uint64, reqCompressed bool) error {
-
+func (d *Download) handleSendFile(reqQuery string,
+	reqStart uint64,
+	reqLength uint64,
+	reqCompressed bool) error {
 	if reqQuery != d.query {
 		return fmt.Errorf("filename returned by uploader is wrong: %s vs %s", reqQuery, d.query)
 	}
