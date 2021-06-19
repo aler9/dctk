@@ -1,6 +1,6 @@
 module github.com/aler9/dctk
 
-go 1.13
+go 1.14
 
 require (
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
