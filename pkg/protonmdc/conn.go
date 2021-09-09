@@ -18,7 +18,8 @@ var ReNmdcAddress = regexp.MustCompile("^(" + protocommon.ReStrIP + "):(" + prot
 // ReNmdcCommand is the regex to parse a NMDC command
 var ReNmdcCommand = regexp.MustCompile(`(?s)^\$([a-zA-Z0-9:]+)( (.+))?$`)
 
-var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + protocommon.ReStrNick + "|.+?)> (.+)$") // some very bad hubs also use spaces in public message authors
+// some very bad hubs also use spaces in public message authors
+var reNmdcPublicChat = regexp.MustCompile("(?s)^<(" + protocommon.ReStrNick + "|.+?)> (.+)$")
 
 // Conn is a NMDC connection.
 type Conn struct {

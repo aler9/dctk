@@ -792,10 +792,12 @@ func (h *hubConn) handleMessage(msgi protocommon.MsgDecodable) error {
 
 		switch {
 		case msg.Secure && h.client.conf.PeerEncryptionMode == DisableEncryption:
-			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received encrypted connect to me request but encryption is disabled, skipping")
+			log.Log(h.client.conf.LogLevel, log.LevelInfo,
+				"received encrypted connect to me request but encryption is disabled, skipping")
 
 		case !msg.Secure && h.client.conf.PeerEncryptionMode == ForceEncryption:
-			log.Log(h.client.conf.LogLevel, log.LevelInfo, "received plain connect to me request but encryption is forced, skipping")
+			log.Log(h.client.conf.LogLevel, log.LevelInfo,
+				"received plain connect to me request but encryption is forced, skipping")
 
 		default:
 			newPeerConn(h.client, msg.Secure, false, nil, ip, port, "")

@@ -523,7 +523,8 @@ func (d *Download) handleExit(err error) {
 			d.client.OnDownloadSuccessful(d)
 		}
 	} else {
-		log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] failed %s", d.conf.Peer.Nick, dcReadableQuery(d.query))
+		log.Log(d.client.conf.LogLevel, log.LevelInfo, "[download] [%s] failed %s",
+			d.conf.Peer.Nick, dcReadableQuery(d.query))
 		if d.client.OnDownloadError != nil {
 			d.client.OnDownloadError(d)
 		}
