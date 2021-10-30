@@ -208,7 +208,6 @@ func (p *peerConn) do() {
 							p.state = "wait_upload"
 							u.handleExit(nil)
 						})
-
 					} else if err != nil {
 						return err
 					}
@@ -318,7 +317,6 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 			// their certificate when in passive mode
 		} else if p.client.protoIsAdc() && p.isEncrypted &&
 			p.peer.adcFingerprint != "" {
-
 			connFingerprint := protoadc.AdcCertFingerprint(
 				p.tlsConn.ConnectionState().PeerCertificates[0])
 
@@ -343,7 +341,6 @@ func (p *peerConn) handleMessage(msgi protocommon.MsgDecodable) error {
 			dl.pconn = p
 			dl.state = "processing"
 			dl.peerChan <- struct{}{}
-
 		} else {
 			key := nickDirectionPair{p.peer.Nick, "upload"}
 			if _, ok := p.client.peerConnsByKey[key]; ok {

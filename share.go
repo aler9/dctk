@@ -112,7 +112,6 @@ func (sm *shareIndexer) index() {
 						return nil, err
 					}
 					dir.dirs[file.Name()] = subdir
-
 				} else {
 					var tthl tiger.Leaves
 					var tth tiger.Hash

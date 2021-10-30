@@ -84,7 +84,6 @@ func (u *listenerUDP) do() {
 
 					u.client.handleAdcSearchResult(true, p, pktMsg.Msg)
 					return nil
-
 				}
 
 				if msgStr[len(msgStr)-1] != '|' {

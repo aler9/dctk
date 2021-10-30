@@ -47,7 +47,6 @@ func TestShare(t *testing.T) {
 						client.ShareAdd("share", "/tmp/testshare")
 					})
 				}()
-
 			} else {
 				ok = true
 				client.Close()

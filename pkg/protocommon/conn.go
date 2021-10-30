@@ -146,7 +146,6 @@ func (c *BaseConn) SetSyncMode(val bool) {
 	if val {
 		close(c.sendChan)
 		<-c.writerJoined
-
 	} else {
 		c.sendChan = make(chan []byte)
 		go c.writeReceiver()

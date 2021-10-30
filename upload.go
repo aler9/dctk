@@ -198,7 +198,6 @@ func newUpload(client *Client,
 				Compressed: u.isCompressed,
 			},
 		})
-
 	} else {
 		queryParts := strings.Split(u.query, " ")
 		u.pconn.conn.Write(&nmdc.ADCSnd{

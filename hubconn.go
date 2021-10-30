@@ -510,7 +510,6 @@ func (h *hubConn) handleMessage(msgi protocommon.MsgDecodable) error {
 			h.client.conf.PeerEncryptionMode == DisableEncryption) ||
 			(msg.Msg.Proto == adc.ProtoADC &&
 				h.client.conf.PeerEncryptionMode == ForceEncryption) {
-
 			h.conn.Write(&protoadc.AdcDStatus{ //nolint:govet
 				&adc.DirectPacket{ID: h.client.adcSessionID, To: msg.Pkt.ID},
 				&adc.Status{

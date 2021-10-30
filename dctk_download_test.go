@@ -171,7 +171,6 @@ func TestDownloadDir(t *testing.T) {
 					require.NoError(t, err)
 
 					client.DownloadFLDirectory(d.Conf().Peer, dir, "/tmp/out")
-
 				} else {
 					if _, ok := downloaded[d.Conf().TTH]; !ok {
 						t.Errorf("wrong TTH")
@@ -333,7 +332,6 @@ func TestDownloadFromList(t *testing.T) {
 					require.NoError(t, err)
 
 					client.DownloadFLFile(d.Conf().Peer, file, "")
-
 				} else {
 					ok = true
 					client.Close()

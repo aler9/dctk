@@ -251,7 +251,6 @@ func (d *Download) do() {
 				d.client.peerRequestConnection(d.conf.Peer, d.adcToken)
 				d.state = "waiting_peer"
 				wait = true
-
 			} else {
 				log.Log(d.client.conf.LogLevel, log.LevelDebug, "[download] [%s] using existing connection", d.conf.Peer.Nick)
 				pconn.state = "delegated_download"
@@ -431,7 +430,6 @@ func (d *Download) handleDownload(msgi protocommon.MsgDecodable) error {
 					if err := os.Remove(d.conf.SavePath + ".tmp"); err != nil {
 						return err
 					}
-
 				} else {
 					cnt, err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
 					if err != nil {

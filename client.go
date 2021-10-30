@@ -508,7 +508,6 @@ func (c *Client) sendInfos(firstTime bool) {
 			&adc.BroadcastPacket{ID: c.adcSessionID},
 			info,
 		})
-
 	} else {
 		// http://nmdc.sourceforge.net/Versions/NMDC-1.3.html#_myinfo
 		// https://web.archive.org/web/20150323115608/http://wiki.gusari.org/index.php?title=$MyINFO

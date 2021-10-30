@@ -63,7 +63,6 @@ func newListenerTCP(client *Client, isEncrypted bool) error {
 		if err != nil {
 			return err
 		}
-
 	} else {
 		var err error
 		listener, err = net.Listen("tcp4", fmt.Sprintf(":%d", client.conf.TCPPort))
