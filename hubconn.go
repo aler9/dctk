@@ -179,7 +179,7 @@ func (h *hubConn) do() {
 		}
 
 		// do not use read timeout since hub does not send data continuously
-		protoName := ""
+		var protoName string
 		if h.client.protoIsAdc() {
 			protoName = "adc"
 			h.conn = protoadc.NewConn(h.client.conf.LogLevel, "h", rawconn, false, true)
