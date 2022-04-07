@@ -67,7 +67,8 @@ func NewBaseConn(logLevel log.Level,
 	nconn net.Conn,
 	applyReadTimeout bool,
 	applyWriteTimeout bool,
-	msgDelim byte) *BaseConn {
+	msgDelim byte,
+) *BaseConn {
 	readTimeout := func() time.Duration {
 		if applyReadTimeout {
 			return connReadTimeout

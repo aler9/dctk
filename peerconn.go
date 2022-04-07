@@ -44,7 +44,8 @@ type peerConn struct {
 }
 
 func newPeerConn(client *Client, isEncrypted bool, isActive bool,
-	rawconn net.Conn, ip string, port uint, adcToken string) *peerConn {
+	rawconn net.Conn, ip string, port uint, adcToken string,
+) *peerConn {
 	p := &peerConn{
 		client:      client,
 		isEncrypted: isEncrypted,

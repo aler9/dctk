@@ -15,7 +15,8 @@ type timedConn struct {
 }
 
 func newTimedConn(conn net.Conn, readTimeout time.Duration,
-	writeTimeout time.Duration) io.ReadWriteCloser {
+	writeTimeout time.Duration,
+) io.ReadWriteCloser {
 	return &timedConn{
 		Closer:       conn,
 		conn:         conn,

@@ -40,7 +40,8 @@ func newUpload(client *Client,
 	reqQuery string,
 	reqStart uint64,
 	reqLength int64,
-	reqCompressed bool) bool {
+	reqCompressed bool,
+) bool {
 	u := &upload{
 		client:       client,
 		state:        "processing",
