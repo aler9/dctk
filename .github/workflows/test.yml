@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        go: ["1.15", "1.16", "1.17"]
+        go: ["1.16", "1.17", "1.18"]
 
     steps:
     - uses: actions/checkout@v2
@@ -23,5 +23,5 @@ jobs:
 
     - run: make test-nodocker
 
-    - if: matrix.go == '1.16'
+    - if: matrix.go == '1.18'
       run: bash <(curl -s https://codecov.io/bash)

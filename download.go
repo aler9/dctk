@@ -311,7 +311,8 @@ func (d *Download) do() {
 func (d *Download) handleSendFile(reqQuery string,
 	reqStart uint64,
 	reqLength uint64,
-	reqCompressed bool) error {
+	reqCompressed bool,
+) error {
 	if reqQuery != d.query {
 		return fmt.Errorf("filename returned by uploader is wrong: %s vs %s", reqQuery, d.query)
 	}

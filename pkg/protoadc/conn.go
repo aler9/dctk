@@ -53,7 +53,8 @@ type Conn struct {
 
 // NewConn allocates a Conn.
 func NewConn(logLevel log.Level, remoteLabel string, nconn net.Conn,
-	applyReadTimeout bool, applyWriteTimeout bool) *Conn {
+	applyReadTimeout bool, applyWriteTimeout bool,
+) *Conn {
 	p := &Conn{
 		BaseConn: protocommon.NewBaseConn(logLevel, remoteLabel,
 			nconn, applyReadTimeout, applyWriteTimeout, '\n'),
