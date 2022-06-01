@@ -120,16 +120,10 @@ Share a directory in a given hub.
 
 ## Links
 
-Base library
+Related projects
 
-* https://github.com/direct-connect/go-dc
-
-Protocol references
-
-* (ADC) https://adc.dcbase.org/Protocol
-* (ADC) https://adc.dcbase.org/Extensions
-* (NMDC) http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
-* (NMDC) https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
+* https://github.com/direct-connect/go-dc (base library)
+* https://github.com/anacrolix/torrent (inspired by)
 
 Hubs
 
@@ -142,7 +136,7 @@ Hubs
 * (NMDC & ADC) http://rushub.org/
 * (NMDC & ADC) https://github.com/direct-connect/go-dcpp
 
-Clients
+Other clients
 
 * (NMDC) https://dev.yorhel.nl/ncdc
 * (NMDC & ADC) https://github.com/eiskaltdcpp/eiskaltdcpp
@@ -162,10 +156,10 @@ Other libraries
 * [Python] (NMDC) http://pydc.sourceforge.net/
 * [Python] (ADC) https://pypi.org/project/pyADC/
 
-Inspired by
+Standards
 
-* https://github.com/anacrolix/torrent
-
-Conventions
-
-* https://github.com/golang-standards/project-layout
+* ADC https://adc.dcbase.org/Protocol
+* ADC https://adc.dcbase.org/Extensions
+* NMDC http://nmdc.sourceforge.net/Versions/NMDC-1.3.html
+* NMDC https://web.archive.org/web/20160412113951/http://wiki.gusari.org/index.php?title=Main_Page
+* Golang project layout https://github.com/golang-standards/project-layout
