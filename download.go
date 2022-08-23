@@ -260,9 +260,8 @@ func (d *Download) do() {
 			}
 		})
 		if wait {
-			timeout := time.NewTimer(peerWaitPeriod)
 			select {
-			case <-timeout.C:
+			case <-time.After(peerWaitPeriod):
 				return fmt.Errorf("timed out")
 			case <-d.terminate:
 				return protocommon.ErrorTerminated
