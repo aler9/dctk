@@ -1,3 +1,4 @@
+// Package protonmdc provides a NMDC connection implementation.
 package protonmdc
 
 import (

@@ -1,3 +1,4 @@
+// dc-tth command.
 package main
 
 import (

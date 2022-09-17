@@ -1,3 +1,4 @@
+// dc-search command.
 package main
 
 import (

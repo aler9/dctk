@@ -4,40 +4,14 @@ peer-to-peer system (ADC and NMDC protocols) in the Go programming language.
 It allows the creation of clients that can interact with hubs and other
 clients, and can be used as backend to user interfaces or automatic bots.
 
-Basic example (more are available at https://github.com/aler9/dctk/tree/master/examples)
-
-  package main
-
-  import (
-  	"fmt"
-  	"github.com/aler9/dctk"
-  )
-
-  func main() {
-  	client, err := dctk.NewClient(dctk.ClientConf{
-  		HubURL:     "nmdc://hubip:411",
-  		Nick:       "mynick",
-  		TCPPort:    3009,
-  		UDPPort:    3009,
-  		TLSPort:    3010,
-  	})
-  	if err != nil {
-  		panic(err)
-  	}
-
-  	client.OnHubConnected = func() {
-  		fmt.Println("connected to hub")
-  	}
-
-  	client.Run()
-  }
+Examples are available at https://github.com/aler9/dctk/tree/master/examples
 */
 package dctk
 
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -439,7 +413,7 @@ func (c *Client) getPublicIP() error {
 		return err
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return err

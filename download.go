@@ -5,7 +5,6 @@ import (
 	"compress/bzip2"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -431,7 +430,7 @@ func (d *Download) handleDownload(msgi protocommon.MsgDecodable) error {
 						return err
 					}
 				} else {
-					cnt, err := ioutil.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
+					cnt, err := io.ReadAll(bzip2.NewReader(bytes.NewReader(d.content)))
 					if err != nil {
 						return err
 					}

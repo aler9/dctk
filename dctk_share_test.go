@@ -1,7 +1,6 @@
 package dctk
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ func TestShare(t *testing.T) {
 		os.RemoveAll("/tmp/testshare")
 		os.Mkdir("/tmp/testshare", 0o755)
 		os.Mkdir("/tmp/testshare/folder", 0o755)
-		ioutil.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0o644)
+		os.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0o644)
 
 		client.OnInitialized = func() {
 			client.ShareAdd("share", "/tmp/testshare")

@@ -1,3 +1,4 @@
+// Package protocommon contains shared elements between ADC and NMDC connections.
 package protocommon
 
 import (

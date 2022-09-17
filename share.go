@@ -3,7 +3,6 @@ package dctk
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -95,7 +94,7 @@ func (sm *shareIndexer) index() {
 				aliasPath: apath,
 			}
 
-			files, err := ioutil.ReadDir(dpath)
+			files, err := os.ReadDir(dpath)
 			if err != nil {
 				return nil, err
 			}

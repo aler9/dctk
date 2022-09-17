@@ -1,3 +1,4 @@
+// dc-share command.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Package tiger provides the Tiger hash.
 package tiger
 
 import (

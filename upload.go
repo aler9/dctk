@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -66,7 +65,7 @@ func newUpload(client *Client,
 				return fmt.Errorf("filelist seeking is not supported")
 			}
 
-			u.reader = ioutil.NopCloser(bytes.NewReader(u.client.fileList))
+			u.reader = io.NopCloser(bytes.NewReader(u.client.fileList))
 			u.length = uint64(len(u.client.fileList))
 			return nil
 		}
@@ -120,7 +119,7 @@ func newUpload(client *Client,
 			for _, leaf := range sfile.tthl {
 				buf.Write(leaf[:])
 			}
-			u.reader = ioutil.NopCloser(buf)
+			u.reader = io.NopCloser(buf)
 			u.length = uint64(buf.Len())
 			return nil
 		}

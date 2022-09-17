@@ -1,7 +1,6 @@
 package dctk
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -33,7 +32,7 @@ func TestSearchActive(t *testing.T) {
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
 			os.Mkdir("/tmp/testshare/inner folder", 0o755)
-			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("aliasname", "/tmp/testshare")
@@ -153,7 +152,7 @@ func TestSearchPassive(t *testing.T) {
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
 			os.Mkdir("/tmp/testshare/inner folder", 0o755)
-			ioutil.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/inner folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("aliasname", "/tmp/testshare")

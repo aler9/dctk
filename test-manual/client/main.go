@@ -1,3 +1,4 @@
+// manual client.
 package main
 
 import (

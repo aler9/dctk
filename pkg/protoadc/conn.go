@@ -1,3 +1,4 @@
+// Package protoadc provides an ADC connection implementation.
 package protoadc
 
 import (

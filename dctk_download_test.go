@@ -1,7 +1,6 @@
 package dctk
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -31,7 +30,7 @@ func TestDownloadActive(t *testing.T) {
 
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
-			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
@@ -104,11 +103,11 @@ func TestDownloadDir(t *testing.T) {
 			os.Mkdir("/tmp/testshare", 0o755)
 			os.Mkdir("/tmp/testshare/folder", 0o755)
 			os.Mkdir("/tmp/testshare/folder/subdir", 0o755)
-			ioutil.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0o644)
-			ioutil.WriteFile("/tmp/testshare/folder/second file.txt", []byte(strings.Repeat("B", 50000)), 0o644)
-			ioutil.WriteFile("/tmp/testshare/folder/third file.txt", []byte(strings.Repeat("C", 50000)), 0o644)
-			ioutil.WriteFile("/tmp/testshare/folder/subdir/fourth file.txt", []byte(strings.Repeat("D", 50000)), 0o644)
-			ioutil.WriteFile("/tmp/testshare/folder/subdir/fifth file.txt", []byte(strings.Repeat("E", 50000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/first file.txt", []byte(strings.Repeat("A", 50000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/second file.txt", []byte(strings.Repeat("B", 50000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/third file.txt", []byte(strings.Repeat("C", 50000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/subdir/fourth file.txt", []byte(strings.Repeat("D", 50000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/subdir/fifth file.txt", []byte(strings.Repeat("E", 50000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
@@ -285,7 +284,7 @@ func TestDownloadFromList(t *testing.T) {
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
 			os.Mkdir("/tmp/testshare/folder", 0o755)
-			ioutil.WriteFile("/tmp/testshare/folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/folder/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
@@ -366,7 +365,7 @@ func TestDownloadOnDisk(t *testing.T) {
 
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
-			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
@@ -438,7 +437,7 @@ func TestDownloadPassive(t *testing.T) {
 
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
-			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
@@ -509,7 +508,7 @@ func TestDownloadTls(t *testing.T) {
 
 			os.RemoveAll("/tmp/testshare")
 			os.Mkdir("/tmp/testshare", 0o755)
-			ioutil.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
+			os.WriteFile("/tmp/testshare/test file.txt", []byte(strings.Repeat("A", 10000)), 0o644)
 
 			client.OnInitialized = func() {
 				client.ShareAdd("share", "/tmp/testshare")
