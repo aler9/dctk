@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/aler9/go-dc v0.0.0-20200223212455-27520ef27d38
-	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76
-	github.com/stretchr/testify v1.4.0
+	github.com/dsnet/compress v0.0.1
+	github.com/stretchr/testify v1.8.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
@@ -16,5 +16,5 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/text v0.3.2 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
